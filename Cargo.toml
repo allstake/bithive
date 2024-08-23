@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "contracts/btc-client",
+    "contracts/mock-btc-lightclient"
+]
+resolver = "2"
+
+[patch.crates-io]
+parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
