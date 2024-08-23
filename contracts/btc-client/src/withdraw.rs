@@ -1,11 +1,11 @@
 use crate::*;
-use bitcoin::{consensus::encode::deserialize_hex, sighash::SighashCache, Psbt, Transaction};
+use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
 use ext::{
     ext_btc_lightclient, ext_chain_signature, SignRequest, SignatureResponse,
     GAS_LIGHTCLIENT_VERIFY,
 };
 use near_sdk::{env, near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError};
-use utils::get_embed_message;
+use utils::{get_embed_message, get_hash_to_sign};
 
 const CHAIN_SIGNATURE_PATH: &str = "btc/v1";
 const CHAIN_SIGNATURE_KEY_VERSION: u32 = 0; // TODO ??
@@ -72,11 +72,9 @@ impl Contract {
         self.verify_withdraw_transaction(&psbt.unsigned_tx, &user_pubkey, embed_vout);
 
         // request signature from chain signature
-        let tx = psbt.unsigned_tx.clone();
-        let mut cache = SighashCache::new(tx);
-        let payload = psbt.sighash_ecdsa(0, &mut cache).unwrap();
+        let payload = get_hash_to_sign(&psbt, 0);
         let req = SignRequest {
-            payload: *payload.0.as_ref(),
+            payload,
             path: CHAIN_SIGNATURE_PATH.to_string(),
             key_version: CHAIN_SIGNATURE_KEY_VERSION,
         };
