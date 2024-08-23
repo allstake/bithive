@@ -7,7 +7,7 @@ struct Contract {}
 
 #[near_bindgen]
 impl Contract {
-    #[allow(unused_variables)]
+    #[allow(unused_variables, dead_code)]
     pub fn verify_transaction_inclusion(
         &self,
         tx_id: String,

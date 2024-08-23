@@ -1,7 +1,8 @@
 use near_sdk::ext_contract;
 
 #[ext_contract(ext_btc_lightclient)]
-pub trait BtcLightClient {
+#[allow(dead_code)]
+trait BtcLightClient {
     fn verify_transaction_inclusion(
         &self,
         tx_id: String,
