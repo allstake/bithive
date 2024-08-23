@@ -8,12 +8,13 @@ use bitcoin::{
         OP_CHECKMULTISIG, OP_CHECKSIG, OP_CSV, OP_DROP, OP_ELSE, OP_ENDIF, OP_IF, OP_PUSHNUM_2,
     },
     script::Builder,
-    Amount, PublicKey, Sequence, Transaction, TxOut,
+    PublicKey, Sequence, Transaction, TxOut,
 };
-use ext::ext_btc_lightclient;
+use ext::{ext_btc_lightclient, GAS_LIGHTCLIENT_VERIFY};
 use k256::sha2::{Digest, Sha256};
 use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
 use types::output_id;
+use utils::get_embed_message;
 
 use crate::*;
 
@@ -26,8 +27,6 @@ const ERR_BAD_PUBKER_HEX: &str = "Invalid pubkey hex";
 const ERR_BAD_DEPOSIT_IDX: &str = "Bad deposit output index";
 const ERR_BAD_EMBED_IDX: &str = "Bad embed output index";
 
-const ERR_EMBED_NOT_ZERO: &str = "Embed output should have 0 value";
-const ERR_EMBED_NOT_OPRETURN: &str = "Embed output is not OP_RETURN";
 const ERR_EMBED_INVALID_MSG: &str = "Invalid embed output msg";
 
 const ERR_DEPOSIT_NOT_P2WSH: &str = "Deposit output is not P2WSH";
@@ -35,7 +34,6 @@ const ERR_DEPOSIT_BAD_SCRIPT_HASH: &str = "Deposit output bad script hash";
 
 const ERR_DEPOSIT_ALREADY_SAVED: &str = "Deposit already saved";
 
-const GAS_LIGHTCLIENT_VERIFY: Gas = Gas(30 * Gas::ONE_TERA.0);
 const GAS_DEPOSIT_VERIFY_CB: Gas = Gas(30 * Gas::ONE_TERA.0);
 
 #[near_bindgen]
@@ -54,8 +52,8 @@ impl Contract {
     pub fn submit_deposit_tx(
         &mut self,
         tx_hex: String,
-        deposit_vout: usize,
-        embed_vout: usize,
+        deposit_vout: u64,
+        embed_vout: u64,
         user_pubkey_hex: String,
         allstake_pubkey_hex: String,
         sequence_height: u16,
@@ -75,11 +73,14 @@ impl Contract {
         );
 
         // verify embed output
-        let embed_output = tx.output.get(embed_vout).expect(ERR_BAD_EMBED_IDX);
-        let msg = self.verify_embed_output(embed_output);
+        let embed_output = tx.output.get(embed_vout as usize).expect(ERR_BAD_EMBED_IDX);
+        let msg = get_embed_message(embed_output);
 
         // verify deposit output
-        let deposit_output = tx.output.get(deposit_vout).expect(ERR_BAD_DEPOSIT_IDX);
+        let deposit_output = tx
+            .output
+            .get(deposit_vout as usize)
+            .expect(ERR_BAD_DEPOSIT_IDX);
         let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
         let allstake_pubkey = PublicKey::from_str(&allstake_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
         let sequence = Sequence::from_height(sequence_height);
@@ -126,7 +127,7 @@ impl Contract {
     pub fn on_verify_deposit_tx(
         &mut self,
         tx_id: String,
-        deposit_vout: usize,
+        deposit_vout: u64,
         value: u64,
         user_pubkey: String,
         #[callback_result] result: Result<bool, PromiseError>,
@@ -135,12 +136,8 @@ impl Contract {
         if valid {
             // append to user's active deposits
             let mut account = self.get_account(&user_pubkey);
-            let deposit = &Deposit {
-                tx_id,
-                vout: deposit_vout,
-                value,
-            };
-            account.append_active_deposits(deposit);
+            let deposit = &Deposit::new(tx_id, deposit_vout, value);
+            account.insert_active_deposit(deposit);
             self.set_account(&account);
 
             // TODO emit
@@ -153,15 +150,6 @@ impl Contract {
 }
 
 impl Contract {
-    /// verify if output is a valid embed output (OP_RETURN)
-    /// returns the embed data
-    fn verify_embed_output(&self, output: &TxOut) -> String {
-        require!(output.script_pubkey.is_op_return(), ERR_EMBED_NOT_OPRETURN);
-        require!(output.value == Amount::ZERO, ERR_EMBED_NOT_ZERO);
-        // first 2 bytes are OP codes, msg starts from the 3rd byte (4th in hex)
-        output.script_pubkey.to_hex_string()[4..].to_string()
-    }
-
     /// verify if output is a valid stake output
     fn verify_deposit_output_v1(
         &self,
@@ -214,8 +202,8 @@ impl Contract {
         );
     }
 
-    fn set_deposit_confirmed(&mut self, tx_id: String, vout: usize) {
-        let output_id = output_id(tx_id, vout);
+    fn set_deposit_confirmed(&mut self, tx_id: String, vout: u64) {
+        let output_id = output_id(&tx_id, vout);
         require!(
             !self.confirmed_deposit_txns.contains(&output_id),
             ERR_DEPOSIT_ALREADY_SAVED
@@ -223,8 +211,8 @@ impl Contract {
         self.confirmed_deposit_txns.insert(&output_id);
     }
 
-    fn unset_deposit_confirmed(&mut self, tx_id: String, vout: usize) {
-        let output_id = output_id(tx_id, vout);
+    fn unset_deposit_confirmed(&mut self, tx_id: String, vout: u64) {
+        let output_id = output_id(&tx_id, vout);
         self.confirmed_deposit_txns.remove(&output_id);
     }
 }
@@ -237,7 +225,9 @@ mod tests {
         Contract::init(
             AccountId::new_unchecked("owner".to_string()),
             AccountId::new_unchecked("lc".to_string()),
+            AccountId::new_unchecked("cs".to_string()),
             6,
+            0,
         )
     }
 
@@ -253,12 +243,7 @@ mod tests {
         5
     }
 
-    fn submit_deposit(
-        contract: &mut Contract,
-        tx_hex: String,
-        deposit_vout: usize,
-        embed_vout: usize,
-    ) {
+    fn submit_deposit(contract: &mut Contract, tx_hex: String, deposit_vout: u64, embed_vout: u64) {
         contract.submit_deposit_tx(
             tx_hex,
             deposit_vout,

@@ -3,11 +3,11 @@ use near_sdk::near_bindgen;
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, Default)]
-struct Contract {}
+pub struct Contract {}
 
 #[near_bindgen]
 impl Contract {
-    #[allow(unused_variables, dead_code)]
+    #[allow(unused_variables)]
     pub fn verify_transaction_inclusion(
         &self,
         tx_id: String,
