@@ -1,0 +1,17 @@
+{
+  "name": "allstake-btc-management-contracts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "husky": "^9.1.5",
+    "lint-staged": "^15.2.9"
+  }
+}
