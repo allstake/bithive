@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "contracts/btc-client",
-    "contracts/mock-btc-lightclient"
+    "contracts/mock-btc-lightclient",
+    "contracts/mock-chain-signature",
 ]
 resolver = "2"
 

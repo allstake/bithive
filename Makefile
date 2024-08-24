@@ -12,6 +12,11 @@ mock-btc-lightclient: contracts/mock-btc-lightclient
 	@mkdir -p res
 	@cp target/wasm32-unknown-unknown/release/mock_btc_lightclient.wasm ./res/mock_btc_lightclient.wasm
 
+mock-chain-signature: contracts/mock-chain-signature
+	$(call compile_release,mock-chain-signature)
+	@mkdir -p res
+	@cp target/wasm32-unknown-unknown/release/mock_chain_signature.wasm ./res/mock_chain_signature.wasm
+
 lint:
 	@cargo fmt --all
 	@cargo clippy --fix --allow-dirty --allow-staged --features=test
