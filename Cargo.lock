@@ -790,6 +790,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-chain-signature"
+version = "1.0.0"
+dependencies = [
+ "near-contract-standards",
+ "near-sdk",
+]
+
+[[package]]
 name = "near-abi"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
