@@ -1,10 +1,14 @@
 use crate::*;
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
+use events::Event;
 use ext::{
     ext_btc_lightclient, ext_chain_signature, SignRequest, SignatureResponse,
     GAS_LIGHTCLIENT_VERIFY,
 };
-use near_sdk::{env, near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError};
+use near_sdk::{
+    env::{self},
+    near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError,
+};
 use serde::{Deserialize, Serialize};
 use types::output_id;
 use utils::{get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
@@ -69,10 +73,15 @@ impl Contract {
         let mut deposit = account.get_active_deposit(&deposit_tx_id, deposit_vout);
         deposit.queue_withdraw(hex::encode(msg), msg_sig);
         account.remove_active_deposit(&deposit);
-        account.insert_queue_withdraw_deposit(&deposit);
-        self.set_account(&account);
+        account.insert_queue_withdraw_deposit(deposit);
+        self.set_account(account);
 
-        // TODO emit
+        Event::QueueWithdraw {
+            user_pubkey: &user_pubkey,
+            deposit_tx_id: &deposit_tx_id,
+            deposit_vout: deposit_vout.into(),
+        }
+        .emit();
     }
 
     /// Sign a BTC withdraw PSBT via chain signature
@@ -93,6 +102,8 @@ impl Contract {
         // verify it is a valid withdraw transaction
         self.verify_withdraw_transaction(&psbt.unsigned_tx, &user_pubkey, embed_vout);
 
+        let input = psbt.unsigned_tx.input.first().unwrap();
+
         // request signature from chain signature
         let payload = get_hash_to_sign(&psbt, 0);
         let req = SignRequest {
@@ -107,14 +118,33 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_CHAIN_SIG_SIGN_CB)
-                    .on_sign_withdraw(),
+                    .on_sign_withdraw(
+                        user_pubkey,
+                        input.previous_output.txid.to_string(),
+                        input.previous_output.vout.into(),
+                    ),
             )
     }
 
     #[private]
-    pub fn on_sign_withdraw(&self) -> SignatureResponse {
+    pub fn on_sign_withdraw(
+        &self,
+        user_pubkey: String,
+        deposit_tx_id: String,
+        deposit_vout: u64,
+    ) -> SignatureResponse {
         let result_bytes = promise_result_as_success().expect(ERR_CHAIN_SIG_FAILED);
-        serde_json::from_slice::<SignatureResponse>(&result_bytes).expect(ERR_INVALID_SIGNATURE)
+        let sig = serde_json::from_slice::<SignatureResponse>(&result_bytes)
+            .expect(ERR_INVALID_SIGNATURE);
+
+        Event::SignWithdraw {
+            user_pubkey: &user_pubkey,
+            deposit_tx_id: &deposit_tx_id,
+            deposit_vout: deposit_vout.into(),
+        }
+        .emit();
+
+        sig
     }
 
     /// Submit a BTC withdraw (either solo or multisig) transaction
@@ -177,14 +207,26 @@ impl Contract {
         if valid {
             let mut account = self.get_account(&user_pubkey);
             let mut deposit = account.get_queue_withdraw_deposit(&deposit_tx_id, deposit_vout);
-            deposit.complete_withdraw(withdraw_tx_id);
+            deposit.complete_withdraw(withdraw_tx_id.clone());
             account.remove_queue_withdraw_deposit(&deposit);
-            account.insert_withdrawn_deposit(&deposit);
-            self.set_account(&account);
+            account.insert_withdrawn_deposit(deposit);
+            self.set_account(account);
 
-            // TODO emit
+            Event::CompleteWithdraw {
+                user_pubkey: &user_pubkey,
+                withdraw_tx_id: &withdraw_tx_id,
+                deposit_tx_id: &deposit_tx_id,
+                deposit_vout: deposit_vout.into(),
+            }
+            .emit();
         } else {
-            // TODO emit
+            Event::CompleteWithdrawFailed {
+                user_pubkey: &user_pubkey,
+                withdraw_tx_id: &withdraw_tx_id,
+                deposit_tx_id: &deposit_tx_id,
+                deposit_vout: deposit_vout.into(),
+            }
+            .emit();
         }
 
         valid
@@ -225,7 +267,6 @@ impl Contract {
         require!(msg == WITHDRAW_MSG_HEX, ERR_BAD_EMBED_MSG);
 
         // we don't care how the input is spent, since the user has to sign it himself as well
-        // but shall we enforce a gas payment output to cover NEAR gas?
     }
 }
 

@@ -237,7 +237,6 @@ name = "btc-client"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
- "getrandom 0.2.15",
  "hex",
  "near-contract-standards",
  "near-sdk",
