@@ -27,9 +27,9 @@ pub fn get_hash_to_sign(psbt: &Psbt, vin: u64) -> [u8; 32] {
 /// ### Returns
 /// (0: plain text message that is hashed an signed, 1: is_valid)
 pub fn verify_signed_message_unisat(
-    plain_msg: &Vec<u8>,
-    sig: &Vec<u8>,
-    pubkey: &Vec<u8>,
+    plain_msg: &[u8],
+    sig: &[u8],
+    pubkey: &[u8],
 ) -> (Vec<u8>, bool) {
     // build message to hash from plain_msg and prefix
     let mut msg_to_hash: Vec<u8> = vec![];
@@ -48,7 +48,7 @@ pub fn verify_signed_message_unisat(
         msg_to_hash.push(255);
         msg_to_hash.append(&mut (msg_len as u64).to_le_bytes().to_vec());
     }
-    msg_to_hash.append(plain_msg.clone().as_mut());
+    msg_to_hash.append(&mut plain_msg.to_vec());
 
     // double hash
     let msg_hash = env::sha256_array(&env::sha256_array(&msg_to_hash));
@@ -60,16 +60,11 @@ pub fn verify_signed_message_unisat(
 
     (
         msg_to_hash,
-        verify_secp256k1_signature(pubkey, &msg_hash.to_vec(), &actual_sig.to_vec(), v),
+        verify_secp256k1_signature(pubkey, msg_hash.as_ref(), actual_sig, v),
     )
 }
 
-fn verify_secp256k1_signature(
-    public_key: &Vec<u8>,
-    message: &Vec<u8>,
-    signature: &Vec<u8>,
-    v: u8,
-) -> bool {
+fn verify_secp256k1_signature(public_key: &[u8], message: &[u8], signature: &[u8], v: u8) -> bool {
     let recovered_uncompressed_pk = env::ecrecover(message, signature, v, true)
         .unwrap()
         .to_vec();
@@ -77,7 +72,7 @@ fn verify_secp256k1_signature(
     compressed_pk == *public_key
 }
 
-fn compress_pub_key(uncompressed_pub_key_bytes: &Vec<u8>) -> Vec<u8> {
+fn compress_pub_key(uncompressed_pub_key_bytes: &[u8]) -> Vec<u8> {
     // Extract the x and y coordinates
     let x_coord = &uncompressed_pub_key_bytes[0..32]; // First 32 bytes after the prefix
     let y_coord = &uncompressed_pub_key_bytes[32..64]; // Next 32 bytes
@@ -119,7 +114,7 @@ mod tests {
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e17172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
         let (msg, valid) = verify_signed_message_unisat(
-            &plain_msg.as_bytes().to_vec(),
+            plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
@@ -137,7 +132,7 @@ mod tests {
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e17172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
         let (_, valid) = verify_signed_message_unisat(
-            &plain_msg.as_bytes().to_vec(),
+            plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
@@ -151,7 +146,7 @@ mod tests {
         // sig is from the same plain_msg but signed by a different key
         let sig = "20c6340b918107d565ef9ff80995289ca19366b7280ceae99f1c6ce38f9e0822b74240f315ddf981dd19f7f7d18ef1ca7959a8a6e0544d1efef8376b7a5fe394a4";
         let (_, valid) = verify_signed_message_unisat(
-            &plain_msg.as_bytes().to_vec(),
+            plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
@@ -165,7 +160,7 @@ mod tests {
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e27172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
         let (_, valid) = verify_signed_message_unisat(
-            &plain_msg.as_bytes().to_vec(),
+            plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
