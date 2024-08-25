@@ -7,6 +7,11 @@ pub struct Contract {}
 
 #[near_bindgen]
 impl Contract {
+    #[init]
+    pub fn init() -> Self {
+        Self {}
+    }
+
     #[allow(unused_variables)]
     pub fn verify_transaction_inclusion(
         &self,
