@@ -20,11 +20,11 @@ const ERR_DEPOSIT_ALREADY_WITHDRAWN: &str = "Deposit already withdrawn";
 pub struct Account {
     pubkey: String,
     /// set of deposits that are not known to be withdrawed
-    active_deposits: UnorderedMap<OutputId, Deposit>,
+    active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are queued for withdraw
-    queue_withdraw_deposits: UnorderedMap<OutputId, Deposit>,
+    queue_withdraw_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are confirmed to have been withdrawn
-    withdrawn_deposits: UnorderedMap<OutputId, Deposit>,
+    withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
 }
 
 impl Account {
@@ -43,13 +43,13 @@ impl Account {
         self.pubkey.clone()
     }
 
-    pub fn insert_active_deposit(&mut self, deposit: &Deposit) {
+    pub fn insert_active_deposit(&mut self, deposit: Deposit) {
         let deposit_id = deposit.id();
         require!(
             !self.is_deposit_active(&deposit.deposit_tx_id, deposit.deposit_vout),
             ERR_DEPOSIT_ALREADY_ACTIVE
         );
-        self.active_deposits.insert(&deposit_id, deposit);
+        self.active_deposits.insert(&deposit_id, &deposit.into());
     }
 
     pub fn is_deposit_active(&self, tx_id: &String, vout: u64) -> bool {
@@ -65,34 +65,56 @@ impl Account {
         self.active_deposits
             .get(&output_id(tx_id, vout))
             .expect(ERR_DEPOSIT_NOT_ACTIVE)
+            .into()
     }
 
-    pub fn insert_queue_withdraw_deposit(&mut self, deposit: &Deposit) {
+    pub fn insert_queue_withdraw_deposit(&mut self, deposit: Deposit) {
         let deposit_id = &deposit.id();
         require!(
             self.queue_withdraw_deposits.get(deposit_id).is_none(),
             ERR_DEPOSIT_ALREADY_QUEUED
         );
-        self.queue_withdraw_deposits.insert(deposit_id, deposit);
+        self.queue_withdraw_deposits
+            .insert(deposit_id, &deposit.into());
     }
 
     pub fn get_queue_withdraw_deposit(&self, tx_id: &String, vout: u64) -> Deposit {
         self.queue_withdraw_deposits
             .get(&output_id(tx_id, vout))
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
+            .into()
     }
 
     pub fn remove_queue_withdraw_deposit(&mut self, deposit: &Deposit) {
         self.queue_withdraw_deposits.remove(&deposit.id());
     }
 
-    pub fn insert_withdrawn_deposit(&mut self, deposit: &Deposit) {
+    pub fn insert_withdrawn_deposit(&mut self, deposit: Deposit) {
         let deposit_id = &deposit.id();
         require!(
             self.withdrawn_deposits.get(deposit_id).is_none(),
             ERR_DEPOSIT_ALREADY_WITHDRAWN
         );
-        self.withdrawn_deposits.insert(deposit_id, deposit);
+        self.withdrawn_deposits.insert(deposit_id, &deposit.into());
+    }
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub enum VersionedAccount {
+    Current(Account),
+}
+
+impl From<VersionedAccount> for Account {
+    fn from(value: VersionedAccount) -> Self {
+        match value {
+            VersionedAccount::Current(a) => a,
+        }
+    }
+}
+
+impl From<Account> for VersionedAccount {
+    fn from(value: Account) -> Self {
+        VersionedAccount::Current(value)
     }
 }
 
@@ -115,9 +137,9 @@ pub struct Deposit {
 }
 
 impl Deposit {
-    pub fn new(tx_id: String, vout: u64, value: u64) -> Deposit {
+    pub fn new(tx_id: &str, vout: u64, value: u64) -> Deposit {
         Deposit {
-            deposit_tx_id: tx_id,
+            deposit_tx_id: tx_id.to_owned(),
             deposit_vout: vout,
             value,
             queue_withdraw_ts: 0,
@@ -151,5 +173,24 @@ impl Deposit {
     pub fn complete_withdraw(&mut self, withdraw_tx_id: String) {
         self.complete_withdraw_ts = current_timestamp_ms();
         self.withdraw_tx_id = Some(withdraw_tx_id);
+    }
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub enum VersionedDeposit {
+    Current(Deposit),
+}
+
+impl From<VersionedDeposit> for Deposit {
+    fn from(value: VersionedDeposit) -> Self {
+        match value {
+            VersionedDeposit::Current(d) => d,
+        }
+    }
+}
+
+impl From<Deposit> for VersionedDeposit {
+    fn from(value: Deposit) -> Self {
+        VersionedDeposit::Current(value)
     }
 }

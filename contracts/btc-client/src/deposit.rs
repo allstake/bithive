@@ -10,6 +10,7 @@ use bitcoin::{
     script::Builder,
     PublicKey, Sequence, Transaction, TxOut,
 };
+use events::Event;
 use ext::{ext_btc_lightclient, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
 use types::output_id;
@@ -48,6 +49,7 @@ impl Contract {
     /// * `tx_block_hash` - block hash in which the transaction is included
     /// * `tx_index` - transaction index in the block
     /// * `merkle_proof` - merkle proof of transaction in the block
+    #[payable]
     pub fn submit_deposit_tx(
         &mut self,
         tx_hex: String,
@@ -61,6 +63,8 @@ impl Contract {
         merkle_proof: Vec<String>,
     ) -> Promise {
         // TODO assert gas
+        // TODO assert storage fee.
+        // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
@@ -135,13 +139,26 @@ impl Contract {
         if valid {
             // append to user's active deposits
             let mut account = self.get_account(&user_pubkey);
-            let deposit = &Deposit::new(tx_id, deposit_vout, value);
+            let deposit = Deposit::new(&tx_id, deposit_vout, value);
             account.insert_active_deposit(deposit);
-            self.set_account(&account);
+            self.set_account(account);
 
-            // TODO emit
+            Event::Deposit {
+                user_pubkey: &user_pubkey,
+                tx_id: &tx_id,
+                deposit_vout: deposit_vout.into(),
+                value: value.into(),
+            }
+            .emit();
         } else {
-            self.unset_deposit_confirmed(tx_id, deposit_vout);
+            self.unset_deposit_confirmed(&tx_id, deposit_vout);
+            Event::DepositFailed {
+                user_pubkey: &user_pubkey,
+                tx_id: &tx_id,
+                deposit_vout: deposit_vout.into(),
+                value: value.into(),
+            }
+            .emit();
         }
 
         PromiseOrValue::Value(valid)
@@ -208,8 +225,8 @@ impl Contract {
         self.confirmed_deposit_txns.insert(&output_id);
     }
 
-    fn unset_deposit_confirmed(&mut self, tx_id: String, vout: u64) {
-        let output_id = output_id(&tx_id, vout);
+    fn unset_deposit_confirmed(&mut self, tx_id: &String, vout: u64) {
+        let output_id = output_id(tx_id, vout);
         self.confirmed_deposit_txns.remove(&output_id);
     }
 }
