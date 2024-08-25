@@ -103,6 +103,11 @@ pub struct Deposit {
     value: u64,
     /// queue withdraw start time in ms
     queue_withdraw_ts: Timestamp,
+    /// the message that the user signed when requesting queue withdraw
+    queue_withdraw_message: Option<String>,
+    /// signature of the above message
+    /// withdraw msg and sig are saved to make the action indisputable
+    queue_withdraw_sig: Option<String>,
     /// complete withdraw time in ms
     complete_withdraw_ts: Timestamp,
     /// withdraw txn ID
@@ -116,6 +121,8 @@ impl Deposit {
             deposit_vout: vout,
             value,
             queue_withdraw_ts: 0,
+            queue_withdraw_message: None,
+            queue_withdraw_sig: None,
             complete_withdraw_ts: 0,
             withdraw_tx_id: None,
         }
@@ -125,12 +132,14 @@ impl Deposit {
         output_id(&self.deposit_tx_id, self.deposit_vout)
     }
 
-    pub fn queue_withdraw(&mut self) {
+    pub fn queue_withdraw(&mut self, withdraw_msg: String, msg_sig: String) {
         require!(
             self.queue_withdraw_ts == 0 && self.complete_withdraw_ts == 0,
             ERR_DEPOSIT_CANNOT_QUEUE_WITHDRAW
         );
         self.queue_withdraw_ts = current_timestamp_ms();
+        self.queue_withdraw_message = Some(withdraw_msg);
+        self.queue_withdraw_sig = Some(msg_sig);
     }
 
     pub fn can_complete_withdraw(&self, waiting_time_ms: u64) -> bool {

@@ -11,7 +11,6 @@ use bitcoin::{
     PublicKey, Sequence, Transaction, TxOut,
 };
 use ext::{ext_btc_lightclient, GAS_LIGHTCLIENT_VERIFY};
-use k256::sha2::{Digest, Sha256};
 use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
 use types::output_id;
 use utils::get_embed_message;
@@ -191,13 +190,11 @@ impl Contract {
             .push_opcode(OP_CHECKMULTISIG)
             .push_opcode(OP_ENDIF)
             .into_script();
-        let mut hasher = Sha256::new();
-        hasher.update(script_sig.as_bytes());
-        let expected_script_hash = &hex::encode(hasher.finalize())[..];
+        let expected_script_hash = env::sha256_array(script_sig.as_bytes());
 
         // check if script hash == p2wsh
         require!(
-            p2wsh_script_hash == expected_script_hash,
+            p2wsh_script_hash == hex::encode(expected_script_hash),
             ERR_DEPOSIT_BAD_SCRIPT_HASH
         );
     }

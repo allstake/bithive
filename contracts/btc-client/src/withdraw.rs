@@ -4,8 +4,12 @@ use ext::{
     ext_btc_lightclient, ext_chain_signature, SignRequest, SignatureResponse,
     GAS_LIGHTCLIENT_VERIFY,
 };
-use near_sdk::{env, near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError};
-use utils::{get_embed_message, get_hash_to_sign};
+use near_sdk::{
+    env, log, near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError,
+};
+use serde::{Deserialize, Serialize};
+use types::output_id;
+use utils::{get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
 
 const CHAIN_SIGNATURE_PATH: &str = "btc/v1";
 const CHAIN_SIGNATURE_KEY_VERSION: u32 = 0; // TODO ??
@@ -23,8 +27,17 @@ const ERR_INVALID_EMBED_VOUT: &str = "Invalid embed output vout";
 const ERR_BAD_EMBED_MSG: &str = "Wrong embed message";
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
 const ERR_INVALID_SIGNATURE: &str = "Invalid signature result";
+const ERR_INVALID_WITHDRAW_SIG: &str = "Invalid signature for withdraw";
 
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
+
+/// in case different wallet signs message in different form,
+/// the signer needs to explicitly specify the type
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub enum SigType {
+    Unisat,
+}
 
 #[near_bindgen]
 impl Contract {
@@ -33,19 +46,30 @@ impl Contract {
     /// * `user_pubkey` - hex encoded user pub key
     /// * `deposit_tx_id` - id of transaction that contains the deposit to withdraw
     /// * `deposit_vout` - deposit output vout to withdraw
-    /// * `msg_sig` - signature of queue withdraw message that shoud match `user_pubkey`
+    /// * `msg_sig` - hex encoded signature of queue withdraw message that shoud match `user_pubkey`
+    /// * `sig_type` - signature type
     pub fn queue_withdraw(
         &mut self,
         user_pubkey: String,
         deposit_tx_id: String,
         deposit_vout: u64,
         msg_sig: String,
+        sig_type: SigType,
     ) {
-        // TODO verify msg signature
+        // verify msg signature
+        let expected_withdraw_msg = self.withdraw_message(&deposit_tx_id, deposit_vout);
+        let (msg, valid) = match sig_type {
+            SigType::Unisat => verify_signed_message_unisat(
+                &expected_withdraw_msg.into_bytes(),
+                &hex::decode(&msg_sig).unwrap(),
+                &hex::decode(&user_pubkey).unwrap(),
+            ),
+        };
+        require!(valid, ERR_INVALID_WITHDRAW_SIG);
 
         let mut account = self.get_account(&user_pubkey);
         let mut deposit = account.get_active_deposit(&deposit_tx_id, deposit_vout);
-        deposit.queue_withdraw();
+        deposit.queue_withdraw(hex::encode(msg), msg_sig);
         account.remove_active_deposit(&deposit);
         account.insert_queue_withdraw_deposit(&deposit);
         self.set_account(&account);
@@ -170,6 +194,13 @@ impl Contract {
 }
 
 impl Contract {
+    fn withdraw_message(&self, deposit_tx_id: &String, deposit_vout: u64) -> String {
+        format!(
+            "allstake.withdraw:{}",
+            output_id(deposit_tx_id, deposit_vout)
+        )
+    }
+
     fn verify_withdraw_transaction(&self, tx: &Transaction, pubkey: &String, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO
