@@ -4,9 +4,7 @@ use ext::{
     ext_btc_lightclient, ext_chain_signature, SignRequest, SignatureResponse,
     GAS_LIGHTCLIENT_VERIFY,
 };
-use near_sdk::{
-    env, log, near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError,
-};
+use near_sdk::{env, near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError};
 use serde::{Deserialize, Serialize};
 use types::output_id;
 use utils::{get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
