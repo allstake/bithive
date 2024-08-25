@@ -25,7 +25,7 @@ pub fn get_hash_to_sign(psbt: &Psbt, vin: u64) -> [u8; 32] {
 /// https://github.com/unisat-wallet/wallet-sdk/blob/master/src/message/deterministic-ecdsa.ts#L51
 ///
 /// ### Returns
-/// (0: plain text message that is hashed an signed, 1: is_valid)
+/// (0: plain text message that is then hashed and signed, 1: is_valid)
 pub fn verify_signed_message_unisat(
     plain_msg: &[u8],
     sig: &[u8],
