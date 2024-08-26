@@ -10,7 +10,7 @@ use near_sdk::{
     near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
-use types::output_id;
+use types::{output_id, PubKey, TxId};
 use utils::{get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
 
 const CHAIN_SIGNATURE_PATH: &str = "btc/v1";
@@ -58,8 +58,9 @@ impl Contract {
         msg_sig: String,
         sig_type: SigType,
     ) {
+        let tx_id: TxId = deposit_tx_id.clone().into();
         // verify msg signature
-        let expected_withdraw_msg = self.withdraw_message(&deposit_tx_id, deposit_vout);
+        let expected_withdraw_msg = self.withdraw_message(&tx_id, deposit_vout);
         let (msg, valid) = match sig_type {
             SigType::Unisat => verify_signed_message_unisat(
                 &expected_withdraw_msg.into_bytes(),
@@ -69,10 +70,9 @@ impl Contract {
         };
         require!(valid, ERR_INVALID_WITHDRAW_SIG);
 
-        let mut account = self.get_account(&user_pubkey);
-        let mut deposit = account.get_active_deposit(&deposit_tx_id, deposit_vout);
+        let mut account = self.get_account(&user_pubkey.clone().into());
+        let mut deposit = account.remove_active_deposit(&tx_id, deposit_vout);
         deposit.queue_withdraw(hex::encode(msg), msg_sig);
-        account.remove_active_deposit(&deposit);
         account.insert_queue_withdraw_deposit(deposit);
         self.set_account(account);
 
@@ -100,7 +100,11 @@ impl Contract {
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
 
         // verify it is a valid withdraw transaction
-        self.verify_withdraw_transaction(&psbt.unsigned_tx, &user_pubkey, embed_vout);
+        self.verify_withdraw_transaction(
+            &psbt.unsigned_tx,
+            &user_pubkey.clone().into(),
+            embed_vout,
+        );
 
         let input = psbt.unsigned_tx.input.first().unwrap();
 
@@ -166,7 +170,7 @@ impl Contract {
     ) -> Promise {
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
-        self.verify_withdraw_transaction(&tx, &user_pubkey, embed_vout);
+        self.verify_withdraw_transaction(&tx, &user_pubkey.clone().into(), embed_vout);
 
         let deposit_utxo = tx.input.first().unwrap().previous_output;
         let deposit_tx_id = deposit_utxo.txid;
@@ -205,10 +209,11 @@ impl Contract {
     ) -> bool {
         let valid = result.unwrap_or(false);
         if valid {
-            let mut account = self.get_account(&user_pubkey);
-            let mut deposit = account.get_queue_withdraw_deposit(&deposit_tx_id, deposit_vout);
+            let pk: PubKey = user_pubkey.clone().into();
+            let mut account = self.get_account(&pk);
+            let mut deposit =
+                account.remove_queue_withdraw_deposit(&deposit_tx_id.clone().into(), deposit_vout);
             deposit.complete_withdraw(withdraw_tx_id.clone());
-            account.remove_queue_withdraw_deposit(&deposit);
             account.insert_withdrawn_deposit(deposit);
             self.set_account(account);
 
@@ -234,14 +239,14 @@ impl Contract {
 }
 
 impl Contract {
-    fn withdraw_message(&self, deposit_tx_id: &String, deposit_vout: u64) -> String {
+    fn withdraw_message(&self, deposit_tx_id: &TxId, deposit_vout: u64) -> String {
         format!(
             "allstake.withdraw:{}",
             output_id(deposit_tx_id, deposit_vout)
         )
     }
 
-    fn verify_withdraw_transaction(&self, tx: &Transaction, pubkey: &String, embed_vout: u64) {
+    fn verify_withdraw_transaction(&self, tx: &Transaction, pubkey: &PubKey, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO
         require!(tx.input.len() == 1, ERR_NOT_ONLY_ONE_INPUT);
@@ -250,7 +255,7 @@ impl Contract {
         // input UTXO must be in user's withdraw queue
         let account = self.get_account(pubkey);
         let deposit = account.get_queue_withdraw_deposit(
-            &input.previous_output.txid.to_string(),
+            &input.previous_output.txid.to_string().into(),
             input.previous_output.vout.into(),
         );
         // make sure queue waiting time has passed
