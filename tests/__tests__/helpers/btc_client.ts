@@ -63,6 +63,33 @@ export async function signWithdraw(
   );
 }
 
+export async function submitWithdrawTx(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  tx_hex: string,
+  user_pubkey: string,
+  embed_vout: number,
+  tx_block_hash: string,
+  tx_index: number,
+  merkle_proof: string[],
+) {
+  return caller.call(
+    btcClient,
+    "submit_withdraw_tx",
+    {
+      tx_hex,
+      user_pubkey,
+      embed_vout,
+      tx_block_hash,
+      tx_index,
+      merkle_proof,
+    },
+    {
+      gas: Gas.parse("200 Tgas"),
+    },
+  );
+}
+
 export async function fastForward(btcClient: NearAccount, duration: number) {
   return btcClient.call(btcClient, "fast_forward", {
     duration,

@@ -11,3 +11,7 @@ export interface ChainSignatureResponse {
   };
   recovery_id: number;
 }
+
+// whenever you need a placeholder for H256
+export const someH256 =
+  "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8";

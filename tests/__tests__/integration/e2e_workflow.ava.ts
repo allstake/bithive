@@ -15,11 +15,12 @@ import {
   queueWithdraw,
   signWithdraw,
   submitDepositTx,
+  submitWithdrawTx,
 } from "../helpers/btc_client";
 import { setSignature } from "../helpers/chain_signature";
 import { initIntegration } from "../helpers/context";
 import { requestSigFromTestnet } from "../helpers/near_client";
-import { daysToMs } from "../helpers/utils";
+import { daysToMs, someH256 } from "../helpers/utils";
 
 const bip68 = require("bip68"); // eslint-disable-line
 const test = initIntegration();
@@ -102,9 +103,9 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     user_pubkey_hex: aliceKp.publicKey.toString("hex"),
     allstake_pubkey_hex: t.context.allstakePubkey.toString("hex"),
     sequence_height: waitBlocks,
-    tx_block_hash: "some block hash",
+    tx_block_hash: someH256,
     tx_index: 1,
-    merkle_proof: ["a", "b"],
+    merkle_proof: [someH256],
   });
   console.log("submitDepositTx ok");
 
@@ -218,6 +219,19 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     vout: 0,
     value: withdrawAmount,
   });
+
+  // finally, submit withdraw tx to allstake
+  await submitWithdrawTx(
+    contract,
+    alice,
+    withdrawTx.toHex(),
+    aliceKp.publicKey.toString("hex"),
+    1,
+    someH256,
+    66,
+    [someH256, someH256],
+  );
+
   console.log("Sign withdraw e2e workflow done!");
 });
 
