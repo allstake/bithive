@@ -13,7 +13,7 @@ use bitcoin::{
 use events::Event;
 use ext::{ext_btc_lightclient, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
-use types::output_id;
+use types::{output_id, TxId};
 use utils::get_embed_message;
 
 use crate::*;
@@ -102,7 +102,7 @@ impl Contract {
         let value = deposit_output.value;
 
         // set stake transaction(output) as confirmed now to prevent duplicate verification
-        self.set_deposit_confirmed(txid.to_string(), deposit_vout);
+        self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
 
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
@@ -136,10 +136,11 @@ impl Contract {
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> PromiseOrValue<bool> {
         let valid = result.unwrap_or(false);
+        let txid: TxId = tx_id.clone().into();
         if valid {
             // append to user's active deposits
-            let mut account = self.get_account(&user_pubkey);
-            let deposit = Deposit::new(&tx_id, deposit_vout, value);
+            let mut account = self.get_account(&user_pubkey.clone().into());
+            let deposit = Deposit::new(txid.clone(), deposit_vout, value);
             account.insert_active_deposit(deposit);
             self.set_account(account);
 
@@ -151,7 +152,7 @@ impl Contract {
             }
             .emit();
         } else {
-            self.unset_deposit_confirmed(&tx_id, deposit_vout);
+            self.unset_deposit_confirmed(&txid, deposit_vout);
             Event::DepositFailed {
                 user_pubkey: &user_pubkey,
                 tx_id: &tx_id,
@@ -216,8 +217,8 @@ impl Contract {
         );
     }
 
-    fn set_deposit_confirmed(&mut self, tx_id: String, vout: u64) {
-        let output_id = output_id(&tx_id, vout);
+    fn set_deposit_confirmed(&mut self, tx_id: &TxId, vout: u64) {
+        let output_id = output_id(tx_id, vout);
         require!(
             !self.confirmed_deposit_txns.contains(&output_id),
             ERR_DEPOSIT_ALREADY_SAVED
@@ -225,7 +226,7 @@ impl Contract {
         self.confirmed_deposit_txns.insert(&output_id);
     }
 
-    fn unset_deposit_confirmed(&mut self, tx_id: &String, vout: u64) {
+    fn unset_deposit_confirmed(&mut self, tx_id: &TxId, vout: u64) {
         let output_id = output_id(tx_id, vout);
         self.confirmed_deposit_txns.remove(&output_id);
     }

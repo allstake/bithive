@@ -2,7 +2,7 @@ use account::{Account, VersionedAccount};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet};
 use near_sdk::{near_bindgen, AccountId, PanicOnDefault};
-use types::{OutputId, StorageKey};
+use types::{OutputId, PubKey, StorageKey};
 
 mod account;
 mod deposit;
@@ -28,7 +28,7 @@ pub struct Contract {
     /// set of all confirmed deposit txns
     confirmed_deposit_txns: LookupSet<OutputId>,
     /// user accounts: pubkey -> account
-    accounts: LookupMap<String, VersionedAccount>,
+    accounts: LookupMap<PubKey, VersionedAccount>,
 }
 
 #[near_bindgen]
@@ -55,10 +55,10 @@ impl Contract {
 }
 
 impl Contract {
-    fn get_account(&self, pubkey: &String) -> Account {
+    fn get_account(&self, pubkey: &PubKey) -> Account {
         self.accounts
             .get(pubkey)
-            .unwrap_or_else(|| Account::new(pubkey.to_string()).into())
+            .unwrap_or_else(|| Account::new(pubkey.clone()).into())
             .into()
     }
 

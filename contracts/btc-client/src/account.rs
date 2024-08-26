@@ -5,7 +5,7 @@ use near_sdk::{
 };
 
 use crate::{
-    types::{output_id, OutputId, StorageKey},
+    types::{output_id, OutputId, PubKey, StorageKey, TxId},
     utils::current_timestamp_ms,
 };
 
@@ -18,7 +18,7 @@ const ERR_DEPOSIT_ALREADY_WITHDRAWN: &str = "Deposit already withdrawn";
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Account {
-    pubkey: String,
+    pubkey: PubKey,
     /// set of deposits that are not known to be withdrawed
     active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are queued for withdraw
@@ -28,7 +28,7 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(pubkey: String) -> Account {
+    pub fn new(pubkey: PubKey) -> Account {
         Account {
             pubkey: pubkey.clone(),
             active_deposits: UnorderedMap::new(StorageKey::ActiveDeposits(pubkey.clone())),
@@ -39,7 +39,7 @@ impl Account {
         }
     }
 
-    pub fn pubkey(&self) -> String {
+    pub fn pubkey(&self) -> PubKey {
         self.pubkey.clone()
     }
 
@@ -52,21 +52,24 @@ impl Account {
         self.active_deposits.insert(&deposit_id, &deposit.into());
     }
 
-    pub fn is_deposit_active(&self, tx_id: &String, vout: u64) -> bool {
+    pub fn is_deposit_active(&self, tx_id: &TxId, vout: u64) -> bool {
         let deposit_id = output_id(tx_id, vout);
         self.active_deposits.get(&deposit_id).is_some()
     }
 
-    pub fn remove_active_deposit(&mut self, deposit: &Deposit) {
-        self.active_deposits.remove(&deposit.id());
-    }
-
-    pub fn get_active_deposit(&self, tx_id: &String, vout: u64) -> Deposit {
+    pub fn remove_active_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
         self.active_deposits
-            .get(&output_id(tx_id, vout))
+            .remove(&output_id(tx_id, vout))
             .expect(ERR_DEPOSIT_NOT_ACTIVE)
             .into()
     }
+
+    // pub fn get_active_deposit(&self, tx_id: &String, vout: u64) -> Deposit {
+    //     self.active_deposits
+    //         .get(&output_id(tx_id, vout))
+    //         .expect(ERR_DEPOSIT_NOT_ACTIVE)
+    //         .into()
+    // }
 
     pub fn insert_queue_withdraw_deposit(&mut self, deposit: Deposit) {
         let deposit_id = &deposit.id();
@@ -78,15 +81,18 @@ impl Account {
             .insert(deposit_id, &deposit.into());
     }
 
-    pub fn get_queue_withdraw_deposit(&self, tx_id: &String, vout: u64) -> Deposit {
+    pub fn get_queue_withdraw_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
         self.queue_withdraw_deposits
             .get(&output_id(tx_id, vout))
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
             .into()
     }
 
-    pub fn remove_queue_withdraw_deposit(&mut self, deposit: &Deposit) {
-        self.queue_withdraw_deposits.remove(&deposit.id());
+    pub fn remove_queue_withdraw_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
+        self.queue_withdraw_deposits
+            .remove(&output_id(tx_id, vout))
+            .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
+            .into()
     }
 
     pub fn insert_withdrawn_deposit(&mut self, deposit: Deposit) {
@@ -120,7 +126,7 @@ impl From<Account> for VersionedAccount {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Deposit {
-    deposit_tx_id: String,
+    deposit_tx_id: TxId,
     deposit_vout: u64,
     value: u64,
     /// queue withdraw start time in ms
@@ -133,13 +139,13 @@ pub struct Deposit {
     /// complete withdraw time in ms
     complete_withdraw_ts: Timestamp,
     /// withdraw txn ID
-    withdraw_tx_id: Option<String>,
+    withdraw_tx_id: Option<TxId>,
 }
 
 impl Deposit {
-    pub fn new(tx_id: &str, vout: u64, value: u64) -> Deposit {
+    pub fn new(tx_id: TxId, vout: u64, value: u64) -> Deposit {
         Deposit {
-            deposit_tx_id: tx_id.to_owned(),
+            deposit_tx_id: tx_id,
             deposit_vout: vout,
             value,
             queue_withdraw_ts: 0,
@@ -172,7 +178,7 @@ impl Deposit {
 
     pub fn complete_withdraw(&mut self, withdraw_tx_id: String) {
         self.complete_withdraw_ts = current_timestamp_ms();
-        self.withdraw_tx_id = Some(withdraw_tx_id);
+        self.withdraw_tx_id = Some(withdraw_tx_id.into());
     }
 }
 

@@ -152,6 +152,8 @@ test("Deposit and withdraw workflow e2e", async (t) => {
       script: bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, withdrawMsg]),
       value: 0,
     });
+  const psbtUnsignedTx: bitcoin.Transaction = (psbt as any).__CACHE.__TX;
+  const psbtUnsignedTxId = psbtUnsignedTx.getId();
 
   // first, user signs psbt
   const { partialSignedPsbt, hashToSign } = partialSignPsbt(psbt, aliceKp);
@@ -204,6 +206,8 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     },
   }).witness!;
   withdrawTx.setWitness(0, redeemWitness);
+
+  t.is(withdrawTx.getId(), psbtUnsignedTxId, "Withdraw txn id mismatch");
 
   await regtestUtils.mine(mineBlocks);
   await regtestUtils.broadcast(withdrawTx.toHex());
