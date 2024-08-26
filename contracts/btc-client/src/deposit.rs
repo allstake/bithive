@@ -11,7 +11,7 @@ use bitcoin::{
     PublicKey, Sequence, Transaction, TxOut,
 };
 use events::Event;
-use ext::{ext_btc_lightclient, GAS_LIGHTCLIENT_VERIFY};
+use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
 use types::{output_id, TxId};
 use utils::get_embed_message;
@@ -107,13 +107,13 @@ impl Contract {
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
-            .verify_transaction_inclusion(
+            .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
                 tx_block_hash,
                 tx_index,
                 merkle_proof,
                 self.n_confirmation,
-            )
+            ))
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_DEPOSIT_VERIFY_CB)
@@ -266,7 +266,7 @@ mod tests {
             user_pubkey_hex(),
             allstake_pubkey_hex(),
             sequence_height(),
-            "foo".to_string(),
+            "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8".to_string(),
             0,
             vec![],
         );

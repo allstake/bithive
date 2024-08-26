@@ -2,7 +2,7 @@ use crate::*;
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
 use events::Event;
 use ext::{
-    ext_btc_lightclient, ext_chain_signature, SignRequest, SignatureResponse,
+    ext_btc_lightclient, ext_chain_signature, ProofArgs, SignRequest, SignatureResponse,
     GAS_LIGHTCLIENT_VERIFY,
 };
 use near_sdk::{
@@ -179,13 +179,13 @@ impl Contract {
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
-            .verify_transaction_inclusion(
+            .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
                 tx_block_hash,
                 tx_index,
                 merkle_proof,
                 self.n_confirmation,
-            )
+            ))
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_WITHDRAW_VERIFY_CB)
