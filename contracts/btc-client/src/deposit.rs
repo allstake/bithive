@@ -67,7 +67,6 @@ impl Contract {
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
-        // TODO maybe?
         require!(
             LockTime::ZERO.partial_cmp(&tx.lock_time).unwrap().is_eq(),
             ERR_BAD_TX_LOCKTIME
@@ -176,7 +175,6 @@ impl Contract {
         // derived pubkey from chain signature
         // if path is changed, a new deposit output version MUST be used
         let allstake_pubkey = &self.generate_btc_pubkey(V1_PATH);
-        println!("allstake pubkey {}", allstake_pubkey);
 
         // build required deposit redeem script:
         // OP_IF

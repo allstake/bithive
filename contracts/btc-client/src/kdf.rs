@@ -9,7 +9,7 @@ use k256::{
     AffinePoint, EncodedPoint, Scalar, Secp256k1, U256,
 };
 use sha3::{Digest, Sha3_256};
-use utils::compress_pub_key;
+use utils::{compress_pub_key, current_account_id};
 
 pub trait ScalarExt: Sized {
     fn from_bytes(bytes: [u8; 32]) -> Option<Self>;
@@ -68,7 +68,8 @@ impl Contract {
         let mpc_point = EncodedPoint::from_bytes(self.get_chain_signatures_root_public_key_bytes())
             .expect("Invalid root public key bytes");
         let mpc_pk = AffinePoint::from_encoded_point(&mpc_point).unwrap();
-        let epsilon = derive_epsilon(&env::current_account_id(), path);
+        let account_id = current_account_id();
+        let epsilon = derive_epsilon(&account_id, path);
         let user_pk = derive_key(mpc_pk, epsilon);
         let user_pk_encoded_point = user_pk.to_encoded_point(false);
         user_pk_encoded_point.as_bytes()[1..65].to_vec()
