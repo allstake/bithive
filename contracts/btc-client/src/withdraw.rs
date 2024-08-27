@@ -96,6 +96,8 @@ impl Contract {
         user_pubkey: String,
         embed_vout: u64,
     ) -> Promise {
+        // TODO assert gas
+
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
 
@@ -168,6 +170,8 @@ impl Contract {
         tx_index: u64,
         merkle_proof: Vec<String>,
     ) -> Promise {
+        // TODO assert gas
+
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
         self.verify_withdraw_transaction(&tx, &user_pubkey.clone().into(), embed_vout);
@@ -246,11 +250,19 @@ impl Contract {
         )
     }
 
-    fn verify_withdraw_transaction(&self, tx: &Transaction, pubkey: &PubKey, embed_vout: u64) {
+    pub fn verify_withdraw_transaction(&self, tx: &Transaction, pubkey: &PubKey, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO
         require!(tx.input.len() == 1, ERR_NOT_ONLY_ONE_INPUT);
         let input = tx.input.first().unwrap();
+
+        // verify embed message
+        let msg = get_embed_message(
+            tx.output
+                .get(embed_vout as usize)
+                .expect(ERR_INVALID_EMBED_VOUT),
+        );
+        require!(msg == WITHDRAW_MSG_HEX, ERR_BAD_EMBED_MSG);
 
         // input UTXO must be in user's withdraw queue
         let account = self.get_account(pubkey);
@@ -263,13 +275,6 @@ impl Contract {
             deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
             ERR_WITHDRAW_NOT_READY
         );
-        // embed message
-        let msg = get_embed_message(
-            tx.output
-                .get(embed_vout as usize)
-                .expect(ERR_INVALID_EMBED_VOUT),
-        );
-        require!(msg == WITHDRAW_MSG_HEX, ERR_BAD_EMBED_MSG);
 
         // we don't care how the input is spent, since the user has to sign it himself as well
     }
@@ -277,5 +282,40 @@ impl Contract {
 
 #[cfg(test)]
 mod tests {
-    // TODO unit test verify_withdraw_transaction
+    use bitcoin::Psbt;
+
+    use crate::tests::{test_contract_instance, user_pubkey_hex};
+
+    fn test_verify_withdraw_tx(psbt_hex: &str, embed_vout: u64) {
+        let contract = test_contract_instance();
+        let psbt_bytes = hex::decode(psbt_hex).unwrap();
+        let psbt = Psbt::deserialize(&psbt_bytes).expect("invalid psbt");
+
+        contract.verify_withdraw_transaction(
+            &psbt.unsigned_tx,
+            &user_pubkey_hex().into(),
+            embed_vout,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Withdraw txn must have only 1 input")]
+    fn test_verify_withdraw_txn_many_inputs() {
+        let psbt_hex = "70736274ff01009a02000000021cc22b0a9be31b9d6b368c2497af275d93e495dadfd477df1b841c2bc5bf64700000000000fffffffff11f61d5ed2918d9d1d2fcab4b649259ad831d997b42c4aa513ee8ce66860ec800000000000500000002a0860100000000001600144f7277040129f03adebe9fac4a6d78eb6519f2080000000000000000166a14616c6c7374616b652e77697468647261772e763100000000000100de02000000000101a59464afb58400ae57b90f41f5f0599693913eba32d474a0576d4edb7d483c950000000000feffffff02e0930400000000001600144f7277040129f03adebe9fac4a6d78eb6519f2084d83f349000000001600149ad303910b681fb863e0a958952d9c7066927f7202473044022021e99bb47c160def7ef45d3d3ece23826e1d3383c3f37b067b56f01a026ad6d10220611aabc75b42f7668040d494592ea7b73c307f2d703cd2ce49d784dfc60a6de6012103da2e202cdd314b4f2d8307e61c65ca515b905d64d7d7a080ea7f701227995a65110200000001012b400d0300000000002200204882ff0d0c9be26d5c8e07f8cc75217643295b235ebf2fee178ce79d7f3e846d0105706355b275210309eb861d8b3315e7fef32693154f290cbd5ab2a218050d1167704cd72b8a41e2ac6752210309eb861d8b3315e7fef32693154f290cbd5ab2a218050d1167704cd72b8a41e22103a4ba81571a98b63a61d147bd4cf7e8b470c38d74c025876160718950644af86a52ae68000000";
+        test_verify_withdraw_tx(psbt_hex, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Embed output is not OP_RETURN")]
+    fn test_verify_withdraw_txn_invalid_embed() {
+        let psbt_hex = "70736274ff01007102000000015cabce7e6ebcbea0902079ebd9b21fcb3f22f98f7040f04f979bf927d518be4b0000000000ffffffff02a0860100000000001600141239496b9c08c4ed6f4f1dd81a265364d369ae920000000000000000166a14616c6c7374616b652e77697468647261772e7631000000000001012b400d0300000000002200200db69ffd665670b0e98a6eaf2ac89d46f42975da7d34c4fa97d76ffe3bf7d70e0105706355b2752102f23fe849508454e2c619dafcd0fb8b9e0e8e71d87edabac14d8301c80a51ba78ac67522102f23fe849508454e2c619dafcd0fb8b9e0e8e71d87edabac14d8301c80a51ba782102204fd62ad9e4beffb97dce178fd19fe068d7330b310c59425d61137d2a881d5952ae68000000";
+        test_verify_withdraw_tx(psbt_hex, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Wrong embed message")]
+    fn test_verify_withdraw_txn_bad_embed_msg() {
+        let psbt_hex = "70736274ff0100700200000001d2ed7dbd2449ab0167abb09fef40060baa1b97e03f8e4831b0417d209503c74600000000000500000002a086010000000000160014cf31baf1968efea9f5c67b103b5526d665b5dc680000000000000000156a13616c6c7374616b652e77697468647261772e76000000000001012b400d0300000000002200206d7373492084677836b475fd89e2159b71b0f29b90b035139334835b0d045f660105706355b2752103b89fbea33ae6f1993da2c528184f0a84c06f06f01110bc6eaaddc90dd8181465ac67522103b89fbea33ae6f1993da2c528184f0a84c06f06f01110bc6eaaddc90dd81814652102c19d7d28615247d83b14d10241ac2e67e640e590ba093d532d71b8ae252c738b52ae68000000";
+        test_verify_withdraw_tx(psbt_hex, 1);
+    }
 }
