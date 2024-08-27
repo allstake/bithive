@@ -31,6 +31,7 @@ export async function initNearClient(signerId: string) {
 
 export async function requestSigFromTestnet(
   payload: Buffer,
+  path: string,
 ): Promise<ChainSignatureResponse> {
   const nearTestnetAccountId = process.env.TESTNET_ACCOUNT_ID;
   if (!nearTestnetAccountId) {
@@ -41,7 +42,7 @@ export async function requestSigFromTestnet(
   const args = {
     request: {
       key_version: 0,
-      path: "btc",
+      path,
       payload: payload.toJSON().data,
     },
   };

@@ -18,7 +18,7 @@ const ERR_ROOT_PK_ALREADY_SYNCED: &str = "Root pubkey already synced";
 const ERR_FAILED_TO_SYNC_KEY: &str = "Failed to sync root pubkey from chain sig";
 
 const GAS_GET_ROOT_PUBKEY: Gas = Gas(30 * Gas::ONE_TERA.0);
-const GAS_GET_ROOT_PUBKEY_CB: Gas = Gas(30 * Gas::ONE_TERA.0);
+const GAS_GET_ROOT_PUBKEY_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]

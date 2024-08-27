@@ -1,6 +1,8 @@
 import { Gas, NEAR, NearAccount } from "near-workspaces";
 import { ChainSignatureResponse } from "./utils";
 
+export const V1_PK_PATH = "/btc/manage/v1"; // this should be equal to the one defined in contract
+
 interface SubmitDepositArg {
   tx_hex: string;
   deposit_vout: number;
@@ -90,8 +92,23 @@ export async function submitWithdrawTx(
   );
 }
 
+export async function syncChainSignatureRootPubkey(btcClient: NearAccount) {
+  return btcClient.call(
+    btcClient,
+    "sync_chain_signature_root_pubkey",
+    {},
+    {
+      gas: Gas.parse("60 Tgas"),
+    },
+  );
+}
+
 export async function fastForward(btcClient: NearAccount, duration: number) {
   return btcClient.call(btcClient, "fast_forward", {
     duration,
   });
+}
+
+export async function setCurrentAccountId(btcClient: NearAccount, id: string) {
+  return btcClient.call(btcClient, "set_current_account_id", { id });
 }

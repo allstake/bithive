@@ -16,6 +16,7 @@ import {
   signWithdraw,
   submitDepositTx,
   submitWithdrawTx,
+  V1_PK_PATH,
 } from "../helpers/btc_client";
 import { setSignature } from "../helpers/chain_signature";
 import { initIntegration } from "../helpers/context";
@@ -240,7 +241,7 @@ async function prepareAllstakeSignature(
   hashToSign: Buffer,
 ) {
   // request actual signature from chain sig testnet
-  const sigResponse = await requestSigFromTestnet(hashToSign);
+  const sigResponse = await requestSigFromTestnet(hashToSign, V1_PK_PATH);
 
   // upload the actual signature response to mocked chain sig contract
   // so that sign_withdraw call could resolve
