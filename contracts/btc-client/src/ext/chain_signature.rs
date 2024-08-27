@@ -33,4 +33,7 @@ pub struct SignatureResponse {
 #[allow(dead_code)]
 pub trait ChainSignature {
     fn sign(&mut self, request: SignRequest) -> Promise;
+
+    /// returns the root public key
+    fn public_key(&self) -> near_sdk::PublicKey;
 }
