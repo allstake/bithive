@@ -65,14 +65,12 @@ pub fn verify_signed_message_unisat(
 }
 
 fn verify_secp256k1_signature(public_key: &[u8], message: &[u8], signature: &[u8], v: u8) -> bool {
-    let recovered_uncompressed_pk = env::ecrecover(message, signature, v, true)
-        .unwrap()
-        .to_vec();
+    let recovered_uncompressed_pk = env::ecrecover(message, signature, v, true).unwrap();
     let compressed_pk = compress_pub_key(&recovered_uncompressed_pk);
     compressed_pk == *public_key
 }
 
-fn compress_pub_key(uncompressed_pub_key_bytes: &[u8]) -> Vec<u8> {
+pub fn compress_pub_key(uncompressed_pub_key_bytes: &[u8; 64]) -> Vec<u8> {
     // Extract the x and y coordinates
     let x_coord = &uncompressed_pub_key_bytes[0..32]; // First 32 bytes after the prefix
     let y_coord = &uncompressed_pub_key_bytes[32..64]; // Next 32 bytes

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, Gas, Promise, PromiseOrValue};
@@ -55,6 +57,12 @@ impl Contract {
         self.big_r = big_r;
         self.s = s;
         self.recovery_id = recovery_id;
+    }
+
+    pub fn public_key(&self) -> near_sdk::PublicKey {
+        // from v1.signer-prod.testnet
+        let pk = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
+        near_sdk::PublicKey::from_str(pk).unwrap()
     }
 
     #[allow(unused_variables)]
