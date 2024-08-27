@@ -138,4 +138,8 @@ mod tests {
 
         contract
     }
+
+    pub(crate) fn user_pubkey_hex() -> String {
+        "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5".to_string()
+    }
 }
