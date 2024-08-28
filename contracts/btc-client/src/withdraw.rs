@@ -29,7 +29,6 @@ const ERR_INVALID_EMBED_VOUT: &str = "Invalid embed output vout";
 const ERR_BAD_EMBED_MSG: &str = "Wrong embed message";
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
 const ERR_INVALID_SIGNATURE: &str = "Invalid signature result";
-const ERR_INVALID_WITHDRAW_SIG: &str = "Invalid signature for withdraw";
 
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 
@@ -61,14 +60,13 @@ impl Contract {
         let tx_id: TxId = deposit_tx_id.clone().into();
         // verify msg signature
         let expected_withdraw_msg = self.withdraw_message(&tx_id, deposit_vout);
-        let (msg, valid) = match sig_type {
+        let msg = match sig_type {
             SigType::Unisat => verify_signed_message_unisat(
                 &expected_withdraw_msg.into_bytes(),
                 &hex::decode(&msg_sig).unwrap(),
                 &hex::decode(&user_pubkey).unwrap(),
             ),
         };
-        require!(valid, ERR_INVALID_WITHDRAW_SIG);
 
         let mut account = self.get_account(&user_pubkey.clone().into());
         let mut deposit = account.remove_active_deposit(&tx_id, deposit_vout);
@@ -84,7 +82,7 @@ impl Contract {
         .emit();
     }
 
-    /// Sign a BTC withdraw PSBT via chain signature
+    /// Sign a BTC withdraw PSBT via chain signature for multisig withdraw
     /// ### Arguments
     /// * `psbt_hex` - hex encoded PSBT to sign
     /// * `user_pubkey` - user public key
@@ -102,13 +100,20 @@ impl Contract {
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
 
         // verify it is a valid withdraw transaction
-        self.verify_withdraw_transaction(
-            &psbt.unsigned_tx,
-            &user_pubkey.clone().into(),
-            embed_vout,
-        );
+        self.verify_withdraw_transaction(&psbt.unsigned_tx, embed_vout);
 
+        // for multisig withraw, input UTXO must be in user's withdraw queue
         let input = psbt.unsigned_tx.input.first().unwrap();
+        let account = self.get_account(&user_pubkey.clone().into());
+        let deposit = account.get_queue_withdraw_deposit(
+            &input.previous_output.txid.to_string().into(),
+            input.previous_output.vout.into(),
+        );
+        // make sure queue waiting time has passed
+        require!(
+            deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
+            ERR_WITHDRAW_NOT_READY
+        );
 
         // request signature from chain signature
         let payload = get_hash_to_sign(&psbt, 0);
@@ -174,7 +179,22 @@ impl Contract {
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
-        self.verify_withdraw_transaction(&tx, &user_pubkey.clone().into(), embed_vout);
+        self.verify_withdraw_transaction(&tx, embed_vout);
+
+        let input = tx.input.get(0).unwrap();
+        let deposit_txid: TxId = input.previous_output.txid.to_string().into();
+        let deposit_vout: u64 = input.previous_output.vout.into();
+        let account = self.get_account(&user_pubkey.clone().into());
+        // submitted txn could either be solo withdraw or multisig withdraw,
+        // so we need to scan both sets
+        let deposit = account
+            .try_get_queue_withdraw_deposit(&deposit_txid, deposit_vout)
+            .unwrap_or_else(|| account.get_active_deposit(&deposit_txid, deposit_vout));
+        // make sure queue waiting time has passed
+        require!(
+            deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
+            ERR_WITHDRAW_NOT_READY
+        );
 
         let deposit_utxo = tx.input.first().unwrap().previous_output;
         let deposit_tx_id = deposit_utxo.txid;
@@ -250,11 +270,10 @@ impl Contract {
         )
     }
 
-    pub fn verify_withdraw_transaction(&self, tx: &Transaction, pubkey: &PubKey, embed_vout: u64) {
+    pub fn verify_withdraw_transaction(&self, tx: &Transaction, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO
         require!(tx.input.len() == 1, ERR_NOT_ONLY_ONE_INPUT);
-        let input = tx.input.first().unwrap();
 
         // verify embed message
         let msg = get_embed_message(
@@ -264,18 +283,6 @@ impl Contract {
         );
         require!(msg == WITHDRAW_MSG_HEX, ERR_BAD_EMBED_MSG);
 
-        // input UTXO must be in user's withdraw queue
-        let account = self.get_account(pubkey);
-        let deposit = account.get_queue_withdraw_deposit(
-            &input.previous_output.txid.to_string().into(),
-            input.previous_output.vout.into(),
-        );
-        // make sure queue waiting time has passed
-        require!(
-            deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
-            ERR_WITHDRAW_NOT_READY
-        );
-
         // we don't care how the input is spent, since the user has to sign it himself as well
     }
 }
@@ -284,18 +291,14 @@ impl Contract {
 mod tests {
     use bitcoin::Psbt;
 
-    use crate::tests::{test_contract_instance, user_pubkey_hex};
+    use crate::tests::test_contract_instance;
 
     fn test_verify_withdraw_tx(psbt_hex: &str, embed_vout: u64) {
         let contract = test_contract_instance();
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect("invalid psbt");
 
-        contract.verify_withdraw_transaction(
-            &psbt.unsigned_tx,
-            &user_pubkey_hex().into(),
-            embed_vout,
-        );
+        contract.verify_withdraw_transaction(&psbt.unsigned_tx, embed_vout);
     }
 
     #[test]
@@ -316,6 +319,12 @@ mod tests {
     #[should_panic(expected = "Wrong embed message")]
     fn test_verify_withdraw_txn_bad_embed_msg() {
         let psbt_hex = "70736274ff0100700200000001d2ed7dbd2449ab0167abb09fef40060baa1b97e03f8e4831b0417d209503c74600000000000500000002a086010000000000160014cf31baf1968efea9f5c67b103b5526d665b5dc680000000000000000156a13616c6c7374616b652e77697468647261772e76000000000001012b400d0300000000002200206d7373492084677836b475fd89e2159b71b0f29b90b035139334835b0d045f660105706355b2752103b89fbea33ae6f1993da2c528184f0a84c06f06f01110bc6eaaddc90dd8181465ac67522103b89fbea33ae6f1993da2c528184f0a84c06f06f01110bc6eaaddc90dd81814652102c19d7d28615247d83b14d10241ac2e67e640e590ba093d532d71b8ae252c738b52ae68000000";
+        test_verify_withdraw_tx(psbt_hex, 1);
+    }
+
+    #[test]
+    fn test_verify_withdraw_valid_tx() {
+        let psbt_hex = "70736274ff01006e02000000018695e224b5666a3904d6d22656f4b2ebb07a768ce6745a1f53d865152da957ad0000000000ffffffff02a0860100000000001600145759e59230fa08911345d15d5e37405a7b833cb10000000000000000136a11616c6c7374616b652e7769746864726177000000000001012b400d030000000000220020c749cb3a3d45d4c29c534a55e7d3569ece87a8c1369b4b3da33ef2be102a9aa20105706355b2752102ff95f611148f2ffc6faf493b052e2e4383e2a9dba5fa8a2b400e954562e1989eac67522102ff95f611148f2ffc6faf493b052e2e4383e2a9dba5fa8a2b400e954562e1989e2102fa49b109a4f1decb4fae3676a8a1f35e201d49d71c24b52e004fb10cb0a0aa5b52ae68000000";
         test_verify_withdraw_tx(psbt_hex, 1);
     }
 }

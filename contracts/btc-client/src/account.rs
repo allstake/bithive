@@ -64,12 +64,12 @@ impl Account {
             .into()
     }
 
-    // pub fn get_active_deposit(&self, tx_id: &String, vout: u64) -> Deposit {
-    //     self.active_deposits
-    //         .get(&output_id(tx_id, vout))
-    //         .expect(ERR_DEPOSIT_NOT_ACTIVE)
-    //         .into()
-    // }
+    pub fn get_active_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
+        self.active_deposits
+            .get(&output_id(tx_id, vout))
+            .expect(ERR_DEPOSIT_NOT_ACTIVE)
+            .into()
+    }
 
     pub fn insert_queue_withdraw_deposit(&mut self, deposit: Deposit) {
         let deposit_id = &deposit.id();
@@ -81,11 +81,15 @@ impl Account {
             .insert(deposit_id, &deposit.into());
     }
 
-    pub fn get_queue_withdraw_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
+    pub fn try_get_queue_withdraw_deposit(&self, tx_id: &TxId, vout: u64) -> Option<Deposit> {
         self.queue_withdraw_deposits
             .get(&output_id(tx_id, vout))
+            .map(|d| d.into())
+    }
+
+    pub fn get_queue_withdraw_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
+        self.try_get_queue_withdraw_deposit(tx_id, vout)
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
-            .into()
     }
 
     pub fn remove_queue_withdraw_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
@@ -172,8 +176,8 @@ impl Deposit {
 
     pub fn can_complete_withdraw(&self, waiting_time_ms: u64) -> bool {
         self.complete_withdraw_ts == 0
-            && self.queue_withdraw_ts > 0
-            && self.queue_withdraw_ts + waiting_time_ms <= current_timestamp_ms()
+            && (self.queue_withdraw_ts == 0
+                || self.queue_withdraw_ts + waiting_time_ms <= current_timestamp_ms())
     }
 
     pub fn complete_withdraw(&mut self, withdraw_tx_id: String) {

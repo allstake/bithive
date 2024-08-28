@@ -3,6 +3,7 @@ use near_sdk::{env, require};
 
 const ERR_EMBED_NOT_ZERO: &str = "Embed output should have 0 value";
 const ERR_EMBED_NOT_OPRETURN: &str = "Embed output is not OP_RETURN";
+const ERR_INVALID_SIGNATURE: &str = "Invalid bitcoin signature";
 
 const BITCOIN_SIGNED_MSG_PREFIX_UNISAT: &[u8] = b"Bitcoin Signed Message:\n";
 
@@ -25,12 +26,8 @@ pub fn get_hash_to_sign(psbt: &Psbt, vin: u64) -> [u8; 32] {
 /// https://github.com/unisat-wallet/wallet-sdk/blob/master/src/message/deterministic-ecdsa.ts#L51
 ///
 /// ### Returns
-/// (0: plain text message that is then hashed and signed, 1: is_valid)
-pub fn verify_signed_message_unisat(
-    plain_msg: &[u8],
-    sig: &[u8],
-    pubkey: &[u8],
-) -> (Vec<u8>, bool) {
+/// plain text message that is then hashed and signed
+pub fn verify_signed_message_unisat(plain_msg: &[u8], sig: &[u8], pubkey: &[u8]) -> Vec<u8> {
     // build message to hash from plain_msg and prefix
     let mut msg_to_hash: Vec<u8> = vec![];
     msg_to_hash.push(BITCOIN_SIGNED_MSG_PREFIX_UNISAT.len() as u8);
@@ -58,16 +55,15 @@ pub fn verify_signed_message_unisat(
     let flag = sig[0] - 27;
     let v = flag & 3;
 
-    (
-        msg_to_hash,
-        verify_secp256k1_signature(pubkey, msg_hash.as_ref(), actual_sig, v),
-    )
+    verify_secp256k1_signature(pubkey, msg_hash.as_ref(), actual_sig, v);
+
+    msg_to_hash
 }
 
-fn verify_secp256k1_signature(public_key: &[u8], message: &[u8], signature: &[u8], v: u8) -> bool {
+fn verify_secp256k1_signature(public_key: &[u8], message: &[u8], signature: &[u8], v: u8) {
     let recovered_uncompressed_pk = env::ecrecover(message, signature, v, true).unwrap();
     let compressed_pk = compress_pub_key(&recovered_uncompressed_pk);
-    compressed_pk == *public_key
+    require!(compressed_pk == *public_key, ERR_INVALID_SIGNATURE);
 }
 
 pub fn compress_pub_key(uncompressed_pub_key_bytes: &[u8; 64]) -> Vec<u8> {
@@ -111,7 +107,7 @@ mod tests {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e17172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
-        let (msg, valid) = verify_signed_message_unisat(
+        let msg = verify_signed_message_unisat(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
@@ -121,48 +117,45 @@ mod tests {
             hex::encode(msg),
             "18426974636f696e205369676e6564204d6573736167653a0a4868656c6c6f3a303234303538303361633063393839353334636464353464356531323135653431343964633131616565383363323130393735373131353063363333646263316363"
         );
-        assert!(valid);
     }
 
     #[test]
+    #[should_panic(expected = "Invalid bitcoin signature")]
     fn test_verify_signed_message_unisat_wrong_msg() {
         let plain_msg = "heiio:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e17172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
-        let (_, valid) = verify_signed_message_unisat(
+        verify_signed_message_unisat(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
-        assert!(!valid);
     }
 
     #[test]
+    #[should_panic(expected = "Invalid bitcoin signature")]
     fn test_verify_signed_message_unisat_wrong_pubkey() {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         // sig is from the same plain_msg but signed by a different key
         let sig = "20c6340b918107d565ef9ff80995289ca19366b7280ceae99f1c6ce38f9e0822b74240f315ddf981dd19f7f7d18ef1ca7959a8a6e0544d1efef8376b7a5fe394a4";
-        let (_, valid) = verify_signed_message_unisat(
+        verify_signed_message_unisat(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
-
-        assert!(!valid);
     }
 
     #[test]
+    #[should_panic(expected = "Invalid bitcoin signature")]
     fn test_verify_signed_message_unisat_bad_sig() {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e27172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
-        let (_, valid) = verify_signed_message_unisat(
+        verify_signed_message_unisat(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
         );
-
-        assert!(!valid);
     }
 }
