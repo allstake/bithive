@@ -103,6 +103,89 @@ export async function syncChainSignatureRootPubkey(btcClient: NearAccount) {
   );
 }
 
+export async function changeOwner(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  newOwner: NearAccount,
+) {
+  return caller.call(
+    btcClient,
+    "change_owner",
+    {
+      new_owner_id: newOwner.accountId,
+    },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
+export async function setBtcLightclientId(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  contract: NearAccount,
+) {
+  return caller.call(
+    btcClient,
+    "set_btc_lightclient_id",
+    {
+      new_contract_id: contract.accountId,
+    },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
+export async function setNConfirmation(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  n: number,
+) {
+  return caller.call(
+    btcClient,
+    "set_n_confirmation",
+    {
+      n,
+    },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
+export async function setWithdrawWaitingTime(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  ms: number,
+) {
+  return caller.call(
+    btcClient,
+    "set_withdraw_waiting_time",
+    {
+      ms,
+    },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
+interface ContractSummary {
+  owner_id: string;
+  btc_lightclient_id: string;
+  chain_signature_id: string;
+  chain_signature_root_pubkey: string;
+  n_confirmation: number;
+  withdraw_waiting_time_ms: number;
+}
+
+export async function getSummary(
+  btcClient: NearAccount,
+): Promise<ContractSummary> {
+  return btcClient.view("get_summary");
+}
+
 export async function fastForward(btcClient: NearAccount, duration: number) {
   return btcClient.call(btcClient, "fast_forward", {
     duration,
