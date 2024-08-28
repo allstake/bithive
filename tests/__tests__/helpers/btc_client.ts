@@ -8,7 +8,6 @@ interface SubmitDepositArg {
   deposit_vout: number;
   embed_vout: number;
   user_pubkey_hex: string;
-  allstake_pubkey_hex: string;
   sequence_height: number;
   tx_block_hash: string;
   tx_index: number;
@@ -195,3 +194,41 @@ export async function fastForward(btcClient: NearAccount, duration: number) {
 export async function setCurrentAccountId(btcClient: NearAccount, id: string) {
   return btcClient.call(btcClient, "set_current_account_id", { id });
 }
+
+function buildGetUserLenFunction(name: string) {
+  return (btcClient: NearAccount, userPubkey: string): Promise<number> => {
+    return btcClient.view(`user_${name}_len`, { user_pubkey: userPubkey });
+  };
+}
+
+export const getUserActiveDepositsLen =
+  buildGetUserLenFunction("active_deposits");
+
+interface Deposit {
+  deposit_tx_id: string;
+  deposit_vout: number;
+  value: number;
+  queue_withdraw_ts: number;
+  queue_withdraw_message: string | null;
+  queue_withdraw_sig: string | null;
+  complete_withdraw_ts: number;
+  withdraw_tx_id: string | null;
+}
+
+function buildListUserDepositFunction(name: string) {
+  return (
+    btcClient: NearAccount,
+    userPubkey: string,
+    offset: number,
+    limit: number,
+  ): Promise<Deposit[]> => {
+    return btcClient.view(`list_user_${name}`, {
+      user_pubkey: userPubkey,
+      offset,
+      limit,
+    });
+  };
+}
+
+export const listUserActiveDeposits =
+  buildListUserDepositFunction("active_deposits");

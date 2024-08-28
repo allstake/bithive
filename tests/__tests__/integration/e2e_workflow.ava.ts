@@ -102,7 +102,6 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     deposit_vout: 0,
     embed_vout: 1,
     user_pubkey_hex: aliceKp.publicKey.toString("hex"),
-    allstake_pubkey_hex: t.context.allstakePubkey.toString("hex"),
     sequence_height: waitBlocks,
     tx_block_hash: someH256,
     tx_index: 1,

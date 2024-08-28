@@ -12,7 +12,7 @@ use bitcoin::{
 };
 use events::Event;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
-use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
+use near_sdk::{env, log, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
 use types::{output_id, TxId};
 use utils::{assert_gas, get_embed_message};
 

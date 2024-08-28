@@ -18,6 +18,9 @@ export function initUnit() {
   const test = anyTest as TestFn<{
     worker: Worker;
     accounts: Record<string, NearAccount>;
+    aliceKeyPair: ECPairInterface;
+    bobKeyPair: ECPairInterface;
+    allstakePubkey: Buffer;
   }>;
 
   test.beforeEach(async (t) => {
@@ -31,11 +34,22 @@ export function initUnit() {
     const root = worker.rootAccount;
     const fixtures = await createFixtures(root);
 
+    // btc
+    const aliceKeyPair = ECPair.makeRandom();
+    const bobKeyPair = ECPair.makeRandom();
+    const allstakePubkey = Buffer.from(
+      "037c3f573f302b20d0d53fe7b7940d63c966ffc1579cacdbcad700e4a401fee10d",
+      "hex",
+    );
+
     t.context.worker = worker;
     t.context.accounts = {
       root,
       ...fixtures,
     };
+    t.context.aliceKeyPair = aliceKeyPair;
+    t.context.bobKeyPair = bobKeyPair;
+    t.context.allstakePubkey = allstakePubkey;
   });
 
   test.afterEach(async (t) => {
