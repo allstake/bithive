@@ -181,7 +181,7 @@ impl Contract {
         let txid = tx.compute_txid();
         self.verify_withdraw_transaction(&tx, embed_vout);
 
-        let input = tx.input.get(0).unwrap();
+        let input = tx.input.first().unwrap();
         let deposit_txid: TxId = input.previous_output.txid.to_string().into();
         let deposit_vout: u64 = input.previous_output.vout.into();
         let account = self.get_account(&user_pubkey.clone().into());
@@ -190,7 +190,6 @@ impl Contract {
         let deposit = account
             .try_get_queue_withdraw_deposit(&deposit_txid, deposit_vout)
             .unwrap_or_else(|| account.get_active_deposit(&deposit_txid, deposit_vout));
-        // make sure queue waiting time has passed
         require!(
             deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
             ERR_WITHDRAW_NOT_READY
@@ -234,9 +233,12 @@ impl Contract {
         let valid = result.unwrap_or(false);
         if valid {
             let pk: PubKey = user_pubkey.clone().into();
+            let tx_id: TxId = deposit_tx_id.clone().into();
             let mut account = self.get_account(&pk);
-            let mut deposit =
-                account.remove_queue_withdraw_deposit(&deposit_tx_id.clone().into(), deposit_vout);
+            let mut deposit = account
+                .try_remove_queue_withdraw_deposit(&tx_id, deposit_vout)
+                .unwrap_or_else(|| account.remove_active_deposit(&tx_id, deposit_vout));
+
             deposit.complete_withdraw(withdraw_tx_id.clone());
             account.insert_withdrawn_deposit(deposit);
             self.set_account(account);

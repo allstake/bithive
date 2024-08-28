@@ -92,11 +92,19 @@ impl Account {
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
     }
 
-    pub fn remove_queue_withdraw_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
+    pub fn try_remove_queue_withdraw_deposit(
+        &mut self,
+        tx_id: &TxId,
+        vout: u64,
+    ) -> Option<Deposit> {
         self.queue_withdraw_deposits
             .remove(&output_id(tx_id, vout))
+            .map(|d| d.into())
+    }
+
+    pub fn remove_queue_withdraw_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
+        self.try_remove_queue_withdraw_deposit(tx_id, vout)
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
-            .into()
     }
 
     pub fn insert_withdrawn_deposit(&mut self, deposit: Deposit) {
