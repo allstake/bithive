@@ -3,6 +3,7 @@ use near_sdk::{
     collections::UnorderedMap,
     require, Timestamp,
 };
+use serde::Serialize;
 
 use crate::{
     types::{output_id, OutputId, PubKey, StorageKey, TxId},
@@ -43,6 +44,17 @@ impl Account {
         self.pubkey.clone()
     }
 
+    pub fn active_deposits_len(&self) -> u64 {
+        self.active_deposits.len()
+    }
+
+    pub fn get_active_deposit_by_index(&self, idx: u64) -> Option<Deposit> {
+        self.active_deposits
+            .values()
+            .nth(idx as usize)
+            .map(|d| d.into())
+    }
+
     pub fn insert_active_deposit(&mut self, deposit: Deposit) {
         let deposit_id = deposit.id();
         require!(
@@ -69,6 +81,17 @@ impl Account {
             .get(&output_id(tx_id, vout))
             .expect(ERR_DEPOSIT_NOT_ACTIVE)
             .into()
+    }
+
+    pub fn queue_withdraw_deposits_len(&self) -> u64 {
+        self.queue_withdraw_deposits.len()
+    }
+
+    pub fn get_queue_withdraw_deposit_by_index(&self, idx: u64) -> Option<Deposit> {
+        self.queue_withdraw_deposits
+            .values()
+            .nth(idx as usize)
+            .map(|d| d.into())
     }
 
     pub fn insert_queue_withdraw_deposit(&mut self, deposit: Deposit) {
@@ -107,6 +130,17 @@ impl Account {
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
     }
 
+    pub fn withdrawn_deposits_len(&self) -> u64 {
+        self.withdrawn_deposits.len()
+    }
+
+    pub fn get_withdrawn_deposit_by_index(&self, idx: u64) -> Option<Deposit> {
+        self.withdrawn_deposits
+            .values()
+            .nth(idx as usize)
+            .map(|d| d.into())
+    }
+
     pub fn insert_withdrawn_deposit(&mut self, deposit: Deposit) {
         let deposit_id = &deposit.id();
         require!(
@@ -136,7 +170,8 @@ impl From<Account> for VersionedAccount {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Deposit {
     deposit_tx_id: TxId,
     deposit_vout: u64,

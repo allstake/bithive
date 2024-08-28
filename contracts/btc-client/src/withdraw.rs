@@ -11,7 +11,7 @@ use near_sdk::{
 };
 use serde::{Deserialize, Serialize};
 use types::{output_id, PubKey, TxId};
-use utils::{get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
+use utils::{assert_gas, get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
 
 const CHAIN_SIGNATURE_PATH: &str = "btc/v1";
 const CHAIN_SIGNATURE_KEY_VERSION: u32 = 0; // TODO ??
@@ -19,7 +19,7 @@ const CHAIN_SIGNATURE_KEY_VERSION: u32 = 0; // TODO ??
 const WITHDRAW_MSG_HEX: &str = "616c6c7374616b652e7769746864726177"; // "allstake.withdraw"
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
-const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(30 * Gas::ONE_TERA.0);
+const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
 const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(30 * Gas::ONE_TERA.0);
 
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
@@ -94,7 +94,7 @@ impl Contract {
         user_pubkey: String,
         embed_vout: u64,
     ) -> Promise {
-        // TODO assert gas
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 300 Tgas
 
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
@@ -175,7 +175,7 @@ impl Contract {
         tx_index: u64,
         merkle_proof: Vec<String>,
     ) -> Promise {
-        // TODO assert gas
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 100 Tgas
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();

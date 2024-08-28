@@ -14,7 +14,7 @@ use events::Event;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
 use types::{output_id, TxId};
-use utils::get_embed_message;
+use utils::{assert_gas, get_embed_message};
 
 use crate::*;
 
@@ -60,7 +60,8 @@ impl Contract {
         tx_index: u64,
         merkle_proof: Vec<String>,
     ) -> Promise {
-        // TODO assert gas
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
+
         // TODO assert storage fee.
         // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
 

@@ -6,12 +6,14 @@ use near_sdk::{env, near_bindgen, require, AccountId, Gas, PanicOnDefault, Promi
 use types::{OutputId, PubKey, StorageKey};
 
 mod account;
+mod admin;
 mod deposit;
 mod events;
 mod ext;
 mod kdf;
 mod types;
 mod utils;
+mod view;
 mod withdraw;
 
 const ERR_ROOT_PK_ALREADY_SYNCED: &str = "Root pubkey already synced";
