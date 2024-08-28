@@ -32,14 +32,18 @@ test-unit:
 	@cargo test --features=test -- --nocapture
 
 TEST_FILE ?= **
-LOGS ?=
+ifndef LOGS
+	export NEAR_WORKSPACES_NO_LOGS=1
+else
+	export NEAR_PRINT_LOGS=1 
+endif
 
 test-ava: btc-client-test mock-btc-lightclient mock-chain-signature
-	NEAR_PRINT_LOGS=$(LOGS) npx ava --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
+	npx ava --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
 
 
 test-integration: btc-client-test mock-btc-lightclient mock-chain-signature
-	NEAR_PRINT_LOGS=$(LOGS) npx ava --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
+	npx ava --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
 define compile_release
 	@rustup target add wasm32-unknown-unknown

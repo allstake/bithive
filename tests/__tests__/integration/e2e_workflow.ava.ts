@@ -39,9 +39,6 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   const waitBlocks = 5;
   const mineBlocks = 1;
 
-  // make sure the timestamp is not 0 at first
-  await fastForward(contract, daysToMs(3));
-
   // -- 0. init
   // fund user's wallet first
   const userP2wpkhAddress = bitcoin.payments.p2wpkh({

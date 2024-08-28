@@ -203,6 +203,9 @@ function buildGetUserLenFunction(name: string) {
 
 export const getUserActiveDepositsLen =
   buildGetUserLenFunction("active_deposits");
+export const getUserQueueWithdrawDepositsLen = buildGetUserLenFunction(
+  "queue_withdraw_deposits",
+);
 
 interface Deposit {
   deposit_tx_id: string;
@@ -232,3 +235,6 @@ function buildListUserDepositFunction(name: string) {
 
 export const listUserActiveDeposits =
   buildListUserDepositFunction("active_deposits");
+export const listUserQueueWithdrawDeposits = buildListUserDepositFunction(
+  "queue_withdraw_deposits",
+);

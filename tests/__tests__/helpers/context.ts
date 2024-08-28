@@ -7,6 +7,7 @@ import * as ecc from "tiny-secp256k1";
 import { compressPubKey, deriveAddress } from "./btc";
 import "dotenv/config";
 import {
+  fastForward,
   setCurrentAccountId,
   syncChainSignatureRootPubkey,
   V1_PK_PATH,
@@ -170,6 +171,9 @@ async function createFixtures(root: NearAccount) {
     },
   });
   await syncChainSignatureRootPubkey(contract);
+
+  // make sure the timestamp is not 0 at first
+  await fastForward(contract, daysToMs(3));
 
   return {
     owner,
