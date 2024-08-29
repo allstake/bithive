@@ -190,6 +190,7 @@ impl Contract {
         let deposit = account
             .try_get_queue_withdraw_deposit(&deposit_txid, deposit_vout)
             .unwrap_or_else(|| account.get_active_deposit(&deposit_txid, deposit_vout));
+        // TODO we should remove this check as long as the BTC txn is valid
         require!(
             deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
             ERR_WITHDRAW_NOT_READY
@@ -272,6 +273,8 @@ impl Contract {
         )
     }
 
+    // TODO remove this function
+    // the entire function is useless when the user solo withdraw, he can construct whatever txn he like
     pub fn verify_withdraw_transaction(&self, tx: &Transaction, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO

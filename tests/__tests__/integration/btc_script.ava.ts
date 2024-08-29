@@ -17,7 +17,7 @@ const regtestUtils = new RegtestUtils({ APIURL: "http://localhost:8080/1" });
 const network = regtestUtils.network;
 const ECPair = ECPairFactory(ecc);
 
-const test = initUnit(); // although this is integration test, but we don't need all the contracts
+const test = initUnit(false); // although this is integration test, but we don't need all the contracts
 
 async function testCase(
   t: any,

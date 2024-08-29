@@ -39,11 +39,11 @@ else
 endif
 
 test-ava: btc-client-test mock-btc-lightclient mock-chain-signature
-	npx ava --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
+	npx ava -c 2 --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
 
 
 test-integration: btc-client-test mock-btc-lightclient mock-chain-signature
-	npx ava --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
+	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
 define compile_release
 	@rustup target add wasm32-unknown-unknown

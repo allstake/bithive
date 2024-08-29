@@ -15,25 +15,32 @@ import {
 
 const ECPair = ECPairFactory(ecc);
 
-export function initUnit() {
+export function initUnit(sandbox = true) {
   const test = anyTest as TestFn<{
     worker: Worker;
     accounts: Record<string, NearAccount>;
     aliceKeyPair: ECPairInterface;
     bobKeyPair: ECPairInterface;
     allstakePubkey: Buffer;
+    unisatPubkey: Buffer;
+    unisatSig: string;
   }>;
 
   test.beforeEach(async (t) => {
-    // Init the worker and start a Sandbox server
-    const worker = await Worker.init();
-
     // --
-    // contract related
-
-    // Create accounts
-    const root = worker.rootAccount;
-    const fixtures = await createFixtures(root);
+    // near sandbox related
+    if (sandbox) {
+      // Init the worker and start a Sandbox server
+      const worker = await Worker.init();
+      // Create accounts
+      const root = worker.rootAccount;
+      const fixtures = await createFixtures(root);
+      t.context.worker = worker;
+      t.context.accounts = {
+        root,
+        ...fixtures,
+      };
+    }
 
     // btc
     const aliceKeyPair = ECPair.makeRandom();
@@ -43,17 +50,23 @@ export function initUnit() {
       "hex",
     );
 
-    t.context.worker = worker;
-    t.context.accounts = {
-      root,
-      ...fixtures,
-    };
+    // pubkey and signature from real unisat wallet
+    const unisatPubkey = Buffer.from(
+      "0299b4097603b073aa2390203303fe0e60c87bd2af8e621a3df22818c40e3dd217",
+      "hex",
+    );
+    const unisatSig =
+      "1fb04a55cd9ce328e175df6f436963d3f15e20a70ea623f7d8ed19f9e2ba15e7c44f3aab2e36b75dc0d27e1f9ff777582d9d9c6ba896dec78ef3639dd7653b23f6";
+
     t.context.aliceKeyPair = aliceKeyPair;
     t.context.bobKeyPair = bobKeyPair;
     t.context.allstakePubkey = allstakePubkey;
+    t.context.unisatPubkey = unisatPubkey;
+    t.context.unisatSig = unisatSig;
   });
 
   test.afterEach(async (t) => {
+    if (!sandbox) return;
     // Stop Sandbox server
     await t.context.worker.tearDown().catch((error) => {
       console.log("Failed to stop the Sandbox:", error);

@@ -1,25 +1,50 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { depositScriptV1, idToHash, toOutputScript } from "./btc";
 import { NearAccount } from "near-workspaces";
-import { queueWithdraw, submitDepositTx } from "./btc_client";
+import {
+  depositScriptV1,
+  getWitnessUtxo,
+  idToHash,
+  toOutputScript,
+} from "./btc";
+import {
+  queueWithdraw,
+  signWithdraw,
+  submitDepositTx,
+  submitWithdrawTx,
+} from "./btc_client";
 import { someH256 } from "./utils";
 const bip68 = require("bip68"); // eslint-disable-line
 
-export class DepositTransactionBuilder {
+export class TestTransactionBuilder {
   public tx: bitcoin.Transaction;
+  public withdrawTx: bitcoin.Transaction | undefined;
   public userPubkey: Buffer;
   public sequence: any;
+  public readonly depositAmount: number;
 
-  constructor(args: {
-    userPubkey: Buffer;
-    allstakePubkey: Buffer;
-    amount: number;
-    seq?: number;
-  }) {
+  private p2wsh: bitcoin.Payment;
+  private psbt: bitcoin.Psbt | undefined;
+
+  private btcClient: NearAccount;
+  private caller: NearAccount;
+
+  constructor(
+    btcClient: NearAccount,
+    caller: NearAccount,
+    args: {
+      userPubkey: Buffer;
+      allstakePubkey: Buffer;
+      seq?: number;
+    },
+  ) {
+    this.btcClient = btcClient;
+    this.caller = caller;
+
+    this.depositAmount = 1e8;
     this.sequence = bip68.encode({ blocks: args.seq ?? 5 });
     this.userPubkey = args.userPubkey;
     this.tx = new bitcoin.Transaction();
-    const p2wsh = bitcoin.payments.p2wsh({
+    this.p2wsh = bitcoin.payments.p2wsh({
       redeem: {
         output: depositScriptV1(
           args.userPubkey,
@@ -35,8 +60,8 @@ export class DepositTransactionBuilder {
       0,
     );
     this.tx.addOutput(
-      toOutputScript(p2wsh.address!, bitcoin.networks.bitcoin),
-      args.amount,
+      toOutputScript(this.p2wsh.address!, bitcoin.networks.bitcoin),
+      this.depositAmount,
     );
     const embed = bitcoin.payments.embed({
       data: [Buffer.from("allstake.deposit.v1")],
@@ -48,8 +73,8 @@ export class DepositTransactionBuilder {
     return this.userPubkey.toString("hex");
   }
 
-  async submit(btcClient: NearAccount, caller?: NearAccount) {
-    return submitDepositTx(btcClient, caller ?? btcClient, {
+  async submit() {
+    return submitDepositTx(this.btcClient, this.caller, {
       tx_hex: this.tx.toHex(),
       deposit_vout: 0,
       embed_vout: 1,
@@ -61,19 +86,112 @@ export class DepositTransactionBuilder {
     });
   }
 
-  async queueWithdraw(
-    btcClient: NearAccount,
-    sig: string,
-    caller?: NearAccount,
-  ) {
+  async queueWithdraw(sig: string) {
     return queueWithdraw(
-      btcClient,
-      caller ?? btcClient,
+      this.btcClient,
+      this.caller,
       this.userPubkeyHex,
       this.tx.getId(),
       0,
       sig,
       "Unisat",
+    );
+  }
+
+  generatePsbt(
+    extraInput = false,
+    embedMsg = "allstake.withdraw",
+  ): bitcoin.Psbt {
+    const withdrawMsg = Buffer.from(embedMsg);
+    const userP2WPKHAddress = bitcoin.payments.p2wpkh({
+      pubkey: this.userPubkey,
+      network: bitcoin.networks.bitcoin,
+    });
+    this.psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin });
+    this.psbt = this.psbt.addInput({
+      hash: this.tx.getId(),
+      index: 0,
+      witnessUtxo: getWitnessUtxo(this.tx.outs[0]),
+      witnessScript: this.p2wsh.redeem!.output!,
+    });
+
+    if (extraInput) {
+      this.psbt = this.psbt.addInput({
+        hash: this.tx.getId(),
+        index: 1,
+        witnessUtxo: getWitnessUtxo(this.tx.outs[0]),
+        witnessScript: this.p2wsh.redeem!.output!,
+      });
+    }
+
+    this.psbt = this.psbt
+      .addOutput({
+        address: userP2WPKHAddress.address!,
+        value: this.depositAmount - 10,
+      })
+      .addOutput({
+        script: bitcoin.script.compile([
+          bitcoin.opcodes.OP_RETURN,
+          withdrawMsg,
+        ]),
+        value: 0,
+      });
+
+    return this.psbt;
+  }
+
+  signWithdraw() {
+    if (!this.psbt) {
+      this.psbt = this.generatePsbt();
+    }
+    return signWithdraw(
+      this.btcClient,
+      this.caller,
+      this.psbt.toHex(),
+      this.userPubkey.toString("hex"),
+      1,
+    );
+  }
+
+  generateWithdrawTx(extraInput = false, embedMsg = "allstake.withdraw") {
+    const userP2WPKHAddress = bitcoin.payments.p2wpkh({
+      pubkey: this.userPubkey,
+      network: bitcoin.networks.bitcoin,
+    });
+    const withdrawMsg = Buffer.from(embedMsg);
+
+    const withdrawTransaction = new bitcoin.Transaction();
+    withdrawTransaction.version = 2;
+    withdrawTransaction.addInput(idToHash(this.tx.getId()), 0);
+
+    if (extraInput) {
+      withdrawTransaction.addInput(idToHash(this.tx.getId()), 1);
+    }
+
+    withdrawTransaction.addOutput(
+      toOutputScript(userP2WPKHAddress.address!, bitcoin.networks.bitcoin),
+      this.depositAmount - 100,
+    );
+    const embedOutput = bitcoin.payments.embed({ data: [withdrawMsg] });
+    withdrawTransaction.addOutput(embedOutput.output!, 0);
+
+    this.withdrawTx = withdrawTransaction;
+    return withdrawTransaction;
+  }
+
+  submitWithdraw() {
+    if (!this.withdrawTx) {
+      this.withdrawTx = this.generateWithdrawTx();
+    }
+    return submitWithdrawTx(
+      this.btcClient,
+      this.caller,
+      this.withdrawTx.toHex(),
+      this.userPubkeyHex,
+      1,
+      someH256,
+      1,
+      [someH256],
     );
   }
 }

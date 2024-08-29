@@ -206,6 +206,8 @@ export const getUserActiveDepositsLen =
 export const getUserQueueWithdrawDepositsLen = buildGetUserLenFunction(
   "queue_withdraw_deposits",
 );
+export const getUserWithdrawnDepositsLen =
+  buildGetUserLenFunction("withdrawn_deposits");
 
 interface Deposit {
   deposit_tx_id: string;
@@ -238,3 +240,5 @@ export const listUserActiveDeposits =
 export const listUserQueueWithdrawDeposits = buildListUserDepositFunction(
   "queue_withdraw_deposits",
 );
+export const listUserWithdrawnDeposits =
+  buildListUserDepositFunction("withdrawn_deposits");

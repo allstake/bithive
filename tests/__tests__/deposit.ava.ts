@@ -4,21 +4,19 @@ import {
   submitDepositTx,
 } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
-import { DepositTransactionBuilder } from "./helpers/txn_builder";
+import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, someH256 } from "./helpers/utils";
 
 const test = initUnit();
 
 test("submit valid deposit txn", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const amount = 10e8;
 
-  const builder = new DepositTransactionBuilder({
+  const builder = new TestTransactionBuilder(contract, alice, {
     userPubkey: t.context.aliceKeyPair.publicKey,
     allstakePubkey: t.context.allstakePubkey,
-    amount,
   });
-  await builder.submit(contract, alice);
+  await builder.submit();
 
   t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 1);
   const activeDeposits = await listUserActiveDeposits(
@@ -29,7 +27,7 @@ test("submit valid deposit txn", async (t) => {
   );
   t.is(activeDeposits[0].deposit_tx_id, builder.tx.getId());
   t.is(activeDeposits[0].deposit_vout, 0);
-  t.is(activeDeposits[0].value, amount);
+  t.is(activeDeposits[0].value, builder.depositAmount);
   t.is(activeDeposits[0].queue_withdraw_ts, 0);
   t.is(activeDeposits[0].queue_withdraw_message, null);
   t.is(activeDeposits[0].complete_withdraw_ts, 0);
@@ -38,12 +36,10 @@ test("submit valid deposit txn", async (t) => {
 
 test("submit invalid deposit txn", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const amount = 10e8;
 
-  const builder = new DepositTransactionBuilder({
+  const builder = new TestTransactionBuilder(contract, alice, {
     userPubkey: t.context.bobKeyPair.publicKey, // wrong
     allstakePubkey: t.context.allstakePubkey,
-    amount,
   });
 
   const userPubkey = t.context.aliceKeyPair.publicKey.toString("hex");
@@ -67,12 +63,10 @@ test("submit invalid deposit txn", async (t) => {
 
 test("submit deposit txn not confirmed", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const amount = 10e8;
 
-  const builder = new DepositTransactionBuilder({
+  const builder = new TestTransactionBuilder(contract, alice, {
     userPubkey: t.context.aliceKeyPair.publicKey,
     allstakePubkey: t.context.allstakePubkey,
-    amount,
   });
 
   await submitDepositTx(contract, alice, {
@@ -90,19 +84,13 @@ test("submit deposit txn not confirmed", async (t) => {
 
 test("submit duplicated deposit txn", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const amount = 10e8;
 
-  const builder = new DepositTransactionBuilder({
+  const builder = new TestTransactionBuilder(contract, alice, {
     userPubkey: t.context.aliceKeyPair.publicKey,
     allstakePubkey: t.context.allstakePubkey,
-    amount,
   });
-  await builder.submit(contract, alice);
+  await builder.submit();
 
-  await assertFailure(
-    t,
-    builder.submit(contract, alice),
-    "Deposit already saved",
-  );
+  await assertFailure(t, builder.submit(), "Deposit already saved");
   t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 1);
 });
