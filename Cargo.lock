@@ -256,6 +256,7 @@ dependencies = [
  "near-sdk",
  "serde",
  "serde_json",
+ "sha3",
  "uint",
 ]
 
@@ -785,16 +786,20 @@ checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 name = "mock-btc-lightclient"
 version = "1.0.0"
 dependencies = [
+ "hex",
  "near-contract-standards",
  "near-sdk",
+ "serde",
 ]
 
 [[package]]
 name = "mock-chain-signature"
 version = "1.0.0"
 dependencies = [
+ "hex",
  "near-contract-standards",
  "near-sdk",
+ "serde_json",
 ]
 
 [[package]]

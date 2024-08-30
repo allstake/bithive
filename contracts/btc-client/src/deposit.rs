@@ -10,15 +10,14 @@ use bitcoin::{
     script::Builder,
     PublicKey, Sequence, Transaction, TxOut,
 };
-use ext::{ext_btc_lightclient, GAS_LIGHTCLIENT_VERIFY};
-use k256::sha2::{Digest, Sha256};
-use near_sdk::{env, near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
-use types::output_id;
-use utils::get_embed_message;
+use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
+use events::Event;
+use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
+use near_sdk::{near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
+use types::{output_id, RedeemVersion, TxId};
+use utils::{assert_gas, get_embed_message};
 
 use crate::*;
-
-const DEPOSIT_V1_MSG_HEX: &str = "616c6c7374616b652e6465706f7369742e7631"; // "allstake.deposit.v1"
 
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
 const ERR_BAD_TX_LOCKTIME: &str = "Invalid transaction locktime";
@@ -44,29 +43,38 @@ impl Contract {
     /// * `deposit_vout` - index of deposit (p2wsh) output
     /// * `embed_vout` - index of embed (OP_RETURN) output
     /// * `user_pubkey_hex` - user pubkey hex encoded
-    /// * `allstake_pubkey_hex` - allstake contract MPC pubkey hex encoded // TODO read from config
     /// * `sequence_height` - sequence in height // TODO from config?
     /// * `tx_block_hash` - block hash in which the transaction is included
     /// * `tx_index` - transaction index in the block
     /// * `merkle_proof` - merkle proof of transaction in the block
+    #[payable]
     pub fn submit_deposit_tx(
         &mut self,
         tx_hex: String,
         deposit_vout: u64,
         embed_vout: u64,
         user_pubkey_hex: String,
-        allstake_pubkey_hex: String,
         sequence_height: u16,
         tx_block_hash: String,
         tx_index: u64,
         merkle_proof: Vec<String>,
     ) -> Promise {
-        // TODO assert gas
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
+
+        // TODO assert storage fee.
+        // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
+
+        require!(
+            self.solo_withdraw_seq_heights.contains(&sequence_height),
+            format!(
+                "Invalid seq height. Available values are: {:?}",
+                self.solo_withdraw_seq_heights
+            )
+        );
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
-        // TODO maybe?
         require!(
             LockTime::ZERO.partial_cmp(&tx.lock_time).unwrap().is_eq(),
             ERR_BAD_TX_LOCKTIME
@@ -82,39 +90,35 @@ impl Contract {
             .get(deposit_vout as usize)
             .expect(ERR_BAD_DEPOSIT_IDX);
         let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
-        let allstake_pubkey = PublicKey::from_str(&allstake_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
         let sequence = Sequence::from_height(sequence_height);
-        match msg.as_str() {
-            DEPOSIT_V1_MSG_HEX => {
-                self.verify_deposit_output_v1(
-                    deposit_output,
-                    &user_pubkey,
-                    &allstake_pubkey,
-                    sequence,
-                );
+        let redeem_version = match msg.as_str() {
+            DEPOSIT_MSG_HEX_V1 => {
+                self.verify_deposit_output_v1(deposit_output, &user_pubkey, sequence);
+                RedeemVersion::V1
             }
             _ => panic!("{}", ERR_EMBED_INVALID_MSG),
-        }
+        };
 
         let value = deposit_output.value;
 
-        // set stake transaction(output) as confirmed now to prevent duplicate verification
-        self.set_deposit_confirmed(txid.to_string(), deposit_vout);
+        // set deposit transaction(output) as confirmed now to prevent duplicate verification
+        self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
 
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
-            .verify_transaction_inclusion(
+            .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
                 tx_block_hash,
                 tx_index,
                 merkle_proof,
                 self.n_confirmation,
-            )
+            ))
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_DEPOSIT_VERIFY_CB)
                     .on_verify_deposit_tx(
+                        redeem_version,
                         txid.to_string(),
                         deposit_vout,
                         value.to_sat(),
@@ -126,6 +130,7 @@ impl Contract {
     #[private]
     pub fn on_verify_deposit_tx(
         &mut self,
+        redeem_version: RedeemVersion,
         tx_id: String,
         deposit_vout: u64,
         value: u64,
@@ -133,16 +138,30 @@ impl Contract {
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> PromiseOrValue<bool> {
         let valid = result.unwrap_or(false);
+        let txid: TxId = tx_id.clone().into();
         if valid {
             // append to user's active deposits
-            let mut account = self.get_account(&user_pubkey);
-            let deposit = &Deposit::new(tx_id, deposit_vout, value);
+            let mut account = self.get_account(&user_pubkey.clone().into());
+            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value);
             account.insert_active_deposit(deposit);
-            self.set_account(&account);
+            self.set_account(account);
 
-            // TODO emit
+            Event::Deposit {
+                user_pubkey: &user_pubkey,
+                tx_id: &tx_id,
+                deposit_vout: deposit_vout.into(),
+                value: value.into(),
+            }
+            .emit();
         } else {
-            self.unset_deposit_confirmed(tx_id, deposit_vout);
+            self.unset_deposit_confirmed(&txid, deposit_vout);
+            Event::DepositFailed {
+                user_pubkey: &user_pubkey,
+                tx_id: &tx_id,
+                deposit_vout: deposit_vout.into(),
+                value: value.into(),
+            }
+            .emit();
         }
 
         PromiseOrValue::Value(valid)
@@ -150,17 +169,21 @@ impl Contract {
 }
 
 impl Contract {
-    /// verify if output is a valid stake output
+    /// Verify if output is a valid deposit output.
+    /// Note that this function should **NEVER** be changed once goes online!
     fn verify_deposit_output_v1(
         &self,
         output: &TxOut,
         user_pubkey: &PublicKey,
-        allstake_pubkey: &PublicKey,
         sequence: Sequence,
     ) {
         require!(output.script_pubkey.is_p2wsh(), ERR_DEPOSIT_NOT_P2WSH);
         // first 2 bytes are OP_0 OP_PUSHBYTES_32, so we take from the 3rd byte (4th in hex)
         let p2wsh_script_hash = &output.script_pubkey.to_hex_string()[4..];
+
+        // derived pubkey from chain signature
+        // if path is changed, a new deposit output version MUST be used
+        let allstake_pubkey = &self.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
 
         // build required deposit redeem script:
         // OP_IF
@@ -191,19 +214,17 @@ impl Contract {
             .push_opcode(OP_CHECKMULTISIG)
             .push_opcode(OP_ENDIF)
             .into_script();
-        let mut hasher = Sha256::new();
-        hasher.update(script_sig.as_bytes());
-        let expected_script_hash = &hex::encode(hasher.finalize())[..];
+        let expected_script_hash = env::sha256_array(script_sig.as_bytes());
 
         // check if script hash == p2wsh
         require!(
-            p2wsh_script_hash == expected_script_hash,
+            p2wsh_script_hash == hex::encode(expected_script_hash),
             ERR_DEPOSIT_BAD_SCRIPT_HASH
         );
     }
 
-    fn set_deposit_confirmed(&mut self, tx_id: String, vout: u64) {
-        let output_id = output_id(&tx_id, vout);
+    fn set_deposit_confirmed(&mut self, tx_id: &TxId, vout: u64) {
+        let output_id = output_id(tx_id, vout);
         require!(
             !self.confirmed_deposit_txns.contains(&output_id),
             ERR_DEPOSIT_ALREADY_SAVED
@@ -211,8 +232,8 @@ impl Contract {
         self.confirmed_deposit_txns.insert(&output_id);
     }
 
-    fn unset_deposit_confirmed(&mut self, tx_id: String, vout: u64) {
-        let output_id = output_id(&tx_id, vout);
+    fn unset_deposit_confirmed(&mut self, tx_id: &TxId, vout: u64) {
+        let output_id = output_id(tx_id, vout);
         self.confirmed_deposit_txns.remove(&output_id);
     }
 }
@@ -220,27 +241,14 @@ impl Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn test_contract_instance() -> Contract {
-        Contract::init(
-            AccountId::new_unchecked("owner".to_string()),
-            AccountId::new_unchecked("lc".to_string()),
-            AccountId::new_unchecked("cs".to_string()),
-            6,
-            0,
-        )
-    }
-
-    fn user_pubkey_hex() -> String {
-        "02993948c121e42444aadf3a3cd193b1fd68bde666cdd49458846d9b18a2734b60".to_string()
-    }
-
-    fn allstake_pubkey_hex() -> String {
-        "0381bd918e3df982b549ea724f3037beaec75681b53a4a67dab45b7c563293ced3".to_string()
-    }
+    use crate::tests::*;
 
     fn sequence_height() -> u16 {
         5
+    }
+
+    fn user_pubkey_hex() -> String {
+        "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5".to_string()
     }
 
     fn submit_deposit(contract: &mut Contract, tx_hex: String, deposit_vout: u64, embed_vout: u64) {
@@ -249,9 +257,8 @@ mod tests {
             deposit_vout,
             embed_vout,
             user_pubkey_hex(),
-            allstake_pubkey_hex(),
             sequence_height(),
-            "foo".to_string(),
+            "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8".to_string(),
             0,
             vec![],
         );
@@ -301,7 +308,7 @@ mod tests {
     #[test]
     fn test_valid_stake_output() {
         let mut contract = test_contract_instance();
-        let tx_hex = "0200000000010152bcf12baf7269211c27801812a861b9f1d07c3181e99608397b953fde828a070100000000ffffffff02400d03000000000022002003c90eba20ca98d81a51a1a00bf6a0da81c1e41088d062f49586fce4808540bb0000000000000000156a13616c6c7374616b652e6465706f7369742e763102483045022100bcbd8ec92d34f4b28f250cc6226c1c275d1e6d524b78bea4c47fc60439fe7e860220324005372f5d56e5a6b8b3a10131f3b3a0792358fa75286986ec22274c95615c012102993948c121e42444aadf3a3cd193b1fd68bde666cdd49458846d9b18a2734b6000000000";
+        let tx_hex = "020000000001011fcd48a529b464bef4a49b850579bd62237265eb61887b698e10ee31b568f5ab0000000000ffffffff02400d03000000000022002076efdc4231206f9fdc475e69b79a71201f37b1ed6ead63ecccd22cc89874ef720000000000000000156a13616c6c7374616b652e6465706f7369742e7631024830450221008c5f918d06bad07231152cd645e18115694a741fea07e03ba4887f68dbb123df0220038be69b5e638aa22e3f225d26d90296ac4471ccb14d1bc9a64925e0d28853fe012102f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e500000000";
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 }

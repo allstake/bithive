@@ -7,6 +7,11 @@ btc-client: contracts/btc-client
 	@mkdir -p res
 	@cp target/wasm32-unknown-unknown/release/btc_client.wasm ./res/btc_client.wasm
 
+btc-client-test: contracts/btc-client
+	$(call compile_test,btc-client)
+	@mkdir -p res
+	@cp target/wasm32-unknown-unknown/debug/btc_client.wasm ./res/btc_client_test.wasm
+
 mock-btc-lightclient: contracts/mock-btc-lightclient
 	$(call compile_release,mock-btc-lightclient)
 	@mkdir -p res
@@ -21,11 +26,24 @@ lint:
 	@cargo fmt --all
 	@cargo clippy --fix --allow-dirty --allow-staged --features=test
 
-test: test-unit
+test: test-unit test-ava test-integration
 
 test-unit:
 	@cargo test --features=test -- --nocapture
 
+TEST_FILE ?= **
+ifndef LOGS
+	export NEAR_WORKSPACES_NO_LOGS=1
+else
+	export NEAR_PRINT_LOGS=1 
+endif
+
+test-ava: btc-client-test mock-btc-lightclient mock-chain-signature
+	npx ava -c 2 --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
+
+
+test-integration: btc-client-test mock-btc-lightclient mock-chain-signature
+	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
 define compile_release
 	@rustup target add wasm32-unknown-unknown

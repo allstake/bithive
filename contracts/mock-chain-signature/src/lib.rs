@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, Gas, Promise, PromiseOrValue};
@@ -34,11 +36,37 @@ const GAS_FOR_SIGN_CALL: Gas = Gas(250 * Gas::ONE_TERA.0);
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, Default)]
-pub struct Contract {}
+pub struct Contract {
+    big_r: String,
+    s: String,
+    recovery_id: u8,
+}
 
 #[near_bindgen]
 impl Contract {
+    #[init]
+    pub fn init() -> Self {
+        Self {
+            big_r: "02E14D22E30DF1F02A3C46C52EB2B999AB009600FA945CACD3242AD66480E26EA7".to_string(),
+            s: "7E7ADD7EF49E871C41EDF56BDF5C93B44E21A83CD55FA656318A1F0E6CD17CE9".to_string(),
+            recovery_id: 0,
+        }
+    }
+
+    pub fn set_sig(&mut self, big_r: String, s: String, recovery_id: u8) {
+        self.big_r = big_r;
+        self.s = s;
+        self.recovery_id = recovery_id;
+    }
+
+    pub fn public_key(&self) -> near_sdk::PublicKey {
+        // from v1.signer-prod.testnet
+        let pk = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
+        near_sdk::PublicKey::from_str(pk).unwrap()
+    }
+
     #[allow(unused_variables)]
+    #[payable]
     pub fn sign(&mut self, request: SignRequest) -> Promise {
         assert!(
             env::prepaid_gas() >= GAS_FOR_SIGN_CALL,
@@ -56,16 +84,21 @@ impl Contract {
         payload: [u8; 32],
         depth: usize,
     ) -> PromiseOrValue<SignatureResponse> {
+        // log!("payload to sign:");
+        // log!("{:?}", payload);
+
         PromiseOrValue::Value(SignatureResponse {
             big_r: BigR {
-                affine_point: "025802983164945D1C3E40818FF569E275451CC33613EDDFA0E54D23710DFAF3C8"
-                    .to_string(),
+                affine_point: self.big_r.clone(),
             },
             s: S {
-                scalar: "07511DF9E947BC61F88011A3166AA0E60E2D45BFCACD61AD35DB4340941C84DE"
-                    .to_string(),
+                scalar: self.s.clone(),
             },
-            recovery_id: 1,
+            recovery_id: self.recovery_id,
         })
+    }
+
+    pub fn pubkey_helper(&self, pubkey: near_sdk::PublicKey) -> String {
+        hex::encode(pubkey.as_bytes())
     }
 }
