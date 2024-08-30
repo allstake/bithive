@@ -25,6 +25,8 @@ test("submit valid deposit txn", async (t) => {
     0,
     1,
   );
+
+  t.is(activeDeposits[0].redeem_version, "V1");
   t.is(activeDeposits[0].deposit_tx_id, builder.tx.getId());
   t.is(activeDeposits[0].deposit_vout, 0);
   t.is(activeDeposits[0].value, builder.depositAmount);
@@ -32,6 +34,18 @@ test("submit valid deposit txn", async (t) => {
   t.is(activeDeposits[0].queue_withdraw_message, null);
   t.is(activeDeposits[0].complete_withdraw_ts, 0);
   t.is(activeDeposits[0].withdraw_tx_id, null);
+});
+
+test("submit invalid sequence height", async (t) => {
+  const { contract, alice } = t.context.accounts;
+
+  const builder = new TestTransactionBuilder(contract, alice, {
+    userPubkey: t.context.aliceKeyPair.publicKey,
+    allstakePubkey: t.context.allstakePubkey,
+    seq: 2,
+  });
+
+  await assertFailure(t, builder.submit(), "Invalid seq height");
 });
 
 test("submit invalid deposit txn", async (t) => {

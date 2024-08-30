@@ -1,5 +1,6 @@
 use crate::*;
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
+use consts::{CHAIN_SIGNATURE_KEY_VERSION_V1, CHAIN_SIGNATURE_PATH_V1};
 use events::Event;
 use ext::{
     ext_btc_lightclient, ext_chain_signature, ProofArgs, SignRequest, SignatureResponse,
@@ -10,11 +11,8 @@ use near_sdk::{
     near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
-use types::{output_id, PubKey, TxId};
+use types::{output_id, PubKey, RedeemVersion, TxId};
 use utils::{assert_gas, get_embed_message, get_hash_to_sign, verify_signed_message_unisat};
-
-const CHAIN_SIGNATURE_PATH: &str = "btc/v1";
-const CHAIN_SIGNATURE_KEY_VERSION: u32 = 0; // TODO ??
 
 const WITHDRAW_MSG_HEX: &str = "616c6c7374616b652e7769746864726177"; // "allstake.withdraw"
 
@@ -118,10 +116,16 @@ impl Contract {
 
         // request signature from chain signature
         let payload = get_hash_to_sign(&psbt, 0);
+        let (path, key_version) = match deposit.redeem_version() {
+            RedeemVersion::V1 => (
+                CHAIN_SIGNATURE_PATH_V1.to_string(),
+                CHAIN_SIGNATURE_KEY_VERSION_V1,
+            ),
+        };
         let req = SignRequest {
             payload,
-            path: CHAIN_SIGNATURE_PATH.to_string(),
-            key_version: CHAIN_SIGNATURE_KEY_VERSION,
+            path,
+            key_version,
         };
         ext_chain_signature::ext(self.chain_signature_id.clone())
             .with_static_gas(GAS_CHAIN_SIG_SIGN)

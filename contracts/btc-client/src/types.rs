@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use near_sdk::{
-    borsh::{self, BorshSerialize},
+    borsh::{self, BorshDeserialize, BorshSerialize},
     BorshStorageKey,
 };
 
@@ -12,6 +12,13 @@ pub enum StorageKey {
     ActiveDeposits(PubKey),
     QueueWithdrawDeposits(PubKey),
     WithdrawnDeposits(PubKey),
+}
+
+/// Version of redeem script
+#[derive(BorshSerialize, BorshDeserialize, serde::Serialize, serde::Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum RedeemVersion {
+    V1,
 }
 
 /// public key (either compressed or not) in lower case

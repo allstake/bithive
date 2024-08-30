@@ -10,15 +10,14 @@ use bitcoin::{
     script::Builder,
     PublicKey, Sequence, Transaction, TxOut,
 };
+use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
 use events::Event;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
-use types::{output_id, TxId};
+use types::{output_id, RedeemVersion, TxId};
 use utils::{assert_gas, get_embed_message};
 
 use crate::*;
-
-const DEPOSIT_V1_MSG_HEX: &str = "616c6c7374616b652e6465706f7369742e7631"; // "allstake.deposit.v1"
 
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
 const ERR_BAD_TX_LOCKTIME: &str = "Invalid transaction locktime";
@@ -65,6 +64,14 @@ impl Contract {
         // TODO assert storage fee.
         // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
 
+        require!(
+            self.solo_withdraw_seq_heights.contains(&sequence_height),
+            format!(
+                "Invalid seq height. Available values are: {:?}",
+                self.solo_withdraw_seq_heights
+            )
+        );
+
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
@@ -84,16 +91,17 @@ impl Contract {
             .expect(ERR_BAD_DEPOSIT_IDX);
         let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
         let sequence = Sequence::from_height(sequence_height);
-        match msg.as_str() {
-            DEPOSIT_V1_MSG_HEX => {
+        let redeem_version = match msg.as_str() {
+            DEPOSIT_MSG_HEX_V1 => {
                 self.verify_deposit_output_v1(deposit_output, &user_pubkey, sequence);
+                RedeemVersion::V1
             }
             _ => panic!("{}", ERR_EMBED_INVALID_MSG),
-        }
+        };
 
         let value = deposit_output.value;
 
-        // set stake transaction(output) as confirmed now to prevent duplicate verification
+        // set deposit transaction(output) as confirmed now to prevent duplicate verification
         self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
 
         // verify confirmation through btc light client
@@ -110,6 +118,7 @@ impl Contract {
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_DEPOSIT_VERIFY_CB)
                     .on_verify_deposit_tx(
+                        redeem_version,
                         txid.to_string(),
                         deposit_vout,
                         value.to_sat(),
@@ -121,6 +130,7 @@ impl Contract {
     #[private]
     pub fn on_verify_deposit_tx(
         &mut self,
+        redeem_version: RedeemVersion,
         tx_id: String,
         deposit_vout: u64,
         value: u64,
@@ -132,7 +142,7 @@ impl Contract {
         if valid {
             // append to user's active deposits
             let mut account = self.get_account(&user_pubkey.clone().into());
-            let deposit = Deposit::new(txid.clone(), deposit_vout, value);
+            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value);
             account.insert_active_deposit(deposit);
             self.set_account(account);
 
@@ -159,7 +169,7 @@ impl Contract {
 }
 
 impl Contract {
-    /// Verify if output is a valid stake output.
+    /// Verify if output is a valid deposit output.
     /// Note that this function should **NEVER** be changed once goes online!
     fn verify_deposit_output_v1(
         &self,
@@ -167,15 +177,13 @@ impl Contract {
         user_pubkey: &PublicKey,
         sequence: Sequence,
     ) {
-        const V1_PATH: &str = "/btc/manage/v1";
-
         require!(output.script_pubkey.is_p2wsh(), ERR_DEPOSIT_NOT_P2WSH);
         // first 2 bytes are OP_0 OP_PUSHBYTES_32, so we take from the 3rd byte (4th in hex)
         let p2wsh_script_hash = &output.script_pubkey.to_hex_string()[4..];
 
         // derived pubkey from chain signature
         // if path is changed, a new deposit output version MUST be used
-        let allstake_pubkey = &self.generate_btc_pubkey(V1_PATH);
+        let allstake_pubkey = &self.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
 
         // build required deposit redeem script:
         // OP_IF
@@ -237,6 +245,10 @@ mod tests {
 
     fn sequence_height() -> u16 {
         5
+    }
+
+    fn user_pubkey_hex() -> String {
+        "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5".to_string()
     }
 
     fn submit_deposit(contract: &mut Contract, tx_hex: String, deposit_vout: u64, embed_vout: u64) {

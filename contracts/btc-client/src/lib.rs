@@ -7,6 +7,7 @@ use types::{OutputId, PubKey, StorageKey};
 
 mod account;
 mod admin;
+mod consts;
 mod deposit;
 mod events;
 mod ext;
@@ -37,8 +38,10 @@ pub struct Contract {
     chain_signature_root_pubkey: Option<near_sdk::PublicKey>,
     /// number of confirmations in BTC
     n_confirmation: u64,
-    /// how long the withdraw request needs to be queued
+    /// for multisig withdraw, how long the withdraw request needs to be queued
     withdraw_waiting_time_ms: u64,
+    /// list of available solo withdraw sequence heights, used by redeem script
+    solo_withdraw_seq_heights: Vec<u16>,
     /// set of all confirmed deposit txns
     confirmed_deposit_txns: LookupSet<OutputId>,
     /// user accounts: pubkey -> account
@@ -55,6 +58,7 @@ impl Contract {
         chain_signature_id: AccountId,
         n_confirmation: u64,
         withdraw_waiting_time_ms: u64,
+        solo_withdraw_seq_heights: Vec<u16>,
     ) -> Self {
         Self {
             owner_id,
@@ -63,6 +67,7 @@ impl Contract {
             chain_signature_root_pubkey: None,
             n_confirmation,
             withdraw_waiting_time_ms,
+            solo_withdraw_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: LookupMap::new(StorageKey::Accounts),
         }
@@ -131,6 +136,7 @@ mod tests {
             AccountId::new_unchecked("cs".to_string()),
             6,
             0,
+            vec![5],
         );
 
         // from v1.signer-prod.testnet
@@ -139,9 +145,5 @@ mod tests {
         contract.set_chain_signature_root_pubkey(root_pk);
 
         contract
-    }
-
-    pub(crate) fn user_pubkey_hex() -> String {
-        "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5".to_string()
     }
 }

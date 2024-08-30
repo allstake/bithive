@@ -33,6 +33,12 @@ impl Contract {
         self.assert_owner();
         self.withdraw_waiting_time_ms = ms;
     }
+
+    #[payable]
+    pub fn set_solo_withdraw_sequence_heights(&mut self, values: Vec<u16>) {
+        self.assert_owner();
+        self.solo_withdraw_seq_heights = values;
+    }
 }
 
 impl Contract {

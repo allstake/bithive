@@ -210,6 +210,7 @@ export const getUserWithdrawnDepositsLen =
   buildGetUserLenFunction("withdrawn_deposits");
 
 interface Deposit {
+  redeem_version: string;
   deposit_tx_id: string;
   deposit_vout: number;
   value: number;

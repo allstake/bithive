@@ -6,7 +6,7 @@ use near_sdk::{
 use serde::Serialize;
 
 use crate::{
-    types::{output_id, OutputId, PubKey, StorageKey, TxId},
+    types::{output_id, OutputId, PubKey, RedeemVersion, StorageKey, TxId},
     utils::current_timestamp_ms,
 };
 
@@ -173,14 +173,19 @@ impl From<Account> for VersionedAccount {
 #[derive(BorshDeserialize, BorshSerialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Deposit {
+    /// redeem version allows us to use the correct params to sign withdraw txn
+    redeem_version: RedeemVersion,
+    /// deposit transaction ID
     deposit_tx_id: TxId,
+    /// deposit UTXO vout in the above transaction
     deposit_vout: u64,
+    /// deposit amount in full BTC decimals
     value: u64,
     /// queue withdraw start time in ms
     queue_withdraw_ts: Timestamp,
     /// the message that the user signed when requesting queue withdraw
     queue_withdraw_message: Option<String>,
-    /// signature of the above message
+    /// signature of the above message.
     /// withdraw msg and sig are saved to make the action indisputable
     queue_withdraw_sig: Option<String>,
     /// complete withdraw time in ms
@@ -190,8 +195,9 @@ pub struct Deposit {
 }
 
 impl Deposit {
-    pub fn new(tx_id: TxId, vout: u64, value: u64) -> Deposit {
+    pub fn new(redeem_version: RedeemVersion, tx_id: TxId, vout: u64, value: u64) -> Deposit {
         Deposit {
+            redeem_version,
             deposit_tx_id: tx_id,
             deposit_vout: vout,
             value,
@@ -201,6 +207,10 @@ impl Deposit {
             complete_withdraw_ts: 0,
             withdraw_tx_id: None,
         }
+    }
+
+    pub fn redeem_version(&self) -> RedeemVersion {
+        self.redeem_version.clone()
     }
 
     pub fn id(&self) -> OutputId {
