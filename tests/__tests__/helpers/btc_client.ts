@@ -69,7 +69,7 @@ export async function submitWithdrawTx(
   caller: NearAccount,
   tx_hex: string,
   user_pubkey: string,
-  embed_vout: number,
+  deposit_vin: number,
   tx_block_hash: string,
   tx_index: number,
   merkle_proof: string[],
@@ -80,7 +80,7 @@ export async function submitWithdrawTx(
     {
       tx_hex,
       user_pubkey,
-      embed_vout,
+      deposit_vin,
       tx_block_hash,
       tx_index,
       merkle_proof,

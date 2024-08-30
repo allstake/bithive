@@ -223,7 +223,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     alice,
     withdrawTx.toHex(),
     aliceKp.publicKey.toString("hex"),
-    1,
+    0,
     someH256,
     66,
     [someH256, someH256],

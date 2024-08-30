@@ -31,59 +31,12 @@ test("submit withdraw invalid txn hex", async (t) => {
       alice,
       `${withdrawTx.toHex()}fff`, // wrong
       userPubkey.toString("hex"),
-      1,
+      0,
       someH256,
       1,
       [someH256],
     ),
     "Invalid txn hex",
-  );
-});
-
-test("submit withdraw wrong input number", async (t) => {
-  const { contract, alice } = t.context.accounts;
-  const userPubkey = t.context.unisatPubkey;
-  const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
-    userPubkey,
-    allstakePubkey,
-  });
-  await builder.submit();
-
-  builder.generateWithdrawTx(true); // wrong
-
-  await assertFailure(
-    t,
-    builder.submitWithdraw(),
-    "Withdraw txn must have only 1 input",
-  );
-});
-
-test("submit withdraw wrong embed vout", async (t) => {
-  const { contract, alice } = t.context.accounts;
-  const userPubkey = t.context.unisatPubkey;
-  const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
-    userPubkey,
-    allstakePubkey,
-  });
-  await builder.submit();
-
-  const withdrawTx = builder.generateWithdrawTx();
-
-  await assertFailure(
-    t,
-    submitWithdrawTx(
-      contract,
-      alice,
-      withdrawTx.toHex(),
-      userPubkey.toString("hex"),
-      0, // wrong
-      someH256,
-      1,
-      [someH256],
-    ),
-    "Embed output is not OP_RETURN",
   );
 });
 
@@ -99,21 +52,6 @@ test("submit withdraw invalid deposit", async (t) => {
   builder.generateWithdrawTx();
 
   await assertFailure(t, builder.submitWithdraw(), "Deposit is not active");
-});
-
-test("submit withdraw wrong embed msg", async (t) => {
-  const { contract, alice } = t.context.accounts;
-  const userPubkey = t.context.unisatPubkey;
-  const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
-    userPubkey,
-    allstakePubkey,
-  });
-  await builder.submit();
-
-  builder.generateWithdrawTx(false, "withdraw"); // wrong
-
-  await assertFailure(t, builder.submitWithdraw(), "Wrong embed message");
 });
 
 test("submit withdraw txn not confirmed", async (t) => {
@@ -133,7 +71,7 @@ test("submit withdraw txn not confirmed", async (t) => {
     alice,
     withdrawTx.toHex(),
     builder.userPubkeyHex,
-    1,
+    0,
     someH256,
     0, // wrong
     [someH256],

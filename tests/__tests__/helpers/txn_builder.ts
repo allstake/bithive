@@ -188,7 +188,7 @@ export class TestTransactionBuilder {
       this.caller,
       this.withdrawTx.toHex(),
       this.userPubkeyHex,
-      1,
+      0,
       someH256,
       1,
       [someH256],

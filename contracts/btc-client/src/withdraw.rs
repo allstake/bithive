@@ -31,6 +31,7 @@ const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
 const ERR_INVALID_SIGNATURE: &str = "Invalid signature result";
 
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
+const ERR_BAD_DEPOSIT_VIN: &str = "Deposit vin not exist";
 
 /// in case different wallet signs message in different form,
 /// the signer needs to explicitly specify the type
@@ -162,7 +163,7 @@ impl Contract {
     /// ### Arguments
     /// * `tx_hex` - hex encoded transaction body
     /// * `user_pubkey` - user public key
-    /// * `embed_vout` - vout of embed output (OP_RETURN)
+    /// * `deposit_vin` - vin of the deposit UTXO
     /// * `tx_block_hash` - block hash in which the transaction is included
     /// * `tx_index` - transaction index in the block
     /// * `merkle_proof` - merkle proof of transaction in the block
@@ -170,7 +171,7 @@ impl Contract {
         &mut self,
         tx_hex: String,
         user_pubkey: String,
-        embed_vout: u64,
+        deposit_vin: u64,
         tx_block_hash: String,
         tx_index: u64,
         merkle_proof: Vec<String>,
@@ -179,9 +180,11 @@ impl Contract {
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
-        self.verify_withdraw_transaction(&tx, embed_vout);
 
-        let input = tx.input.first().unwrap();
+        let input = tx
+            .input
+            .get(deposit_vin as usize)
+            .expect(ERR_BAD_DEPOSIT_VIN);
         let deposit_txid: TxId = input.previous_output.txid.to_string().into();
         let deposit_vout: u64 = input.previous_output.vout.into();
         let account = self.get_account(&user_pubkey.clone().into());
@@ -190,7 +193,6 @@ impl Contract {
         let deposit = account
             .try_get_queue_withdraw_deposit(&deposit_txid, deposit_vout)
             .unwrap_or_else(|| account.get_active_deposit(&deposit_txid, deposit_vout));
-        // TODO we should remove this check as long as the BTC txn is valid
         require!(
             deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
             ERR_WITHDRAW_NOT_READY
@@ -273,8 +275,7 @@ impl Contract {
         )
     }
 
-    // TODO remove this function
-    // the entire function is useless when the user solo withdraw, he can construct whatever txn he like
+    /// NOTE: in the future we can remove this function to allow the user spend his deposit in any way
     pub fn verify_withdraw_transaction(&self, tx: &Transaction, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO
