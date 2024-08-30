@@ -26,6 +26,7 @@ pub type PubKey = LowercaseString;
 
 /// txn ID in lower case
 pub type TxId = LowercaseString;
+
 /// unique ID for an output of a transaction
 pub type OutputId = LowercaseString;
 pub fn output_id(tx_id: &TxId, vout: u64) -> LowercaseString {

@@ -202,7 +202,7 @@ impl Contract {
             ERR_WITHDRAW_NOT_READY
         );
 
-        let deposit_utxo = tx.input.first().unwrap().previous_output;
+        let deposit_utxo = input.previous_output;
         let deposit_tx_id = deposit_utxo.txid;
         let deposit_vout = deposit_utxo.vout;
 
