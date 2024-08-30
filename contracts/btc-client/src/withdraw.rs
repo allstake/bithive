@@ -202,10 +202,6 @@ impl Contract {
             ERR_WITHDRAW_NOT_READY
         );
 
-        let deposit_utxo = input.previous_output;
-        let deposit_tx_id = deposit_utxo.txid;
-        let deposit_vout = deposit_utxo.vout;
-
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
@@ -222,8 +218,8 @@ impl Contract {
                     .on_verify_withdraw_tx(
                         user_pubkey,
                         txid.to_string(),
-                        deposit_tx_id.to_string(),
-                        deposit_vout.into(),
+                        deposit_txid.to_string(),
+                        deposit_vout,
                     ),
             )
     }
