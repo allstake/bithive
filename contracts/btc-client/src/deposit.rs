@@ -43,7 +43,7 @@ impl Contract {
     /// * `deposit_vout` - index of deposit (p2wsh) output
     /// * `embed_vout` - index of embed (OP_RETURN) output
     /// * `user_pubkey_hex` - user pubkey hex encoded
-    /// * `sequence_height` - sequence in height // TODO from config?
+    /// * `sequence_height` - sequence height used in the redeem script, must be a valid value from the configuration
     /// * `tx_block_hash` - block hash in which the transaction is included
     /// * `tx_index` - transaction index in the block
     /// * `merkle_proof` - merkle proof of transaction in the block
