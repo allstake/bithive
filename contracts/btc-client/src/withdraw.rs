@@ -8,7 +8,8 @@ use ext::{
 };
 use near_sdk::{
     env::{self},
-    near_bindgen, promise_result_as_success, require, Gas, Promise, PromiseError,
+    json_types::U128,
+    near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
 use types::{output_id, PubKey, RedeemVersion, TxId};
@@ -26,7 +27,6 @@ const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
 const ERR_INVALID_EMBED_VOUT: &str = "Invalid embed output vout";
 const ERR_BAD_EMBED_MSG: &str = "Wrong embed message";
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
-const ERR_INVALID_SIGNATURE: &str = "Invalid signature result";
 
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_BAD_DEPOSIT_VIN: &str = "Deposit vin not exist";
@@ -138,6 +138,8 @@ impl Contract {
                         user_pubkey,
                         input.previous_output.txid.to_string(),
                         input.previous_output.vout.into(),
+                        env::predecessor_account_id(),
+                        env::attached_deposit().into(),
                     ),
             )
     }
@@ -148,19 +150,24 @@ impl Contract {
         user_pubkey: String,
         deposit_tx_id: String,
         deposit_vout: u64,
+        caller_id: AccountId,
+        attached_deposit: U128,
+        #[callback_result] result: Result<SignatureResponse, PromiseError>,
     ) -> SignatureResponse {
-        let result_bytes = promise_result_as_success().expect(ERR_CHAIN_SIG_FAILED);
-        let sig = serde_json::from_slice::<SignatureResponse>(&result_bytes)
-            .expect(ERR_INVALID_SIGNATURE);
+        if let Ok(sig) = result {
+            Event::SignWithdraw {
+                user_pubkey: &user_pubkey,
+                deposit_tx_id: &deposit_tx_id,
+                deposit_vout: deposit_vout.into(),
+            }
+            .emit();
 
-        Event::SignWithdraw {
-            user_pubkey: &user_pubkey,
-            deposit_tx_id: &deposit_tx_id,
-            deposit_vout: deposit_vout.into(),
+            sig
+        } else {
+            // refund
+            Promise::new(caller_id).transfer(attached_deposit.into());
+            panic!("{}", ERR_CHAIN_SIG_FAILED);
         }
-        .emit();
-
-        sig
     }
 
     /// Submit a BTC withdraw (either solo or multisig) transaction
@@ -268,7 +275,7 @@ impl Contract {
 }
 
 impl Contract {
-    fn withdraw_message(&self, deposit_tx_id: &TxId, deposit_vout: u64) -> String {
+    pub fn withdraw_message(&self, deposit_tx_id: &TxId, deposit_vout: u64) -> String {
         format!(
             "allstake.withdraw:{}",
             output_id(deposit_tx_id, deposit_vout)

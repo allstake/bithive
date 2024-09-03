@@ -2,6 +2,7 @@ use std::cmp::min;
 
 use crate::*;
 use account::Deposit;
+use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -16,6 +17,18 @@ pub struct ContractSummary {
     solo_withdraw_sequence_heights: Vec<u16>,
 }
 
+/// Constants for version 1 of the deposit script
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ConstantsV1 {
+    /// allstake pubkey used in the deposit script
+    allstake_pubkey: String,
+    /// message that should be embedded in the deposit transaction
+    deposit_embed_msg: String,
+    /// raw message that needs to be signed by the user for queueing withdraw
+    queue_withdraw_msg: Option<String>,
+}
+
 #[near_bindgen]
 impl Contract {
     pub fn get_summary(&self) -> ContractSummary {
@@ -27,6 +40,25 @@ impl Contract {
             n_confirmation: self.n_confirmation,
             withdraw_waiting_time_ms: self.withdraw_waiting_time_ms,
             solo_withdraw_sequence_heights: self.solo_withdraw_seq_heights.clone(),
+        }
+    }
+
+    /// Return constants that will be used by deposit/withdraw scripts of version 1
+    /// ### Arguments
+    /// * `deposit_tx_id` - (needed for queue withdraw) deposit transaction id
+    /// * `deposit_vout` - (needed for queue withdraw) deposit vout index
+    pub fn get_v1_constants(
+        &self,
+        deposit_tx_id: Option<String>,
+        deposit_vout: Option<u64>,
+    ) -> ConstantsV1 {
+        ConstantsV1 {
+            allstake_pubkey: self
+                .generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1)
+                .to_string(),
+            deposit_embed_msg: DEPOSIT_MSG_HEX_V1.to_string(),
+            queue_withdraw_msg: deposit_tx_id
+                .map(|tx_id| self.withdraw_message(&tx_id.into(), deposit_vout.unwrap())),
         }
     }
 
