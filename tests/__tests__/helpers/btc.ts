@@ -7,6 +7,9 @@ import hash from "hash.js";
 import { sha3_256 } from "js-sha3";
 import { base_decode } from "near-api-js/lib/utils/serialize";
 
+const rootPublicKey =
+  "secp256k1:54hU5wcCmVUPFWLDALXMh1fFToZsVXrx9BbTbHzSfQq1Kd1rJZi52iPa4QQxo6s5TgjWqgpY8HamYuUDzG6fAaUq";
+
 export function depositScriptV1(
   userPubkey: Buffer,
   allstakePubkey: Buffer,
@@ -80,8 +83,6 @@ export function reconstructSignature(big_r: string, big_s: string) {
 }
 
 function najPublicKeyStrToUncompressedHexPoint() {
-  const rootPublicKey =
-    "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
   const res =
     "04" +
     Buffer.from(base_decode(rootPublicKey.split(":")[1])).toString("hex");

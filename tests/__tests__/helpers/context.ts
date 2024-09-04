@@ -45,10 +45,10 @@ export function initUnit(sandbox = true) {
     // btc
     const aliceKeyPair = ECPair.makeRandom();
     const bobKeyPair = ECPair.makeRandom();
-    const allstakePubkey = Buffer.from(
-      "037c3f573f302b20d0d53fe7b7940d63c966ffc1579cacdbcad700e4a401fee10d",
-      "hex",
-    );
+    const allstakePkUncompressed = (
+      await deriveAddress("btc-client.test.near", V1_PK_PATH, "testnet")
+    ).publicKey;
+    const allstakePubkey = compressPubKey(allstakePkUncompressed);
 
     // pubkey and signature from real unisat wallet
     const unisatPubkey = Buffer.from(
