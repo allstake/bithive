@@ -21,12 +21,6 @@ pub enum Event<'a> {
         deposit_vout: U64,
         value: U64,
     },
-    DepositFailed {
-        user_pubkey: &'a String,
-        tx_id: &'a String,
-        deposit_vout: U64,
-        value: U64,
-    },
     QueueWithdraw {
         user_pubkey: &'a String,
         deposit_tx_id: &'a String,

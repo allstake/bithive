@@ -155,13 +155,6 @@ impl Contract {
             .emit();
         } else {
             self.unset_deposit_confirmed(&txid, deposit_vout);
-            Event::DepositFailed {
-                user_pubkey: &user_pubkey,
-                tx_id: &tx_id,
-                deposit_vout: deposit_vout.into(),
-                value: value.into(),
-            }
-            .emit();
         }
 
         PromiseOrValue::Value(valid)
