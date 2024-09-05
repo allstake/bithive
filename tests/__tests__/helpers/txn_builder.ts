@@ -7,10 +7,10 @@ import {
   toOutputScript,
 } from "./btc";
 import {
-  queueWithdraw,
-  signWithdraw,
+  queueWithdrawal,
+  signWithdrawal,
   submitDepositTx,
-  submitWithdrawTx,
+  submitWithdrawalTx,
 } from "./btc_client";
 import { someH256 } from "./utils";
 const bip68 = require("bip68"); // eslint-disable-line
@@ -87,7 +87,7 @@ export class TestTransactionBuilder {
   }
 
   async queueWithdraw(sig: string) {
-    return queueWithdraw(
+    return queueWithdrawal(
       this.btcClient,
       this.caller,
       this.userPubkeyHex,
@@ -144,7 +144,7 @@ export class TestTransactionBuilder {
     if (!this.psbt) {
       this.psbt = this.generatePsbt();
     }
-    return signWithdraw(
+    return signWithdrawal(
       this.btcClient,
       this.caller,
       this.psbt.toHex(),
@@ -183,7 +183,7 @@ export class TestTransactionBuilder {
     if (!this.withdrawTx) {
       this.withdrawTx = this.generateWithdrawTx();
     }
-    return submitWithdrawTx(
+    return submitWithdrawalTx(
       this.btcClient,
       this.caller,
       this.withdrawTx.toHex(),

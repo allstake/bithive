@@ -23,4 +23,4 @@ In order to use a new deposit redeem script (the script itself or its consts), p
 3. Add a new entry for `RedeemVersion` in `types.rs`
 4. Define a function that could verify if a deposit txn is of the newly-created version in `deposit.rs`, like `verify_deposit_output_v1`
 5. Update the `redeem_version` match in `submit_deposit_tx` with the new verify function above
-6. Update the `deposit.redeem_version()` match in `sign_withdraw` with new consts defined in step 2
+6. Update the `deposit.redeem_version()` match in `sign_withdrawal` with new consts defined in step 2

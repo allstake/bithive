@@ -33,7 +33,7 @@ test("submit valid deposit txn", async (t) => {
   t.is(activeDeposits[0].queue_withdraw_ts, 0);
   t.is(activeDeposits[0].queue_withdraw_message, null);
   t.is(activeDeposits[0].complete_withdraw_ts, 0);
-  t.is(activeDeposits[0].withdraw_tx_id, null);
+  t.is(activeDeposits[0].withdrawal_tx_id, null);
 });
 
 test("submit invalid sequence height", async (t) => {

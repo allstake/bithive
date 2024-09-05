@@ -23,7 +23,7 @@ pub struct Account {
     /// set of deposits that are not known to be withdrawed
     active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are queued for withdraw
-    queue_withdraw_deposits: UnorderedMap<OutputId, VersionedDeposit>,
+    queue_withdrawal_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are confirmed to have been withdrawn
     withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
 }
@@ -33,7 +33,7 @@ impl Account {
         Account {
             pubkey: pubkey.clone(),
             active_deposits: UnorderedMap::new(StorageKey::ActiveDeposits(pubkey.clone())),
-            queue_withdraw_deposits: UnorderedMap::new(StorageKey::QueueWithdrawDeposits(
+            queue_withdrawal_deposits: UnorderedMap::new(StorageKey::QueueWithdrawDeposits(
                 pubkey.clone(),
             )),
             withdrawn_deposits: UnorderedMap::new(StorageKey::WithdrawnDeposits(pubkey)),
@@ -83,50 +83,50 @@ impl Account {
             .into()
     }
 
-    pub fn queue_withdraw_deposits_len(&self) -> u64 {
-        self.queue_withdraw_deposits.len()
+    pub fn queue_withdrawal_deposits_len(&self) -> u64 {
+        self.queue_withdrawal_deposits.len()
     }
 
-    pub fn get_queue_withdraw_deposit_by_index(&self, idx: u64) -> Option<Deposit> {
-        self.queue_withdraw_deposits
+    pub fn get_queue_withdrawal_deposit_by_index(&self, idx: u64) -> Option<Deposit> {
+        self.queue_withdrawal_deposits
             .values()
             .nth(idx as usize)
             .map(|d| d.into())
     }
 
-    pub fn insert_queue_withdraw_deposit(&mut self, deposit: Deposit) {
+    pub fn insert_queue_withdrawal_deposit(&mut self, deposit: Deposit) {
         let deposit_id = &deposit.id();
         require!(
-            self.queue_withdraw_deposits.get(deposit_id).is_none(),
+            self.queue_withdrawal_deposits.get(deposit_id).is_none(),
             ERR_DEPOSIT_ALREADY_QUEUED
         );
-        self.queue_withdraw_deposits
+        self.queue_withdrawal_deposits
             .insert(deposit_id, &deposit.into());
     }
 
-    pub fn try_get_queue_withdraw_deposit(&self, tx_id: &TxId, vout: u64) -> Option<Deposit> {
-        self.queue_withdraw_deposits
+    pub fn try_get_queue_withdrawal_deposit(&self, tx_id: &TxId, vout: u64) -> Option<Deposit> {
+        self.queue_withdrawal_deposits
             .get(&output_id(tx_id, vout))
             .map(|d| d.into())
     }
 
-    pub fn get_queue_withdraw_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
-        self.try_get_queue_withdraw_deposit(tx_id, vout)
+    pub fn get_queue_withdrawal_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
+        self.try_get_queue_withdrawal_deposit(tx_id, vout)
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
     }
 
-    pub fn try_remove_queue_withdraw_deposit(
+    pub fn try_remove_queue_withdrawal_deposit(
         &mut self,
         tx_id: &TxId,
         vout: u64,
     ) -> Option<Deposit> {
-        self.queue_withdraw_deposits
+        self.queue_withdrawal_deposits
             .remove(&output_id(tx_id, vout))
             .map(|d| d.into())
     }
 
-    pub fn remove_queue_withdraw_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
-        self.try_remove_queue_withdraw_deposit(tx_id, vout)
+    pub fn remove_queue_withdrawal_deposit(&mut self, tx_id: &TxId, vout: u64) -> Deposit {
+        self.try_remove_queue_withdrawal_deposit(tx_id, vout)
             .expect(ERR_DEPOSIT_NOT_IN_QUEUE)
     }
 
@@ -191,7 +191,7 @@ pub struct Deposit {
     /// complete withdraw time in ms
     complete_withdraw_ts: Timestamp,
     /// withdraw txn ID
-    withdraw_tx_id: Option<TxId>,
+    withdrawal_tx_id: Option<TxId>,
 }
 
 impl Deposit {
@@ -205,7 +205,7 @@ impl Deposit {
             queue_withdraw_message: None,
             queue_withdraw_sig: None,
             complete_withdraw_ts: 0,
-            withdraw_tx_id: None,
+            withdrawal_tx_id: None,
         }
     }
 
@@ -217,7 +217,7 @@ impl Deposit {
         output_id(&self.deposit_tx_id, self.deposit_vout)
     }
 
-    pub fn queue_withdraw(&mut self, withdraw_msg: String, msg_sig: String) {
+    pub fn queue_withdrawal(&mut self, withdraw_msg: String, msg_sig: String) {
         require!(
             self.queue_withdraw_ts == 0 && self.complete_withdraw_ts == 0,
             ERR_DEPOSIT_CANNOT_QUEUE_WITHDRAW
@@ -233,9 +233,9 @@ impl Deposit {
                 || self.queue_withdraw_ts + waiting_time_ms <= current_timestamp_ms())
     }
 
-    pub fn complete_withdraw(&mut self, withdraw_tx_id: String) {
+    pub fn complete_withdraw(&mut self, withdrawal_tx_id: String) {
         self.complete_withdraw_ts = current_timestamp_ms();
-        self.withdraw_tx_id = Some(withdraw_tx_id.into());
+        self.withdrawal_tx_id = Some(withdrawal_tx_id.into());
     }
 }
 

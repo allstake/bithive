@@ -56,7 +56,7 @@ export function initUnit(sandbox = true) {
       "hex",
     );
     const unisatSig =
-      "1fb04a55cd9ce328e175df6f436963d3f15e20a70ea623f7d8ed19f9e2ba15e7c44f3aab2e36b75dc0d27e1f9ff777582d9d9c6ba896dec78ef3639dd7653b23f6";
+      "207344fe7c55c2f333feaf2672d85119c82434d6f19afbfa86180733ed558ce9b871f1bee8b0d6f87f338e4f1809fb437940d0ffa6aad385e5a674812772932ef1";
 
     t.context.aliceKeyPair = aliceKeyPair;
     t.context.bobKeyPair = bobKeyPair;

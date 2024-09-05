@@ -1,4 +1,4 @@
-import { fastForward, signWithdraw } from "./helpers/btc_client";
+import { fastForward, signWithdrawal } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, daysToMs } from "./helpers/utils";
@@ -20,7 +20,7 @@ test("sign withdraw with invalid PSBT", async (t) => {
 
   await assertFailure(
     t,
-    signWithdraw(
+    signWithdrawal(
       contract,
       alice,
       `11${psbtHex}`, // wrong
@@ -64,7 +64,7 @@ test("sign withdraw with wrong embed vout", async (t) => {
 
   await assertFailure(
     t,
-    signWithdraw(
+    signWithdrawal(
       contract,
       alice,
       psbt.toHex(),

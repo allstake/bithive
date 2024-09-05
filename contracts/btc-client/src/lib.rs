@@ -103,7 +103,7 @@ impl Contract {
 
 impl Contract {
     /// this could be called by tests but not exposed on-chain
-    pub fn set_chain_signature_root_pubkey(&mut self, pk: near_sdk::PublicKey) {
+    pub(crate) fn set_chain_signature_root_pubkey(&mut self, pk: near_sdk::PublicKey) {
         require!(
             self.chain_signature_root_pubkey.is_none(),
             ERR_ROOT_PK_ALREADY_SYNCED

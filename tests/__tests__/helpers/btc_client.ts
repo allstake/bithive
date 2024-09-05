@@ -24,7 +24,7 @@ export async function submitDepositTx(
   });
 }
 
-export async function queueWithdraw(
+export async function queueWithdrawal(
   btcClient: NearAccount,
   caller: NearAccount,
   user_pubkey: string,
@@ -33,7 +33,7 @@ export async function queueWithdraw(
   msg_sig: string,
   sig_type: string,
 ) {
-  return caller.call(btcClient, "queue_withdraw", {
+  return caller.call(btcClient, "queue_withdrawal", {
     user_pubkey,
     deposit_tx_id,
     deposit_vout,
@@ -42,7 +42,7 @@ export async function queueWithdraw(
   });
 }
 
-export async function signWithdraw(
+export async function signWithdrawal(
   btcClient: NearAccount,
   caller: NearAccount,
   psbtHex: string,
@@ -51,7 +51,7 @@ export async function signWithdraw(
 ): Promise<ChainSignatureResponse> {
   return caller.call(
     btcClient.accountId,
-    "sign_withdraw",
+    "sign_withdrawal",
     {
       psbt_hex: psbtHex,
       user_pubkey: userPubkey,
@@ -64,7 +64,7 @@ export async function signWithdraw(
   );
 }
 
-export async function submitWithdrawTx(
+export async function submitWithdrawalTx(
   btcClient: NearAccount,
   caller: NearAccount,
   tx_hex: string,
@@ -76,7 +76,7 @@ export async function submitWithdrawTx(
 ) {
   return caller.call(
     btcClient,
-    "submit_withdraw_tx",
+    "submit_withdrawal_tx",
     {
       tx_hex,
       user_pubkey,
@@ -203,8 +203,8 @@ function buildGetUserLenFunction(name: string) {
 
 export const getUserActiveDepositsLen =
   buildGetUserLenFunction("active_deposits");
-export const getUserQueueWithdrawDepositsLen = buildGetUserLenFunction(
-  "queue_withdraw_deposits",
+export const getUserQueueWithdrawalDepositsLen = buildGetUserLenFunction(
+  "queue_withdrawal_deposits",
 );
 export const getUserWithdrawnDepositsLen =
   buildGetUserLenFunction("withdrawn_deposits");
@@ -218,7 +218,7 @@ interface Deposit {
   queue_withdraw_message: string | null;
   queue_withdraw_sig: string | null;
   complete_withdraw_ts: number;
-  withdraw_tx_id: string | null;
+  withdrawal_tx_id: string | null;
 }
 
 function buildListUserDepositFunction(name: string) {
@@ -238,8 +238,8 @@ function buildListUserDepositFunction(name: string) {
 
 export const listUserActiveDeposits =
   buildListUserDepositFunction("active_deposits");
-export const listUserQueueWithdrawDeposits = buildListUserDepositFunction(
-  "queue_withdraw_deposits",
+export const listUserQueueWithdrawalDeposits = buildListUserDepositFunction(
+  "queue_withdrawal_deposits",
 );
 export const listUserWithdrawnDeposits =
   buildListUserDepositFunction("withdrawn_deposits");

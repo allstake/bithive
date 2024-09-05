@@ -26,7 +26,7 @@ pub struct ConstantsV1 {
     /// message that should be embedded in the deposit transaction
     deposit_embed_msg: String,
     /// raw message that needs to be signed by the user for queueing withdraw
-    queue_withdraw_msg: Option<String>,
+    queue_withdrawl_msg: Option<String>,
 }
 
 #[near_bindgen]
@@ -57,8 +57,8 @@ impl Contract {
                 .generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1)
                 .to_string(),
             deposit_embed_msg: DEPOSIT_MSG_HEX_V1.to_string(),
-            queue_withdraw_msg: deposit_tx_id
-                .map(|tx_id| self.withdraw_message(&tx_id.into(), deposit_vout.unwrap())),
+            queue_withdrawl_msg: deposit_tx_id
+                .map(|tx_id| self.withdrawal_message(&tx_id.into(), deposit_vout.unwrap())),
         }
     }
 
@@ -79,20 +79,20 @@ impl Contract {
             .collect()
     }
 
-    pub fn user_queue_withdraw_deposits_len(&self, user_pubkey: String) -> u64 {
+    pub fn user_queue_withdrawal_deposits_len(&self, user_pubkey: String) -> u64 {
         let account = self.get_account(&user_pubkey.into());
-        account.queue_withdraw_deposits_len()
+        account.queue_withdrawal_deposits_len()
     }
 
-    pub fn list_user_queue_withdraw_deposits(
+    pub fn list_user_queue_withdrawal_deposits(
         &self,
         user_pubkey: String,
         offset: u64,
         limit: u64,
     ) -> Vec<Deposit> {
         let account = self.get_account(&user_pubkey.into());
-        (offset..min(account.queue_withdraw_deposits_len(), offset + limit))
-            .map(|idx| account.get_queue_withdraw_deposit_by_index(idx).unwrap())
+        (offset..min(account.queue_withdrawal_deposits_len(), offset + limit))
+            .map(|idx| account.get_queue_withdrawal_deposit_by_index(idx).unwrap())
             .collect()
     }
 

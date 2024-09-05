@@ -11,7 +11,7 @@ use k256::{
 use sha3::{Digest, Sha3_256};
 use utils::{compress_pub_key, current_account_id};
 
-pub trait ScalarExt: Sized {
+trait ScalarExt: Sized {
     fn from_bytes(bytes: [u8; 32]) -> Option<Self>;
     fn from_non_biased(bytes: [u8; 32]) -> Self;
 }
@@ -39,7 +39,7 @@ type KdfPublicKey = <Secp256k1 as CurveArithmetic>::AffinePoint;
 // near-mpc-recovery with key derivation protocol vX.Y.Z.
 const EPSILON_DERIVATION_PREFIX: &str = "near-mpc-recovery v0.1.0 epsilon derivation:";
 
-pub fn derive_epsilon(predecessor_id: &AccountId, path: &str) -> Scalar {
+fn derive_epsilon(predecessor_id: &AccountId, path: &str) -> Scalar {
     let derivation_path = format!("{EPSILON_DERIVATION_PREFIX}{},{}", predecessor_id, path);
     let mut hasher = Sha3_256::new();
     hasher.update(derivation_path.clone());
@@ -47,7 +47,7 @@ pub fn derive_epsilon(predecessor_id: &AccountId, path: &str) -> Scalar {
     Scalar::from_non_biased(hash)
 }
 
-pub fn derive_key(public_key: KdfPublicKey, epsilon: Scalar) -> KdfPublicKey {
+fn derive_key(public_key: KdfPublicKey, epsilon: Scalar) -> KdfPublicKey {
     (<Secp256k1 as CurveArithmetic>::ProjectivePoint::GENERATOR * epsilon + public_key).to_affine()
 }
 
@@ -76,7 +76,7 @@ impl Contract {
     }
 
     /// returns the derived BTC compressed public key for path
-    pub fn generate_btc_pubkey(&self, path: &str) -> bitcoin::PublicKey {
+    pub(crate) fn generate_btc_pubkey(&self, path: &str) -> bitcoin::PublicKey {
         let public_key_bytes = self.generate_public_key(path);
         let compressed = compress_pub_key(&public_key_bytes[..].try_into().unwrap());
         bitcoin::PublicKey::from_slice(&compressed).expect("Invalid compressed pubkey bytes")

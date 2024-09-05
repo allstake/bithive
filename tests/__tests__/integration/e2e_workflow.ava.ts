@@ -12,10 +12,10 @@ import {
 } from "../helpers/btc";
 import {
   fastForward,
-  queueWithdraw,
-  signWithdraw,
+  queueWithdrawal,
+  signWithdrawal,
   submitDepositTx,
-  submitWithdrawTx,
+  submitWithdrawalTx,
   V1_PK_PATH,
 } from "../helpers/btc_client";
 import { setSignature } from "../helpers/chain_signature";
@@ -115,7 +115,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   console.log({ withdrawMsgPlain });
   const sigBase64 = message.sign(aliceKp.toWIF(), withdrawMsgPlain);
   const sigHex = Buffer.from(sigBase64, "base64").toString("hex");
-  await queueWithdraw(
+  await queueWithdrawal(
     contract,
     alice,
     aliceKp.publicKey.toString("hex"),
@@ -166,7 +166,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   await prepareAllstakeSignature(mockChainSignature, hashToSign);
 
   // call btc client contract to sign withdraw PSBT
-  const sig = await signWithdraw(
+  const sig = await signWithdrawal(
     contract,
     alice,
     psbt.toHex(),
@@ -218,7 +218,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   });
 
   // finally, submit withdraw tx to allstake
-  await submitWithdrawTx(
+  await submitWithdrawalTx(
     contract,
     alice,
     withdrawTx.toHex(),
@@ -240,6 +240,6 @@ async function prepareAllstakeSignature(
   const sigResponse = await requestSigFromTestnet(hashToSign, V1_PK_PATH);
 
   // upload the actual signature response to mocked chain sig contract
-  // so that sign_withdraw call could resolve
+  // so that sign_withdrawal call could resolve
   await setSignature(chainSignature, sigResponse);
 }

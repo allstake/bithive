@@ -1,10 +1,10 @@
 import {
   fastForward,
   getUserActiveDepositsLen,
-  getUserQueueWithdrawDepositsLen,
+  getUserQueueWithdrawalDepositsLen,
   getUserWithdrawnDepositsLen,
   listUserWithdrawnDeposits,
-  submitWithdrawTx,
+  submitWithdrawalTx,
 } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
@@ -26,7 +26,7 @@ test("submit withdraw invalid txn hex", async (t) => {
 
   await assertFailure(
     t,
-    submitWithdrawTx(
+    submitWithdrawalTx(
       contract,
       alice,
       `${withdrawTx.toHex()}fff`, // wrong
@@ -66,7 +66,7 @@ test("submit withdraw txn not confirmed", async (t) => {
 
   const withdrawTx = builder.generateWithdrawTx();
 
-  await submitWithdrawTx(
+  await submitWithdrawalTx(
     contract,
     alice,
     withdrawTx.toHex(),
@@ -107,7 +107,7 @@ test("submit solo withdraw", async (t) => {
   t.is(deposits[0].queue_withdraw_ts, 0);
   t.is(deposits[0].queue_withdraw_message, null);
   t.assert(deposits[0].complete_withdraw_ts > 0);
-  t.is(deposits[0].withdraw_tx_id, builder.withdrawTx!.getId());
+  t.is(deposits[0].withdrawal_tx_id, builder.withdrawTx!.getId());
 });
 
 test("submit multisig withdraw", async (t) => {
@@ -126,7 +126,7 @@ test("submit multisig withdraw", async (t) => {
 
   t.is(await getUserWithdrawnDepositsLen(contract, builder.userPubkeyHex), 1);
   t.is(
-    await getUserQueueWithdrawDepositsLen(contract, builder.userPubkeyHex),
+    await getUserQueueWithdrawalDepositsLen(contract, builder.userPubkeyHex),
     0,
   );
 
@@ -140,5 +140,5 @@ test("submit multisig withdraw", async (t) => {
   t.is(deposits[0].deposit_vout, 0);
   t.is(deposits[0].value, builder.depositAmount);
   t.assert(deposits[0].complete_withdraw_ts > 0);
-  t.is(deposits[0].withdraw_tx_id, builder.withdrawTx!.getId());
+  t.is(deposits[0].withdrawal_tx_id, builder.withdrawTx!.getId());
 });

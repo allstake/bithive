@@ -21,25 +21,19 @@ pub enum Event<'a> {
         deposit_vout: U64,
         value: U64,
     },
-    QueueWithdraw {
+    QueueWithdrawal {
         user_pubkey: &'a String,
         deposit_tx_id: &'a String,
         deposit_vout: U64,
     },
-    SignWithdraw {
+    SignWithdrawal {
         user_pubkey: &'a String,
         deposit_tx_id: &'a String,
         deposit_vout: U64,
     },
-    CompleteWithdraw {
+    CompleteWithdrawal {
         user_pubkey: &'a String,
-        withdraw_tx_id: &'a String,
-        deposit_tx_id: &'a String,
-        deposit_vout: U64,
-    },
-    CompleteWithdrawFailed {
-        user_pubkey: &'a String,
-        withdraw_tx_id: &'a String,
+        withdrawal_tx_id: &'a String,
         deposit_tx_id: &'a String,
         deposit_vout: U64,
     },

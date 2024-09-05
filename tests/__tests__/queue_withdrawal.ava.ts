@@ -1,7 +1,7 @@
 import {
   getUserActiveDepositsLen,
-  getUserQueueWithdrawDepositsLen,
-  listUserQueueWithdrawDeposits,
+  getUserQueueWithdrawalDepositsLen,
+  listUserQueueWithdrawalDeposits,
 } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
@@ -59,11 +59,11 @@ test("valid queue withdraw", async (t) => {
 
   t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 0);
   t.is(
-    await getUserQueueWithdrawDepositsLen(contract, builder.userPubkeyHex),
+    await getUserQueueWithdrawalDepositsLen(contract, builder.userPubkeyHex),
     1,
   );
 
-  const deposits = await listUserQueueWithdrawDeposits(
+  const deposits = await listUserQueueWithdrawalDeposits(
     contract,
     builder.userPubkeyHex,
     0,

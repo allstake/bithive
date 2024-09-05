@@ -48,7 +48,7 @@ impl Contract {
     /// * `deposit_vout` - deposit output vout to withdraw
     /// * `msg_sig` - hex encoded signature of queue withdraw message that shoud match `user_pubkey`
     /// * `sig_type` - signature type
-    pub fn queue_withdraw(
+    pub fn queue_withdrawal(
         &mut self,
         user_pubkey: String,
         deposit_tx_id: String,
@@ -58,7 +58,7 @@ impl Contract {
     ) {
         let tx_id: TxId = deposit_tx_id.clone().into();
         // verify msg signature
-        let expected_withdraw_msg = self.withdraw_message(&tx_id, deposit_vout);
+        let expected_withdraw_msg = self.withdrawal_message(&tx_id, deposit_vout);
         let msg = match sig_type {
             SigType::Unisat => verify_signed_message_unisat(
                 &expected_withdraw_msg.into_bytes(),
@@ -69,11 +69,11 @@ impl Contract {
 
         let mut account = self.get_account(&user_pubkey.clone().into());
         let mut deposit = account.remove_active_deposit(&tx_id, deposit_vout);
-        deposit.queue_withdraw(hex::encode(msg), msg_sig);
-        account.insert_queue_withdraw_deposit(deposit);
+        deposit.queue_withdrawal(hex::encode(msg), msg_sig);
+        account.insert_queue_withdrawal_deposit(deposit);
         self.set_account(account);
 
-        Event::QueueWithdraw {
+        Event::QueueWithdrawal {
             user_pubkey: &user_pubkey,
             deposit_tx_id: &deposit_tx_id,
             deposit_vout: deposit_vout.into(),
@@ -87,7 +87,7 @@ impl Contract {
     /// * `user_pubkey` - user public key
     /// * `embed_vout` - vout of embed output (OP_RETURN)
     #[payable]
-    pub fn sign_withdraw(
+    pub fn sign_withdrawal(
         &mut self,
         psbt_hex: String,
         user_pubkey: String,
@@ -104,7 +104,7 @@ impl Contract {
         // for multisig withraw, input UTXO must be in user's withdraw queue
         let input = psbt.unsigned_tx.input.first().unwrap();
         let account = self.get_account(&user_pubkey.clone().into());
-        let deposit = account.get_queue_withdraw_deposit(
+        let deposit = account.get_queue_withdrawal_deposit(
             &input.previous_output.txid.to_string().into(),
             input.previous_output.vout.into(),
         );
@@ -134,7 +134,7 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_CHAIN_SIG_SIGN_CB)
-                    .on_sign_withdraw(
+                    .on_sign_withdrawal(
                         user_pubkey,
                         input.previous_output.txid.to_string(),
                         input.previous_output.vout.into(),
@@ -145,7 +145,7 @@ impl Contract {
     }
 
     #[private]
-    pub fn on_sign_withdraw(
+    pub fn on_sign_withdrawal(
         &self,
         user_pubkey: String,
         deposit_tx_id: String,
@@ -155,7 +155,7 @@ impl Contract {
         #[callback_result] result: Result<SignatureResponse, PromiseError>,
     ) -> SignatureResponse {
         if let Ok(sig) = result {
-            Event::SignWithdraw {
+            Event::SignWithdrawal {
                 user_pubkey: &user_pubkey,
                 deposit_tx_id: &deposit_tx_id,
                 deposit_vout: deposit_vout.into(),
@@ -178,7 +178,7 @@ impl Contract {
     /// * `tx_block_hash` - block hash in which the transaction is included
     /// * `tx_index` - transaction index in the block
     /// * `merkle_proof` - merkle proof of transaction in the block
-    pub fn submit_withdraw_tx(
+    pub fn submit_withdrawal_tx(
         &mut self,
         tx_hex: String,
         user_pubkey: String,
@@ -202,7 +202,7 @@ impl Contract {
         // submitted txn could either be solo withdraw or multisig withdraw,
         // so we need to scan both sets
         let deposit = account
-            .try_get_queue_withdraw_deposit(&deposit_txid, deposit_vout)
+            .try_get_queue_withdrawal_deposit(&deposit_txid, deposit_vout)
             .unwrap_or_else(|| account.get_active_deposit(&deposit_txid, deposit_vout));
         require!(
             deposit.can_complete_withdraw(self.withdraw_waiting_time_ms),
@@ -222,7 +222,7 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_WITHDRAW_VERIFY_CB)
-                    .on_verify_withdraw_tx(
+                    .on_verify_withdrawal_tx(
                         user_pubkey,
                         txid.to_string(),
                         deposit_txid.to_string(),
@@ -232,10 +232,10 @@ impl Contract {
     }
 
     #[private]
-    pub fn on_verify_withdraw_tx(
+    pub fn on_verify_withdrawal_tx(
         &mut self,
         user_pubkey: String,
-        withdraw_tx_id: String,
+        withdrawal_tx_id: String,
         deposit_tx_id: String,
         deposit_vout: u64,
         #[callback_result] result: Result<bool, PromiseError>,
@@ -246,24 +246,16 @@ impl Contract {
             let tx_id: TxId = deposit_tx_id.clone().into();
             let mut account = self.get_account(&pk);
             let mut deposit = account
-                .try_remove_queue_withdraw_deposit(&tx_id, deposit_vout)
+                .try_remove_queue_withdrawal_deposit(&tx_id, deposit_vout)
                 .unwrap_or_else(|| account.remove_active_deposit(&tx_id, deposit_vout));
 
-            deposit.complete_withdraw(withdraw_tx_id.clone());
+            deposit.complete_withdraw(withdrawal_tx_id.clone());
             account.insert_withdrawn_deposit(deposit);
             self.set_account(account);
 
-            Event::CompleteWithdraw {
+            Event::CompleteWithdrawal {
                 user_pubkey: &user_pubkey,
-                withdraw_tx_id: &withdraw_tx_id,
-                deposit_tx_id: &deposit_tx_id,
-                deposit_vout: deposit_vout.into(),
-            }
-            .emit();
-        } else {
-            Event::CompleteWithdrawFailed {
-                user_pubkey: &user_pubkey,
-                withdraw_tx_id: &withdraw_tx_id,
+                withdrawal_tx_id: &withdrawal_tx_id,
                 deposit_tx_id: &deposit_tx_id,
                 deposit_vout: deposit_vout.into(),
             }
@@ -275,7 +267,7 @@ impl Contract {
 }
 
 impl Contract {
-    pub fn withdraw_message(&self, deposit_tx_id: &TxId, deposit_vout: u64) -> String {
+    pub(crate) fn withdrawal_message(&self, deposit_tx_id: &TxId, deposit_vout: u64) -> String {
         format!(
             "allstake.withdraw:{}",
             output_id(deposit_tx_id, deposit_vout)
@@ -283,7 +275,7 @@ impl Contract {
     }
 
     /// NOTE: in the future we can remove this function to allow the user spend his deposit in any way
-    pub fn verify_withdraw_transaction(&self, tx: &Transaction, embed_vout: u64) {
+    pub(crate) fn verify_withdraw_transaction(&self, tx: &Transaction, embed_vout: u64) {
         // right now we ask withdraw transactions to have only 1 input,
         // which is the deposit UTXO
         require!(tx.input.len() == 1, ERR_NOT_ONLY_ONE_INPUT);
