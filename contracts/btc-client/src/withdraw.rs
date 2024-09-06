@@ -41,7 +41,7 @@ pub enum SigType {
 
 #[near_bindgen]
 impl Contract {
-    /// Submit a queue withdraw request for a user
+    /// Submit a queue withdrawal request for a user
     /// ### Arguments
     /// * `user_pubkey` - hex encoded user pub key
     /// * `deposit_tx_id` - id of transaction that contains the deposit to withdraw
@@ -81,7 +81,7 @@ impl Contract {
         .emit();
     }
 
-    /// Sign a BTC withdraw PSBT via chain signature for multisig withdraw
+    /// Sign a BTC withdrawal PSBT via chain signature for multisig withdraw
     /// ### Arguments
     /// * `psbt_hex` - hex encoded PSBT to sign
     /// * `user_pubkey` - user public key
@@ -170,7 +170,7 @@ impl Contract {
         }
     }
 
-    /// Submit a BTC withdraw (either solo or multisig) transaction
+    /// Submit a BTC withdrawal (either solo or multisig) transaction
     /// ### Arguments
     /// * `tx_hex` - hex encoded transaction body
     /// * `user_pubkey` - user public key
