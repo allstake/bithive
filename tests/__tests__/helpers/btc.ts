@@ -185,6 +185,7 @@ type PartialSignResult = {
 export function partialSignPsbt(
   psbt: bitcoin.Psbt,
   signer: ECPairInterface,
+  inputIndex: number,
 ): PartialSignResult {
   let hashToSign: Buffer | null = null;
   const signFn = signer.sign;
@@ -193,7 +194,7 @@ export function partialSignPsbt(
     return signFn.call(signer, hash, lowR);
   };
   signer.sign = sign;
-  const partialSignedPsbt = psbt.clone().signInput(0, signer);
+  const partialSignedPsbt = psbt.clone().signInput(inputIndex, signer);
   assert(!!hashToSign, "No hash to sign");
   return {
     partialSignedPsbt,

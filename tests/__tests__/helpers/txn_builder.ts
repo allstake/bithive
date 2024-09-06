@@ -149,7 +149,7 @@ export class TestTransactionBuilder {
       this.caller,
       this.psbt.toHex(),
       this.userPubkey.toString("hex"),
-      1,
+      0,
     );
   }
 

@@ -37,6 +37,7 @@ const GAS_FOR_SIGN_CALL: Gas = Gas(250 * Gas::ONE_TERA.0);
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, Default)]
 pub struct Contract {
+    payload: Option<[u8; 32]>,
     big_r: String,
     s: String,
     recovery_id: u8,
@@ -47,13 +48,16 @@ impl Contract {
     #[init]
     pub fn init() -> Self {
         Self {
+            payload: None,
             big_r: "02E14D22E30DF1F02A3C46C52EB2B999AB009600FA945CACD3242AD66480E26EA7".to_string(),
             s: "7E7ADD7EF49E871C41EDF56BDF5C93B44E21A83CD55FA656318A1F0E6CD17CE9".to_string(),
             recovery_id: 0,
         }
     }
 
-    pub fn set_sig(&mut self, big_r: String, s: String, recovery_id: u8) {
+    /// Set the signature for the given payload
+    pub fn set_sig(&mut self, payload: [u8; 32], big_r: String, s: String, recovery_id: u8) {
+        self.payload = Some(payload);
         self.big_r = big_r;
         self.s = s;
         self.recovery_id = recovery_id;
@@ -74,6 +78,12 @@ impl Contract {
             env::prepaid_gas(),
             GAS_FOR_SIGN_CALL
         );
+        if self.payload.is_some() {
+            assert!(
+                request.payload == self.payload.unwrap(),
+                "Payload does not match the one set in the contract"
+            );
+        }
         Self::ext(env::current_account_id()).sign_helper(request.payload, 0)
     }
 

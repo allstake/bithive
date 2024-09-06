@@ -47,7 +47,7 @@ export async function signWithdrawal(
   caller: NearAccount,
   psbtHex: string,
   userPubkey: string,
-  embedVout: number,
+  depositVin: number,
 ): Promise<ChainSignatureResponse> {
   return caller.call(
     btcClient.accountId,
@@ -55,7 +55,7 @@ export async function signWithdrawal(
     {
       psbt_hex: psbtHex,
       user_pubkey: userPubkey,
-      embed_vout: embedVout,
+      deposit_vin: depositVin,
     },
     {
       attachedDeposit: NEAR.parse("0.5"),

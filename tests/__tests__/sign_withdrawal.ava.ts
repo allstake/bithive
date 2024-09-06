@@ -31,7 +31,7 @@ test("sign withdraw with invalid PSBT", async (t) => {
   );
 });
 
-test("sign withdraw with wrong input number", async (t) => {
+test("sign withdraw with wrong deposit vin", async (t) => {
   const { contract, alice } = t.context.accounts;
   const userPubkey = t.context.unisatPubkey;
   const allstakePubkey = t.context.allstakePubkey;
@@ -41,26 +41,7 @@ test("sign withdraw with wrong input number", async (t) => {
   });
   await builder.submit();
   await builder.queueWithdraw(t.context.unisatSig);
-  builder.generatePsbt(true); // wrong
-
-  await assertFailure(
-    t,
-    builder.signWithdraw(),
-    "Withdraw txn must have only 1 input",
-  );
-});
-
-test("sign withdraw with wrong embed vout", async (t) => {
-  const { contract, alice } = t.context.accounts;
-  const userPubkey = t.context.unisatPubkey;
-  const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
-    userPubkey,
-    allstakePubkey,
-  });
-  await builder.submit();
-  await builder.queueWithdraw(t.context.unisatSig);
-  const psbt = builder.generatePsbt();
+  const psbt = builder.generatePsbt(true);
 
   await assertFailure(
     t,
@@ -69,25 +50,10 @@ test("sign withdraw with wrong embed vout", async (t) => {
       alice,
       psbt.toHex(),
       userPubkey.toString("hex"),
-      0, // wrong
+      1, // wrong
     ),
-    "Embed output is not OP_RETURN",
+    "Deposit is not in queue",
   );
-});
-
-test("sign withdraw with wrong embed msg", async (t) => {
-  const { contract, alice } = t.context.accounts;
-  const userPubkey = t.context.unisatPubkey;
-  const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
-    userPubkey,
-    allstakePubkey,
-  });
-  await builder.submit();
-  await builder.queueWithdraw(t.context.unisatSig);
-  builder.generatePsbt(false, "withdraw"); // wrong
-
-  await assertFailure(t, builder.signWithdraw(), "Wrong embed message");
 });
 
 test("sign withdraw without queueing first", async (t) => {
