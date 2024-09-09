@@ -8,7 +8,7 @@ use bitcoin::{
         OP_CHECKMULTISIG, OP_CHECKSIG, OP_CSV, OP_DROP, OP_ELSE, OP_ENDIF, OP_IF, OP_PUSHNUM_2,
     },
     script::Builder,
-    PublicKey, Sequence, Transaction, TxOut,
+    PublicKey, ScriptBuf, Sequence, Transaction, TxOut,
 };
 use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
 use events::Event;
@@ -178,7 +178,21 @@ impl Contract {
         // if path is changed, a new deposit output version MUST be used
         let allstake_pubkey = &self.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
 
-        // build required deposit redeem script:
+        let script = Self::deposit_script_v1(user_pubkey, allstake_pubkey, sequence);
+        let expected_script_hash = env::sha256_array(script.as_bytes());
+
+        // check if script hash == p2wsh
+        require!(
+            p2wsh_script_hash == hex::encode(expected_script_hash),
+            ERR_DEPOSIT_BAD_SCRIPT_HASH
+        );
+    }
+
+    pub(crate) fn deposit_script_v1(
+        user_pubkey: &PublicKey,
+        allstake_pubkey: &PublicKey,
+        sequence: Sequence,
+    ) -> ScriptBuf {
         // OP_IF
         //     {{sequence}}
         //     OP_CHECKSEQUENCEVERIFY
@@ -192,7 +206,7 @@ impl Contract {
         //     OP_2
         //     OP_CHECKMULTISIG
         // OP_ENDIF
-        let script_sig = Builder::new()
+        Builder::new()
             .push_opcode(OP_IF)
             .push_sequence(sequence)
             .push_opcode(OP_CSV)
@@ -206,14 +220,7 @@ impl Contract {
             .push_opcode(OP_PUSHNUM_2)
             .push_opcode(OP_CHECKMULTISIG)
             .push_opcode(OP_ENDIF)
-            .into_script();
-        let expected_script_hash = env::sha256_array(script_sig.as_bytes());
-
-        // check if script hash == p2wsh
-        require!(
-            p2wsh_script_hash == hex::encode(expected_script_hash),
-            ERR_DEPOSIT_BAD_SCRIPT_HASH
-        );
+            .into_script()
     }
 
     fn set_deposit_confirmed(&mut self, tx_id: &TxId, vout: u64) {
@@ -233,15 +240,20 @@ impl Contract {
 
 #[cfg(test)]
 mod tests {
+    use bitcoin::{
+        consensus::encode::serialize_hex, opcodes::OP_0, transaction::Version, Amount, TxIn,
+    };
+
     use super::*;
     use crate::tests::*;
 
-    fn sequence_height() -> u16 {
-        5
+    fn sequence_height() -> Sequence {
+        Sequence::from_height(5)
     }
 
-    fn user_pubkey_hex() -> String {
-        "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5".to_string()
+    fn user_pubkey() -> PublicKey {
+        PublicKey::from_str("02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5")
+            .unwrap()
     }
 
     fn submit_deposit(contract: &mut Contract, tx_hex: String, deposit_vout: u64, embed_vout: u64) {
@@ -249,27 +261,83 @@ mod tests {
             tx_hex,
             deposit_vout,
             embed_vout,
-            user_pubkey_hex(),
-            sequence_height(),
+            user_pubkey().to_string(),
+            sequence_height().0 as u16,
             "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8".to_string(),
             0,
             vec![],
         );
     }
 
+    fn build_tx(
+        contract: &Contract,
+        user_pubkey: &PublicKey,
+        sequence: Sequence,
+        embed_msg: &str,
+        embed_value: u64,
+    ) -> String {
+        let mut tx = Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![],
+            output: vec![],
+        };
+
+        // Add a dummy input
+        tx.input.push(TxIn::default());
+
+        // Add the deposit output
+        let allstake_pubkey = contract.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
+        let deposit_script = Contract::deposit_script_v1(user_pubkey, &allstake_pubkey, sequence);
+        let witness_script_hash = env::sha256_array(deposit_script.as_bytes());
+
+        let p2wsh_script = Builder::new()
+            .push_opcode(OP_0) // Witness version 0 (P2WSH)
+            .push_slice(witness_script_hash) // Push the SHA256 hash of the witness script
+            .into_script();
+
+        tx.output.push(TxOut {
+            value: Amount::from_sat(100),
+            script_pubkey: p2wsh_script,
+        });
+
+        // Add the embed output
+        let mut embed_msg_bytes = [0u8; 19];
+        embed_msg_bytes.copy_from_slice(&hex::decode(embed_msg).expect("Invalid embed message"));
+        let embed_script = ScriptBuf::new_op_return(embed_msg_bytes);
+        tx.output.push(TxOut {
+            value: Amount::from_sat(embed_value),
+            script_pubkey: embed_script,
+        });
+
+        serialize_hex(&tx)
+    }
+
     #[test]
     #[should_panic(expected = "Invalid hex transaction")]
     fn test_invalid_tx_hex() {
         let mut contract = test_contract_instance();
-        let tx_hex = "01000000001018d9a4c46d52d9b49bd9a93b150ab1aae14952455292e793adadf4d66a97a4d4d0100000000ffffffff150db3c06000000001600142cfaf802afc0a8796a7268c4a0485203e67e4edd024730440220303748c5bfc291e3cf9a69915f8104b18cb9d9cc1363c30d4e2904ddcbe50d2a0220106d6cf6561a1bf27b95a8e55cade3312f0074d8fac1b021963e02b77675be2801210371147ce272e5ecb0856fb1eab9b36bbfe4e9fa376bc2a5de09b5c3004808cd4c00000000";
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+        );
+        submit_deposit(&mut contract, tx_hex[2..].to_string(), 0, 1);
     }
 
     #[test]
     #[should_panic(expected = "Embed output should have 0 value")]
     fn test_embed_output_not_zero() {
         let mut contract = test_contract_instance();
-        let tx_hex = "02000000000101fb030ee85bd29dae3a0bd3de05e68d70f45982650d74308214101770762306b70000000000ffffffff02400d030000000000220020314bcd8388cb2c6802b7024a0ac736a684d4ca60a6b376b8b565a948f78eb4740100000000000000106a0e616c6c7374616b652e7374616b6502483045022100e0faab10e035aac586cb4676b148afa37d7b958bfd069b607a39f5376cbe205c022077447da4415dab6120941a119e337e6771ff620ce8b85ab5e16d8ff2d870edaa012103aeb311069705d0c9500eb514f5f7ebf93be76127bcdb261a68359fda8ee57a1900000000";
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            1,
+        );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 
@@ -277,7 +345,13 @@ mod tests {
     #[should_panic(expected = "Embed output is not OP_RETURN")]
     fn test_embed_output_not_opreturn() {
         let mut contract = test_contract_instance();
-        let tx_hex = "02000000000101fb030ee85bd29dae3a0bd3de05e68d70f45982650d74308214101770762306b70000000000ffffffff02400d030000000000220020314bcd8388cb2c6802b7024a0ac736a684d4ca60a6b376b8b565a948f78eb4740100000000000000106a0e616c6c7374616b652e7374616b6502483045022100e0faab10e035aac586cb4676b148afa37d7b958bfd069b607a39f5376cbe205c022077447da4415dab6120941a119e337e6771ff620ce8b85ab5e16d8ff2d870edaa012103aeb311069705d0c9500eb514f5f7ebf93be76127bcdb261a68359fda8ee57a1900000000";
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+        );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 0);
     }
 
@@ -285,8 +359,13 @@ mod tests {
     #[should_panic(expected = "Invalid embed output msg")]
     fn test_embed_output_bad_msg() {
         let mut contract = test_contract_instance();
-        // msg is "allstake.stake"
-        let tx_hex = "020000000001015dd10d6e3ff800e0846c67ca29e31287df62f8b5297b40d805bced13da1b8b0a0000000000ffffffff02400d0300000000002200205ecb5f9f7793e117f15e51257f05b31c81185549247afcec324c12687158ecbf0000000000000000106a0e616c6c7374616b652e7374616b650247304402202a3f9d7e532cfcfe33c42d91a2c1363aabd3fa7cd335fe1c5eae1c2627db5dec02206fa2e6d4fdbc8e9b1b59db7c3fc638e5e6351b34dc4ebdf401aa3668cb86316a012103af4030c4ff989dcaca468c23e9995e49dc4e7458b9f06d252249c4efc5baac6900000000";
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            "016c6c7374616b652e6465706f7369742e7631",
+            0,
+        );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 
@@ -294,14 +373,24 @@ mod tests {
     #[should_panic(expected = "Deposit output bad script hash")]
     fn test_invalid_stake_script() {
         let mut contract = test_contract_instance();
-        let tx_hex = "020000000001018593bf29cbe328b53d597e3f9baa86b5990aabc35f9fe47a5a2a242213a8f3070000000000ffffffff02400d030000000000220020166f0bab6ab51e8e820391e3ad393ac075821a836025665cb8467dac2036ebd60000000000000000156a13616c6c7374616b652e6465706f7369742e7631024830450221009c9872421e911a866e8c0d9eb2bcb132c5af4e26eb10f366929f90f554e078b9022001448e4753242277801150f880e7525b99392d7a5f31ce7eaa0e11515f62361c012103011f6b6b0b70ce62b7c7575f661f17c141686055d1eb6c8e85ccc1ded99f15de00000000";
+        let pubkey = PublicKey::from_str(
+            "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e6",
+        )
+        .unwrap();
+        let tx_hex = build_tx(&contract, &pubkey, sequence_height(), DEPOSIT_MSG_HEX_V1, 0);
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 
     #[test]
     fn test_valid_stake_output() {
         let mut contract = test_contract_instance();
-        let tx_hex = "020000000001011fcd48a529b464bef4a49b850579bd62237265eb61887b698e10ee31b568f5ab0000000000ffffffff02400d03000000000022002076efdc4231206f9fdc475e69b79a71201f37b1ed6ead63ecccd22cc89874ef720000000000000000156a13616c6c7374616b652e6465706f7369742e7631024830450221008c5f918d06bad07231152cd645e18115694a741fea07e03ba4887f68dbb123df0220038be69b5e638aa22e3f225d26d90296ac4471ccb14d1bc9a64925e0d28853fe012102f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e500000000";
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+        );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 }
