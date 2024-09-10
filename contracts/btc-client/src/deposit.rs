@@ -13,12 +13,15 @@ use bitcoin::{
 use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
 use events::Event;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
-use near_sdk::{near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue};
+use near_sdk::{
+    near_bindgen, require, Balance, Gas, Promise, PromiseError, PromiseOrValue, ONE_NEAR,
+};
 use types::{output_id, RedeemVersion, TxId};
 use utils::{assert_gas, get_embed_message};
 
 use crate::*;
 
+const ERR_NOT_ENOUGH_STORAGE_DEPOSIT: &str = "Not enough NEAR attached.";
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
 const ERR_BAD_TX_LOCKTIME: &str = "Invalid transaction locktime";
 const ERR_BAD_PUBKER_HEX: &str = "Invalid pubkey hex";
@@ -34,6 +37,8 @@ const ERR_DEPOSIT_BAD_SCRIPT_HASH: &str = "Deposit output bad script hash";
 const ERR_DEPOSIT_ALREADY_SAVED: &str = "Deposit already saved";
 
 const GAS_DEPOSIT_VERIFY_CB: Gas = Gas(30 * Gas::ONE_TERA.0);
+
+const STORAGE_DEPOSIT_ACCOUNT: Balance = 3 * ONE_NEAR / 100; // 0.03 NEAR
 
 #[near_bindgen]
 impl Contract {
@@ -61,8 +66,12 @@ impl Contract {
     ) -> Promise {
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
 
-        // TODO assert storage fee.
+        // assert storage fee.
         // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
+        require!(
+            env::attached_deposit() >= STORAGE_DEPOSIT_ACCOUNT,
+            ERR_NOT_ENOUGH_STORAGE_DEPOSIT
+        );
 
         require!(
             self.solo_withdraw_seq_heights.contains(&sequence_height),
@@ -243,6 +252,7 @@ mod tests {
     use bitcoin::{
         consensus::encode::serialize_hex, opcodes::OP_0, transaction::Version, Amount, TxIn,
     };
+    use near_sdk::{test_utils::VMContextBuilder, testing_env};
 
     use super::*;
     use crate::tests::*;
@@ -257,6 +267,10 @@ mod tests {
     }
 
     fn submit_deposit(contract: &mut Contract, tx_hex: String, deposit_vout: u64, embed_vout: u64) {
+        let mut builder = VMContextBuilder::new();
+        builder.attached_deposit(STORAGE_DEPOSIT_ACCOUNT);
+        testing_env!(builder.build());
+
         contract.submit_deposit_tx(
             tx_hex,
             deposit_vout,

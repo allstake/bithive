@@ -21,6 +21,7 @@ export async function submitDepositTx(
 ): Promise<boolean> {
   return caller.call(btcClient, "submit_deposit_tx", args as any, {
     gas: Gas.parse("200 Tgas"),
+    attachedDeposit: NEAR.parse("0.03"),
   });
 }
 
