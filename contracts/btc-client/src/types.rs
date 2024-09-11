@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    BorshStorageKey,
+    AccountId, BorshStorageKey,
 };
 
 #[derive(BorshSerialize, BorshStorageKey)]
@@ -12,6 +12,18 @@ pub enum StorageKey {
     ActiveDeposits(PubKey),
     QueueWithdrawDeposits(PubKey),
     WithdrawnDeposits(PubKey),
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct InitArgs {
+    pub owner_id: AccountId,
+    pub btc_lightclient_id: AccountId,
+    pub chain_signature_id: AccountId,
+    pub n_confirmation: u64,
+    pub withdraw_waiting_time_ms: u64,
+    pub min_deposit_satoshi: u64,
+    pub solo_withdraw_seq_heights: Vec<u16>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
