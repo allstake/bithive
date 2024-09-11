@@ -42,7 +42,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   const waitBlocks = 5;
   const mineBlocks = 1;
 
-  const userP2wpkhAddress = bitcoin.payments.p2wpkh({
+  const userP2wpkhPayment = bitcoin.payments.p2wpkh({
     pubkey: aliceKp.publicKey,
     network,
   });
@@ -52,7 +52,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     contract,
     alice,
     regtestUtils,
-    userP2wpkhAddress.address!,
+    userP2wpkhPayment,
     fundAmount,
     depositAmount1,
     waitBlocks,
@@ -64,7 +64,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     contract,
     alice,
     regtestUtils,
-    userP2wpkhAddress.address!,
+    userP2wpkhPayment,
     fundAmount,
     depositAmount2,
     waitBlocks,
@@ -102,7 +102,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
       witnessScript: p2wsh.redeem!.output!,
     });
   psbt = psbt.addOutput({
-    address: userP2wpkhAddress.address!,
+    address: userP2wpkhPayment.address!,
     value: withdrawAmount,
   });
   const psbtUnsignedTx: bitcoin.Transaction = (psbt as any).__CACHE.__TX;
@@ -147,7 +147,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   withdrawTx.addInput(idToHash(depositUnspent2.txId), depositUnspent2.vout);
   // withdraw to user's address
   withdrawTx.addOutput(
-    toOutputScript(userP2wpkhAddress.address!, network),
+    toOutputScript(userP2wpkhPayment.address!, network),
     withdrawAmount,
   );
 
@@ -178,7 +178,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   await regtestUtils.mine(1);
   await regtestUtils.verify({
     txId: withdrawTx.getId(),
-    address: userP2wpkhAddress.address!,
+    address: userP2wpkhPayment.address!,
     vout: 0,
     value: withdrawAmount,
   });
@@ -224,7 +224,7 @@ async function makeDeposit(
   contract: NearAccount,
   caller: NearAccount,
   regtestUtils: RegtestUtils,
-  userP2wpkhAddress: string,
+  userP2wpkhPayment: bitcoin.Payment,
   fundAmount: number,
   depositAmount: number,
   waitBlocks: number,
@@ -233,7 +233,10 @@ async function makeDeposit(
   network: bitcoin.Network,
 ) {
   // fund user's wallet first
-  const fundUnspent = await regtestUtils.faucet(userP2wpkhAddress, fundAmount);
+  const fundUnspent = await regtestUtils.faucet(
+    userP2wpkhPayment.address!,
+    fundAmount,
+  );
   const fundUtx = await regtestUtils.fetch(fundUnspent.txId);
 
   // user transfer BTC from his wallet to his staking vault address
@@ -252,7 +255,7 @@ async function makeDeposit(
     .addInput({
       hash: fundUnspent.txId,
       index: fundUnspent.vout,
-      nonWitnessUtxo: Buffer.from(fundUtx.txHex, "hex"),
+      witnessUtxo: getWitnessUtxo(fundUtx.outs[fundUnspent.vout]),
     })
     .addOutput({
       address: p2wsh.address!,
