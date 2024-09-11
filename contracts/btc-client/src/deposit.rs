@@ -44,14 +44,14 @@ const STORAGE_DEPOSIT_ACCOUNT: Balance = 3 * ONE_NEAR / 100; // 0.03 NEAR
 impl Contract {
     /// Submit a BTC deposit transaction
     /// ### Arguments
-    /// * `tx_hex` - hex encoded transaction body
-    /// * `deposit_vout` - index of deposit (p2wsh) output
-    /// * `embed_vout` - index of embed (OP_RETURN) output
-    /// * `user_pubkey_hex` - user pubkey hex encoded
-    /// * `sequence_height` - sequence height used in the redeem script, must be a valid value from the configuration
-    /// * `tx_block_hash` - block hash in which the transaction is included
-    /// * `tx_index` - transaction index in the block
-    /// * `merkle_proof` - merkle proof of transaction in the block
+    /// * `args.tx_hex` - hex encoded transaction body
+    /// * `args.deposit_vout` - index of deposit (p2wsh) output
+    /// * `args.embed_vout` - index of embed (OP_RETURN) output
+    /// * `args.user_pubkey_hex` - user pubkey hex encoded
+    /// * `args.sequence_height` - sequence height used in the redeem script, must be a valid value from the configuration
+    /// * `args.tx_block_hash` - block hash in which the transaction is included
+    /// * `args.tx_index` - transaction index in the block
+    /// * `args.merkle_proof` - merkle proof of transaction in the block
     #[payable]
     pub fn submit_deposit_tx(&mut self, args: SubmitDepositTxArgs) -> Promise {
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
