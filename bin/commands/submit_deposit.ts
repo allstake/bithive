@@ -2,6 +2,7 @@ import { CommandModule } from "yargs";
 import { getConfig } from "../config";
 import { envBuilder, nearTGas } from "../helper";
 import { initNear } from "../near";
+import { parseNEAR } from "near-workspaces";
 
 interface Args {
   env: string;
@@ -53,7 +54,8 @@ export const submitDeposit: CommandModule<unknown, Args> = {
     await signer.functionCall({
       contractId: config.accountIds.btcClient,
       methodName: "submit_deposit_tx",
-      args: args,
+      args: { args },
+      attachedDeposit: parseNEAR("0.03").toBigInt(),
       gas: nearTGas(100),
     });
 

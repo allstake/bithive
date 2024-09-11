@@ -16,9 +16,9 @@ export const config: Config = {
   accountIds: {
     signer: "allbtc.testnet",
     owner: "allbtc.testnet",
-    btcClient: "1.allbtc.testnet",
+    btcClient: "2.allbtc.testnet",
     chainSignature: "v1.signer-dev.testnet",
-    btcLightClient: "btclc.testnet",
+    btcLightClient: "btc-client.testnet",
   },
   params: {
     nConfirmation: 1,
