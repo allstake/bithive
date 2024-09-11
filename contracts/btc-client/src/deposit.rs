@@ -16,7 +16,7 @@ use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{
     near_bindgen, require, Balance, Gas, Promise, PromiseError, PromiseOrValue, ONE_NEAR,
 };
-use types::{output_id, RedeemVersion, TxId};
+use types::{output_id, RedeemVersion, SubmitDepositTxArgs, TxId};
 use utils::{assert_gas, get_embed_message};
 
 use crate::*;
@@ -53,17 +53,7 @@ impl Contract {
     /// * `tx_index` - transaction index in the block
     /// * `merkle_proof` - merkle proof of transaction in the block
     #[payable]
-    pub fn submit_deposit_tx(
-        &mut self,
-        tx_hex: String,
-        deposit_vout: u64,
-        embed_vout: u64,
-        user_pubkey_hex: String,
-        sequence_height: u16,
-        tx_block_hash: String,
-        tx_index: u64,
-        merkle_proof: Vec<String>,
-    ) -> Promise {
+    pub fn submit_deposit_tx(&mut self, args: SubmitDepositTxArgs) -> Promise {
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
 
         // assert storage fee.
@@ -74,14 +64,15 @@ impl Contract {
         );
 
         require!(
-            self.solo_withdraw_seq_heights.contains(&sequence_height),
+            self.solo_withdraw_seq_heights
+                .contains(&args.sequence_height),
             format!(
                 "Invalid seq height. Available values are: {:?}",
                 self.solo_withdraw_seq_heights
             )
         );
 
-        let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
+        let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
         require!(
@@ -90,16 +81,19 @@ impl Contract {
         );
 
         // verify embed output
-        let embed_output = tx.output.get(embed_vout as usize).expect(ERR_BAD_EMBED_IDX);
+        let embed_output = tx
+            .output
+            .get(args.embed_vout as usize)
+            .expect(ERR_BAD_EMBED_IDX);
         let msg = get_embed_message(embed_output);
 
         // verify deposit output
         let deposit_output = tx
             .output
-            .get(deposit_vout as usize)
+            .get(args.deposit_vout as usize)
             .expect(ERR_BAD_DEPOSIT_IDX);
-        let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
-        let sequence = Sequence::from_height(sequence_height);
+        let user_pubkey = PublicKey::from_str(&args.user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
+        let sequence = Sequence::from_height(args.sequence_height);
         let redeem_version = match msg.as_str() {
             DEPOSIT_MSG_HEX_V1 => {
                 self.verify_deposit_output_v1(deposit_output, &user_pubkey, sequence);
@@ -111,16 +105,16 @@ impl Contract {
         let value = deposit_output.value;
 
         // set deposit transaction(output) as confirmed now to prevent duplicate verification
-        self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
+        self.set_deposit_confirmed(&txid.to_string().into(), args.deposit_vout);
 
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
             .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
-                tx_block_hash,
-                tx_index,
-                merkle_proof,
+                args.tx_block_hash,
+                args.tx_index,
+                args.merkle_proof,
                 self.n_confirmation,
             ))
             .then(
@@ -129,9 +123,9 @@ impl Contract {
                     .on_verify_deposit_tx(
                         redeem_version,
                         txid.to_string(),
-                        deposit_vout,
+                        args.deposit_vout,
                         value.to_sat(),
-                        user_pubkey_hex,
+                        args.user_pubkey_hex,
                     ),
             )
     }
@@ -271,16 +265,17 @@ mod tests {
         builder.attached_deposit(STORAGE_DEPOSIT_ACCOUNT);
         testing_env!(builder.build());
 
-        contract.submit_deposit_tx(
+        contract.submit_deposit_tx(SubmitDepositTxArgs {
             tx_hex,
             deposit_vout,
             embed_vout,
-            user_pubkey().to_string(),
-            sequence_height().0 as u16,
-            "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8".to_string(),
-            0,
-            vec![],
-        );
+            user_pubkey_hex: user_pubkey().to_string(),
+            sequence_height: sequence_height().0 as u16,
+            tx_block_hash: "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8"
+                .to_string(),
+            tx_index: 0,
+            merkle_proof: vec![],
+        });
     }
 
     fn build_tx(

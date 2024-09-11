@@ -19,10 +19,15 @@ export async function submitDepositTx(
   caller: NearAccount,
   args: SubmitDepositArg,
 ): Promise<boolean> {
-  return caller.call(btcClient, "submit_deposit_tx", args as any, {
-    gas: Gas.parse("200 Tgas"),
-    attachedDeposit: NEAR.parse("0.03"),
-  });
+  return caller.call(
+    btcClient,
+    "submit_deposit_tx",
+    { args },
+    {
+      gas: Gas.parse("200 Tgas"),
+      attachedDeposit: NEAR.parse("0.03"),
+    },
+  );
 }
 
 export async function queueWithdrawal(

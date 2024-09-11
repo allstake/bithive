@@ -2,7 +2,6 @@ import { CommandModule } from "yargs";
 import { envBuilder, nearTGas } from "../helper";
 import { initNear } from "../near";
 import { getConfig } from "../config";
-import { tGas } from "near-workspaces";
 
 interface Args {
   env: string;

@@ -14,6 +14,19 @@ pub enum StorageKey {
     WithdrawnDeposits(PubKey),
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SubmitDepositTxArgs {
+    pub tx_hex: String,
+    pub deposit_vout: u64,
+    pub embed_vout: u64,
+    pub user_pubkey_hex: String,
+    pub sequence_height: u16,
+    pub tx_block_hash: String,
+    pub tx_index: u64,
+    pub merkle_proof: Vec<String>,
+}
+
 /// Version of redeem script
 #[derive(BorshSerialize, BorshDeserialize, serde::Serialize, serde::Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
