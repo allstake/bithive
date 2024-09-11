@@ -40,6 +40,8 @@ pub struct Contract {
     n_confirmation: u64,
     /// for multisig withdraw, how long the withdraw request needs to be queued
     withdraw_waiting_time_ms: u64,
+    /// minimum deposit amount in satoshi
+    min_deposit_satoshi: u64,
     /// list of available solo withdraw sequence heights, used by redeem script
     solo_withdraw_seq_heights: Vec<u16>,
     /// set of all confirmed deposit txns
@@ -58,6 +60,7 @@ impl Contract {
         chain_signature_id: AccountId,
         n_confirmation: u64,
         withdraw_waiting_time_ms: u64,
+        min_deposit_satoshi: u64,
         solo_withdraw_seq_heights: Vec<u16>,
     ) -> Self {
         Self {
@@ -67,6 +70,7 @@ impl Contract {
             chain_signature_root_pubkey: None,
             n_confirmation,
             withdraw_waiting_time_ms,
+            min_deposit_satoshi,
             solo_withdraw_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: LookupMap::new(StorageKey::Accounts),
@@ -135,6 +139,7 @@ mod tests {
             AccountId::new_unchecked("lc".to_string()),
             AccountId::new_unchecked("cs".to_string()),
             6,
+            0,
             0,
             vec![5],
         );
