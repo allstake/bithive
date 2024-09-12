@@ -181,6 +181,8 @@ pub struct Deposit {
     deposit_vout: u64,
     /// deposit amount in full BTC decimals
     value: u64,
+    /// encoded sequence number of the deposit
+    sequence: u32,
     /// queue withdraw start time in ms
     queue_withdraw_ts: Timestamp,
     /// the message that the user signed when requesting queue withdraw
@@ -195,12 +197,19 @@ pub struct Deposit {
 }
 
 impl Deposit {
-    pub fn new(redeem_version: RedeemVersion, tx_id: TxId, vout: u64, value: u64) -> Deposit {
+    pub fn new(
+        redeem_version: RedeemVersion,
+        tx_id: TxId,
+        vout: u64,
+        value: u64,
+        sequence: u32,
+    ) -> Deposit {
         Deposit {
             redeem_version,
             deposit_tx_id: tx_id,
             deposit_vout: vout,
             value,
+            sequence,
             queue_withdraw_ts: 0,
             queue_withdraw_message: None,
             queue_withdraw_sig: None,

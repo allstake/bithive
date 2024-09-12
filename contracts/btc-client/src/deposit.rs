@@ -130,6 +130,7 @@ impl Contract {
                         txid.to_string(),
                         args.deposit_vout,
                         value.to_sat(),
+                        sequence.to_consensus_u32(),
                         args.user_pubkey_hex,
                     ),
             )
@@ -142,6 +143,7 @@ impl Contract {
         tx_id: String,
         deposit_vout: u64,
         value: u64,
+        sequence: u32,
         user_pubkey: String,
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> PromiseOrValue<bool> {
@@ -150,7 +152,7 @@ impl Contract {
         if valid {
             // append to user's active deposits
             let mut account = self.get_account(&user_pubkey.clone().into());
-            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value);
+            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value, sequence);
             account.insert_active_deposit(deposit);
             self.set_account(account);
 
