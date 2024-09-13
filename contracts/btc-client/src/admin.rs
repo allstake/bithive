@@ -35,6 +35,12 @@ impl Contract {
     }
 
     #[payable]
+    pub fn set_min_deposit_satoshi(&mut self, min_deposit_satoshi: u64) {
+        self.assert_owner();
+        self.min_deposit_satoshi = min_deposit_satoshi;
+    }
+
+    #[payable]
     pub fn set_solo_withdraw_sequence_heights(&mut self, values: Vec<u16>) {
         self.assert_owner();
         self.solo_withdraw_seq_heights = values;
