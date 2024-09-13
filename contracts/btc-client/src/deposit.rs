@@ -136,6 +136,7 @@ impl Contract {
             )
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[private]
     pub fn on_verify_deposit_tx(
         &mut self,
