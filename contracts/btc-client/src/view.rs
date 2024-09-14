@@ -15,6 +15,7 @@ pub struct ContractSummary {
     n_confirmation: u64,
     withdraw_waiting_time_ms: u64,
     min_deposit_satoshi: u64,
+    earliest_deposit_block_height: u32,
     solo_withdraw_sequence_heights: Vec<u16>,
 }
 
@@ -41,6 +42,7 @@ impl Contract {
             n_confirmation: self.n_confirmation,
             withdraw_waiting_time_ms: self.withdraw_waiting_time_ms,
             min_deposit_satoshi: self.min_deposit_satoshi,
+            earliest_deposit_block_height: self.earliest_deposit_block_height,
             solo_withdraw_sequence_heights: self.solo_withdraw_seq_heights.clone(),
         }
     }

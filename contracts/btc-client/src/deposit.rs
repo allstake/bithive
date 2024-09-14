@@ -23,9 +23,9 @@ use crate::*;
 
 const ERR_NOT_ENOUGH_STORAGE_DEPOSIT: &str = "Not enough NEAR attached.";
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
-const ERR_BAD_TX_LOCKTIME: &str = "Invalid transaction locktime";
 const ERR_BAD_PUBKER_HEX: &str = "Invalid pubkey hex";
 const ERR_BAD_DEPOSIT_AMOUNT: &str = "Deposit amount is less than minimum deposit amount";
+const ERR_NOT_ABS_TIMELOCK: &str = "Transaction absolute timelock not enabled";
 
 const ERR_BAD_DEPOSIT_IDX: &str = "Bad deposit output index";
 const ERR_BAD_EMBED_IDX: &str = "Bad embed output index";
@@ -76,10 +76,9 @@ impl Contract {
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
-        require!(
-            LockTime::ZERO.partial_cmp(&tx.lock_time).unwrap().is_eq(),
-            ERR_BAD_TX_LOCKTIME
-        );
+        if self.earliest_deposit_block_height > 0 {
+            self.verify_timelock(&tx);
+        }
 
         // verify embed output
         let embed_output = tx
@@ -173,6 +172,24 @@ impl Contract {
 }
 
 impl Contract {
+    /// Verify if transaction has absolute timelock enabled and set to the correct value.
+    fn verify_timelock(&self, tx: &Transaction) {
+        for input in &tx.input {
+            require!(
+                input.sequence.enables_absolute_lock_time(),
+                ERR_NOT_ABS_TIMELOCK
+            );
+        }
+
+        require!(
+            tx.lock_time == LockTime::from_height(self.earliest_deposit_block_height).unwrap(),
+            format!(
+                "Transaction locktime should be set to {}",
+                self.earliest_deposit_block_height
+            )
+        );
+    }
+
     /// Verify if output is a valid deposit output.
     /// Note that this function should **NEVER** be changed once goes online!
     fn verify_deposit_output_v1(
