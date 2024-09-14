@@ -176,6 +176,21 @@ export async function setWithdrawWaitingTime(
   );
 }
 
+export async function setEarliestDepositBlockHeight(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  height: number,
+) {
+  return caller.call(
+    btcClient,
+    "set_earliest_deposit_block_height",
+    { height },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
 interface ContractSummary {
   owner_id: string;
   btc_lightclient_id: string;

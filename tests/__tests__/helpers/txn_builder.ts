@@ -15,6 +15,8 @@ import {
 import { someH256 } from "./utils";
 const bip68 = require("bip68"); // eslint-disable-line
 
+const SEQUENCE_TIMELOCK = 0xfffffffd; // sequence that enables time-lock and RBF
+
 export class TestTransactionBuilder {
   public tx: bitcoin.Transaction;
   public withdrawTx: bitcoin.Transaction | undefined;
@@ -36,6 +38,7 @@ export class TestTransactionBuilder {
       allstakePubkey: Buffer;
       seq?: number;
       depositAmount?: number;
+      enableTimelock?: boolean;
     },
   ) {
     this.btcClient = btcClient;
@@ -59,7 +62,12 @@ export class TestTransactionBuilder {
         "e813831dccfd1537517c0e62431c9a2a1ca2580b9401cb2274e3f2e06c43ae43",
       ),
       0,
+      args.enableTimelock ? SEQUENCE_TIMELOCK : 0xffffffff,
     );
+    if (args.enableTimelock) {
+      this.tx.locktime = 100;
+    }
+
     this.tx.addOutput(
       toOutputScript(this.p2wsh.address!, bitcoin.networks.bitcoin),
       this.depositAmount,

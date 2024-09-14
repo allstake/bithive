@@ -23,6 +23,7 @@ pub struct InitArgs {
     pub n_confirmation: u64,
     pub withdraw_waiting_time_ms: u64,
     pub min_deposit_satoshi: u64,
+    pub earliest_deposit_block_height: u32,
     pub solo_withdraw_seq_heights: Vec<u16>,
 }
 

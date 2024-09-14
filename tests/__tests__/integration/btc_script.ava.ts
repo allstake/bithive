@@ -19,13 +19,17 @@ const ECPair = ECPairFactory(ecc);
 
 const test = initUnit(false); // although this is integration test, but we don't need all the contracts
 
+const SEQUENCE_TIMELOCK = 0xfffffffd; // sequence that enables time-lock and RBF
+
 async function testCase(
   t: any,
   opts: {
+    mineBlocksBeforeBroadcast: number;
     waitBlocks: number;
     mineBlocks: number;
     soloWithdraw: boolean;
-    expectFailure: boolean;
+    expectStakeFailure: boolean;
+    expectWithdrawFailure: boolean;
   },
 ) {
   const user = ECPair.makeRandom();
@@ -34,6 +38,9 @@ async function testCase(
   const fundAmount = 3e5;
   const stakeAmount = 2e5;
   const withdrawAmount = 1e5;
+
+  // deposit transactions can only be broadcast after (current height + 3) blocks
+  const lockTimeBlocks = 3;
 
   /// -- 0. Init
   // fund user's wallet first
@@ -49,6 +56,7 @@ async function testCase(
 
   /// -- 1. Stake
   // user transfer BTC from his wallet to his staking vault address
+  const currentBlockHeight = await regtestUtils.height();
   const sequence = bip68.encode({ blocks: opts.waitBlocks });
   const p2wsh = bitcoin.payments.p2wsh({
     redeem: {
@@ -64,7 +72,8 @@ async function testCase(
     .addInput({
       hash: fundUnspent.txId,
       index: fundUnspent.vout,
-      nonWitnessUtxo: Buffer.from(fundUtx.txHex, "hex"),
+      witnessUtxo: getWitnessUtxo(fundUtx.outs[fundUnspent.vout]),
+      sequence: SEQUENCE_TIMELOCK,
     })
     .addOutput({
       address: p2wsh.address!,
@@ -74,22 +83,29 @@ async function testCase(
       script: stakeEmbed.output!,
       value: 0,
     })
+    .setLocktime(currentBlockHeight + lockTimeBlocks)
     .signInput(0, user);
   stakePsbt.finalizeAllInputs();
   const stakeTx = stakePsbt.extractTransaction();
-  await regtestUtils.broadcast(stakeTx.toHex());
-  // await regtestUtils.mine(1);
+
+  await regtestUtils.mine(opts.mineBlocksBeforeBroadcast);
+  await broadcastTransaction(t, stakeTx, opts.expectStakeFailure);
+  if (opts.expectStakeFailure) {
+    return;
+  }
   await regtestUtils.verify({
     txId: stakeTx.getId(),
     address: p2wsh.address!,
     vout: 0,
     value: stakeAmount,
   });
-  // console.log("- Stake OK");
 
   /// -- 2. Withdraw
   // user withdraw BTC in his staking vault to his wallet
-  const stakeUnspent = (await regtestUtils.unspents(p2wsh.address!))[0];
+  const stakeUnspent = {
+    txId: stakeTx.getId(),
+    vout: 0,
+  };
   const stakeUtx = await regtestUtils.fetch(stakeUnspent.txId);
   const withdrawMsg = Buffer.from("allstake.withdraw");
 
@@ -165,17 +181,80 @@ async function testCase(
 
   await regtestUtils.mine(opts.mineBlocks);
 
+  await broadcastTransaction(t, withdrawTx, opts.expectWithdrawFailure);
+  if (!opts.expectWithdrawFailure) {
+    await regtestUtils.verify({
+      txId: withdrawTx.getId(),
+      address: userP2wpkhAddress.address!,
+      vout: 0,
+      value: withdrawAmount,
+    });
+  }
+}
+
+test("btc script test", async (t) => {
+  // after waiting period, solo withdraw
+  await testCase(t, {
+    mineBlocksBeforeBroadcast: 4,
+    waitBlocks: 5,
+    mineBlocks: 6,
+    soloWithdraw: true,
+    expectStakeFailure: false,
+    expectWithdrawFailure: false,
+  });
+  // after waiting period, multisig withdraw
+  await testCase(t, {
+    mineBlocksBeforeBroadcast: 4,
+    waitBlocks: 5,
+    mineBlocks: 6,
+    soloWithdraw: false,
+    expectStakeFailure: false,
+    expectWithdrawFailure: false,
+  });
+  // within waiting period, solo withdraw
+  await testCase(t, {
+    mineBlocksBeforeBroadcast: 4,
+    waitBlocks: 5,
+    mineBlocks: 4,
+    soloWithdraw: true,
+    expectStakeFailure: false,
+    expectWithdrawFailure: true,
+  });
+  // within waiting period, multisig withdraw
+  await testCase(t, {
+    mineBlocksBeforeBroadcast: 4,
+    waitBlocks: 5,
+    mineBlocks: 4,
+    soloWithdraw: false,
+    expectStakeFailure: false,
+    expectWithdrawFailure: false,
+  });
+  // broadcast before locktime
+  await testCase(t, {
+    mineBlocksBeforeBroadcast: 2,
+    waitBlocks: 5,
+    mineBlocks: 6,
+    soloWithdraw: true,
+    expectStakeFailure: true,
+    expectWithdrawFailure: true,
+  });
+});
+
+async function broadcastTransaction(
+  t: any,
+  tx: bitcoin.Transaction,
+  expectToFail: boolean,
+) {
   let failed = false;
   let err: Error | null = null;
   try {
-    await regtestUtils.broadcast(withdrawTx.toHex());
-    // console.log("- Withdraw OK");
+    await regtestUtils.broadcast(tx.toHex());
   } catch (error: any) {
     failed = true;
     err = error;
   }
 
-  if (opts.expectFailure) {
+  if (expectToFail) {
     t.is(failed, true, "❗txn didn't fail!");
     // console.log('✅ Txn failed as expected, error:', err!.toString());
   } else {
@@ -183,43 +262,6 @@ async function testCase(
       console.log(err);
     }
     t.is(failed, false, "❗txn failed!");
-    await regtestUtils.verify({
-      txId: withdrawTx.getId(),
-      address: userP2wpkhAddress.address!,
-      vout: 0,
-      value: withdrawAmount,
-    });
     // console.log('✅ Txn went ok as expected');
   }
 }
-
-test("btc script test", async (t) => {
-  // after waiting period, solo withdraw
-  await testCase(t, {
-    waitBlocks: 5,
-    mineBlocks: 6,
-    soloWithdraw: true,
-    expectFailure: false,
-  });
-  // after waiting period, multisig withdraw
-  await testCase(t, {
-    waitBlocks: 5,
-    mineBlocks: 6,
-    soloWithdraw: false,
-    expectFailure: false,
-  });
-  // within waiting period, solo withdraw
-  await testCase(t, {
-    waitBlocks: 5,
-    mineBlocks: 4,
-    soloWithdraw: true,
-    expectFailure: true,
-  });
-  // within waiting period, multisig withdraw
-  await testCase(t, {
-    waitBlocks: 5,
-    mineBlocks: 4,
-    soloWithdraw: false,
-    expectFailure: false,
-  });
-});
