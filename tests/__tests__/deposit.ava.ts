@@ -108,3 +108,21 @@ test("submit duplicated deposit txn", async (t) => {
   await assertFailure(t, builder.submit(), "Deposit already saved");
   t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 1);
 });
+
+test("submit deposit txn with too small deposit amount", async (t) => {
+  const { contract, alice } = t.context.accounts;
+
+  const builder = new TestTransactionBuilder(contract, alice, {
+    userPubkey: t.context.aliceKeyPair.publicKey,
+    allstakePubkey: t.context.allstakePubkey,
+    depositAmount: 10,
+  });
+
+  await assertFailure(
+    t,
+    builder.submit(),
+    "Deposit amount is less than minimum deposit amount",
+  );
+
+  t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 0);
+});

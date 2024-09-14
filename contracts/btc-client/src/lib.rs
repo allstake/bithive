@@ -3,7 +3,7 @@ use ext::ext_chain_signature;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet};
 use near_sdk::{env, near_bindgen, require, AccountId, Gas, PanicOnDefault, Promise, PromiseError};
-use types::{OutputId, PubKey, StorageKey};
+use types::{InitArgs, OutputId, PubKey, StorageKey};
 
 mod account;
 mod admin;
@@ -40,6 +40,8 @@ pub struct Contract {
     n_confirmation: u64,
     /// for multisig withdraw, how long the withdraw request needs to be queued
     withdraw_waiting_time_ms: u64,
+    /// minimum deposit amount in satoshi
+    min_deposit_satoshi: u64,
     /// list of available solo withdraw sequence heights, used by redeem script
     solo_withdraw_seq_heights: Vec<u16>,
     /// set of all confirmed deposit txns
@@ -52,22 +54,16 @@ pub struct Contract {
 impl Contract {
     #[init]
     #[private]
-    pub fn init(
-        owner_id: AccountId,
-        btc_lightclient_id: AccountId,
-        chain_signature_id: AccountId,
-        n_confirmation: u64,
-        withdraw_waiting_time_ms: u64,
-        solo_withdraw_seq_heights: Vec<u16>,
-    ) -> Self {
+    pub fn init(args: InitArgs) -> Self {
         Self {
-            owner_id,
-            btc_lightclient_id,
-            chain_signature_id,
+            owner_id: args.owner_id,
+            btc_lightclient_id: args.btc_lightclient_id,
+            chain_signature_id: args.chain_signature_id,
             chain_signature_root_pubkey: None,
-            n_confirmation,
-            withdraw_waiting_time_ms,
-            solo_withdraw_seq_heights,
+            n_confirmation: args.n_confirmation,
+            withdraw_waiting_time_ms: args.withdraw_waiting_time_ms,
+            min_deposit_satoshi: args.min_deposit_satoshi,
+            solo_withdraw_seq_heights: args.solo_withdraw_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: LookupMap::new(StorageKey::Accounts),
         }
@@ -130,14 +126,15 @@ mod tests {
     use super::*;
 
     pub(crate) fn test_contract_instance() -> Contract {
-        let mut contract = Contract::init(
-            AccountId::new_unchecked("owner".to_string()),
-            AccountId::new_unchecked("lc".to_string()),
-            AccountId::new_unchecked("cs".to_string()),
-            6,
-            0,
-            vec![5],
-        );
+        let mut contract = Contract::init(InitArgs {
+            owner_id: AccountId::new_unchecked("owner".to_string()),
+            btc_lightclient_id: AccountId::new_unchecked("lc".to_string()),
+            chain_signature_id: AccountId::new_unchecked("cs".to_string()),
+            n_confirmation: 6,
+            withdraw_waiting_time_ms: 0,
+            min_deposit_satoshi: 0,
+            solo_withdraw_seq_heights: vec![5],
+        });
 
         // from v1.signer-prod.testnet
         let pk = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";

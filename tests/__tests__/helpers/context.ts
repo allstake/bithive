@@ -175,12 +175,15 @@ async function createFixtures(root: NearAccount) {
     init: {
       methodName: "init",
       args: {
-        owner_id: owner.accountId,
-        btc_lightclient_id: mockLightclient.accountId,
-        chain_signature_id: mockChainSignature.accountId,
-        n_confirmation: 6,
-        withdraw_waiting_time_ms: daysToMs(2),
-        solo_withdraw_seq_heights: [5],
+        args: {
+          owner_id: owner.accountId,
+          btc_lightclient_id: mockLightclient.accountId,
+          chain_signature_id: mockChainSignature.accountId,
+          n_confirmation: 6,
+          withdraw_waiting_time_ms: daysToMs(2),
+          min_deposit_satoshi: 100,
+          solo_withdraw_seq_heights: [5],
+        },
       },
     },
   });

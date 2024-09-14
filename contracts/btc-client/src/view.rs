@@ -14,6 +14,7 @@ pub struct ContractSummary {
     chain_signature_root_pubkey: Option<near_sdk::PublicKey>,
     n_confirmation: u64,
     withdraw_waiting_time_ms: u64,
+    min_deposit_satoshi: u64,
     solo_withdraw_sequence_heights: Vec<u16>,
 }
 
@@ -39,6 +40,7 @@ impl Contract {
             chain_signature_root_pubkey: self.chain_signature_root_pubkey.clone(),
             n_confirmation: self.n_confirmation,
             withdraw_waiting_time_ms: self.withdraw_waiting_time_ms,
+            min_deposit_satoshi: self.min_deposit_satoshi,
             solo_withdraw_sequence_heights: self.solo_withdraw_seq_heights.clone(),
         }
     }

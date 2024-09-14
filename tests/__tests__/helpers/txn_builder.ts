@@ -35,12 +35,13 @@ export class TestTransactionBuilder {
       userPubkey: Buffer;
       allstakePubkey: Buffer;
       seq?: number;
+      depositAmount?: number;
     },
   ) {
     this.btcClient = btcClient;
     this.caller = caller;
 
-    this.depositAmount = 1e8;
+    this.depositAmount = args.depositAmount ?? 1e8;
     this.sequence = bip68.encode({ blocks: args.seq ?? 5 });
     this.userPubkey = args.userPubkey;
     this.tx = new bitcoin.Transaction();

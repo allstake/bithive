@@ -25,6 +25,7 @@ const ERR_NOT_ENOUGH_STORAGE_DEPOSIT: &str = "Not enough NEAR attached.";
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
 const ERR_BAD_TX_LOCKTIME: &str = "Invalid transaction locktime";
 const ERR_BAD_PUBKER_HEX: &str = "Invalid pubkey hex";
+const ERR_BAD_DEPOSIT_AMOUNT: &str = "Deposit amount is less than minimum deposit amount";
 
 const ERR_BAD_DEPOSIT_IDX: &str = "Bad deposit output index";
 const ERR_BAD_EMBED_IDX: &str = "Bad embed output index";
@@ -103,6 +104,10 @@ impl Contract {
         };
 
         let value = deposit_output.value;
+        require!(
+            value.to_sat() >= self.min_deposit_satoshi,
+            ERR_BAD_DEPOSIT_AMOUNT
+        );
 
         // set deposit transaction(output) as confirmed now to prevent duplicate verification
         self.set_deposit_confirmed(&txid.to_string().into(), args.deposit_vout);
@@ -125,11 +130,13 @@ impl Contract {
                         txid.to_string(),
                         args.deposit_vout,
                         value.to_sat(),
+                        sequence.to_consensus_u32(),
                         args.user_pubkey_hex,
                     ),
             )
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[private]
     pub fn on_verify_deposit_tx(
         &mut self,
@@ -137,6 +144,7 @@ impl Contract {
         tx_id: String,
         deposit_vout: u64,
         value: u64,
+        sequence: u32,
         user_pubkey: String,
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> PromiseOrValue<bool> {
@@ -145,7 +153,7 @@ impl Contract {
         if valid {
             // append to user's active deposits
             let mut account = self.get_account(&user_pubkey.clone().into());
-            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value);
+            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value, sequence);
             account.insert_active_deposit(deposit);
             self.set_account(account);
 
