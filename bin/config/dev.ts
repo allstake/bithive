@@ -23,6 +23,8 @@ export const config: Config = {
   params: {
     nConfirmation: 1,
     withdrawWaitingTimeMs: 5 * 60 * 1000, // 5 minutes
+    minDepositSatoshi: 100,
+    earliestDepositBlockHeight: 0,
     soloWithdrawSeqHeights: [2],
   },
 };

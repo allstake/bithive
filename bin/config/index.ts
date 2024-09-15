@@ -16,6 +16,8 @@ export interface Config {
   params: {
     nConfirmation: number;
     withdrawWaitingTimeMs: number;
+    minDepositSatoshi: number;
+    earliestDepositBlockHeight: number;
     soloWithdrawSeqHeights: number[];
   };
 }

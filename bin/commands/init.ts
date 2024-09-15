@@ -17,19 +17,21 @@ export const init: CommandModule<unknown, Args> = {
     const config = await getConfig(env);
     const { signer } = await initNear(env, config.accountIds.btcClient);
 
-    const initArgs = {
+    const args = {
       owner_id: config.accountIds.owner,
       btc_lightclient_id: config.accountIds.btcLightClient,
       chain_signature_id: config.accountIds.chainSignature,
       n_confirmation: config.params.nConfirmation,
       withdraw_waiting_time_ms: config.params.withdrawWaitingTimeMs,
+      min_deposit_satoshi: config.params.minDepositSatoshi,
+      earliest_deposit_block_height: config.params.earliestDepositBlockHeight,
       solo_withdraw_seq_heights: config.params.soloWithdrawSeqHeights,
     };
 
     await signer.functionCall({
       contractId: config.accountIds.btcClient,
       methodName: "init",
-      args: initArgs,
+      args: { args },
     });
     console.log("Called init method");
 
