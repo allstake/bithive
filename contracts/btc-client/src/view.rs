@@ -28,7 +28,7 @@ pub struct ConstantsV1 {
     /// message that should be embedded in the deposit transaction
     deposit_embed_msg: String,
     /// raw message that needs to be signed by the user for queueing withdraw
-    queue_withdrawl_msg: Option<String>,
+    queue_withdrawal_msg: Option<String>,
 }
 
 #[near_bindgen]
@@ -61,7 +61,7 @@ impl Contract {
                 .generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1)
                 .to_string(),
             deposit_embed_msg: DEPOSIT_MSG_HEX_V1.to_string(),
-            queue_withdrawl_msg: deposit_tx_id
+            queue_withdrawal_msg: deposit_tx_id
                 .map(|tx_id| self.withdrawal_message(&tx_id.into(), deposit_vout.unwrap())),
         }
     }
