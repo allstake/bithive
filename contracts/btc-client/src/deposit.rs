@@ -182,7 +182,9 @@ impl Contract {
         }
 
         require!(
-            tx.lock_time >= LockTime::from_height(self.earliest_deposit_block_height).unwrap(),
+            LockTime::from_height(self.earliest_deposit_block_height)
+                .unwrap()
+                .is_implied_by(tx.lock_time),
             format!(
                 "Transaction locktime should be set to {}",
                 self.earliest_deposit_block_height
@@ -309,18 +311,18 @@ mod tests {
         sequence: Sequence,
         embed_msg: &str,
         embed_value: u64,
-        locktime: u32,
+        locktime: Option<LockTime>,
     ) -> String {
         let mut tx = Transaction {
             version: Version::TWO,
-            lock_time: LockTime::from_height(locktime).unwrap(),
+            lock_time: locktime.unwrap_or(LockTime::from_height(0).unwrap()),
             input: vec![],
             output: vec![],
         };
 
         // Add a dummy input
         let mut input = TxIn::default();
-        if locktime > 0 {
+        if locktime.is_some() {
             input.sequence = Sequence::ENABLE_LOCKTIME_NO_RBF;
         }
         tx.input.push(input);
@@ -362,7 +364,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
-            0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex[2..].to_string(), 0, 1);
     }
@@ -377,7 +379,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             1,
-            0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
@@ -392,7 +394,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
-            0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 0);
     }
@@ -407,7 +409,7 @@ mod tests {
             sequence_height(),
             "016c6c7374616b652e6465706f7369742e7631",
             0,
-            0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
@@ -426,7 +428,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
-            0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
@@ -442,14 +444,14 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
-            0, // wrong
+            None, // wrong
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 
     #[test]
     #[should_panic(expected = "Transaction locktime should be set to 100")]
-    fn test_wrong_locktime() {
+    fn test_wrong_locktime_value() {
         let mut contract = test_contract_instance();
         contract.earliest_deposit_block_height = 100;
         let tx_hex = build_tx(
@@ -458,7 +460,23 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
-            99, // wrong
+            Some(LockTime::from_height(99).unwrap()), // wrong
+        );
+        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Transaction locktime should be set to 100")]
+    fn test_wrong_locktime_type() {
+        let mut contract = test_contract_instance();
+        contract.earliest_deposit_block_height = 100;
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+            Some(LockTime::from_time(1653195600).unwrap()), // wrong
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
@@ -473,7 +491,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
-            100,
+            Some(LockTime::from_height(100).unwrap()),
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
