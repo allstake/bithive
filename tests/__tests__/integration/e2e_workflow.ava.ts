@@ -24,8 +24,12 @@ import { requestSigFromTestnet } from "../helpers/near_client";
 import { daysToMs, someH256 } from "../helpers/utils";
 import { RegtestUtils } from "regtest-client";
 import { ECPairInterface } from "ecpair";
+import * as ecc from "tiny-secp256k1";
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import { isP2TR } from "bitcoinjs-lib/src/psbt/psbtutils";
 
 const bip68 = require("bip68"); // eslint-disable-line
+bitcoin.initEccLib(ecc);
 const test = initIntegration();
 
 test("Deposit and withdraw workflow e2e", async (t) => {
@@ -34,7 +38,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   const network = regtestUtils.network;
   const { contract, mockChainSignature, alice } = t.context.accounts;
 
-  const fundAmount = 8e5;
+  const fundAmount = 4e5;
   const depositAmount1 = 2e5;
   const depositAmount2 = 3e5;
   const withdrawAmount = 3e5;
@@ -52,7 +56,6 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     contract,
     alice,
     regtestUtils,
-    userP2wpkhPayment,
     fundAmount,
     depositAmount1,
     waitBlocks,
@@ -64,7 +67,6 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     contract,
     alice,
     regtestUtils,
-    userP2wpkhPayment,
     fundAmount,
     depositAmount2,
     waitBlocks,
@@ -224,7 +226,6 @@ async function makeDeposit(
   contract: NearAccount,
   caller: NearAccount,
   regtestUtils: RegtestUtils,
-  userP2wpkhPayment: bitcoin.Payment,
   fundAmount: number,
   depositAmount: number,
   waitBlocks: number,
@@ -233,13 +234,52 @@ async function makeDeposit(
   network: bitcoin.Network,
 ) {
   // fund user's wallet first
-  const fundUnspent = await regtestUtils.faucet(
+
+  // fund via p2wpkh address
+  const userP2wpkhPayment = bitcoin.payments.p2wpkh({
+    pubkey: userKeyPair.publicKey,
+    network,
+  });
+  const fundUnspent1 = await regtestUtils.faucet(
     userP2wpkhPayment.address!,
     fundAmount,
   );
-  const fundUtx = await regtestUtils.fetch(fundUnspent.txId);
+  // fund via p2tr address
+  const userP2trPayment = bitcoin.payments.p2tr({
+    internalPubkey: toXOnly(userKeyPair.publicKey),
+    network,
+  });
+  const fundUnspent2 = await regtestUtils.faucetComplex(
+    Buffer.from(userP2trPayment.output!),
+    fundAmount,
+  );
+  const utxos = [fundUnspent1, fundUnspent2];
 
-  // user transfer BTC from his wallet to his staking vault address
+  const depositPsbt = new bitcoin.Psbt({ network });
+  const isTaproot: boolean[] = [];
+
+  // inputs
+  for (const utxo of utxos) {
+    const fundUtx = await regtestUtils.fetch(utxo.txId);
+    if (isP2TR(Buffer.from(fundUtx.outs[utxo.vout].script, "hex"))) {
+      depositPsbt.addInput({
+        hash: utxo.txId,
+        index: utxo.vout,
+        witnessUtxo: getWitnessUtxo(fundUtx.outs[utxo.vout]),
+        tapInternalKey: toXOnly(userKeyPair.publicKey),
+      });
+      isTaproot.push(true);
+    } else {
+      depositPsbt.addInput({
+        hash: utxo.txId,
+        index: utxo.vout,
+        witnessUtxo: getWitnessUtxo(fundUtx.outs[utxo.vout]), // TODO
+      });
+      isTaproot.push(false);
+    }
+  }
+
+  // outputs
   const sequence = bip68.encode({ blocks: waitBlocks });
   const p2wsh = bitcoin.payments.p2wsh({
     redeem: {
@@ -251,12 +291,8 @@ async function makeDeposit(
   const depositEmbed = bitcoin.payments.embed({
     data: [Buffer.from("allstake.deposit.v1")],
   });
-  const depositPsbt = new bitcoin.Psbt({ network })
-    .addInput({
-      hash: fundUnspent.txId,
-      index: fundUnspent.vout,
-      witnessUtxo: getWitnessUtxo(fundUtx.outs[fundUnspent.vout]),
-    })
+
+  depositPsbt
     .addOutput({
       address: p2wsh.address!,
       value: depositAmount,
@@ -264,8 +300,23 @@ async function makeDeposit(
     .addOutput({
       script: depositEmbed.output!,
       value: 0,
-    })
-    .signInput(0, userKeyPair);
+    });
+
+  // sign inputs
+
+  // tweaked key pair is used for taproot inputs
+  // when using browser extension, this is automatically handled by signPsbt
+  const tweakedKeyPair = userKeyPair.tweak(
+    bitcoin.crypto.taggedHash("TapTweak", toXOnly(userKeyPair.publicKey)),
+  );
+  for (let i = 0; i < utxos.length; i++) {
+    if (isTaproot[i]) {
+      depositPsbt.signInput(i, tweakedKeyPair);
+    } else {
+      depositPsbt.signInput(i, userKeyPair);
+    }
+  }
+
   depositPsbt.finalizeAllInputs();
   const depositTx = depositPsbt.extractTransaction();
   await regtestUtils.broadcast(depositTx.toHex());
