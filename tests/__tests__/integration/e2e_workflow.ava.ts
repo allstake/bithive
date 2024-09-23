@@ -222,6 +222,48 @@ async function prepareAllstakeSignature(
   await setSignature(chainSignature, hashToSign, sigResponse);
 }
 
+async function fundP2wpkh(
+  regtestUtils: RegtestUtils,
+  userPubkey: Buffer,
+  fundAmount: number,
+  network: bitcoin.Network,
+) {
+  const userP2wpkhPayment = bitcoin.payments.p2wpkh({
+    pubkey: userPubkey,
+    network,
+  });
+  return regtestUtils.faucet(userP2wpkhPayment.address!, fundAmount);
+}
+
+async function fundP2pkh(
+  regtestUtils: RegtestUtils,
+  userPubkey: Buffer,
+  fundAmount: number,
+  network: bitcoin.Network,
+) {
+  const userP2pkhPayment = bitcoin.payments.p2pkh({
+    pubkey: userPubkey,
+    network,
+  });
+  return regtestUtils.faucet(userP2pkhPayment.address!, fundAmount);
+}
+
+async function fundP2tr(
+  regtestUtils: RegtestUtils,
+  userPubkey: Buffer,
+  fundAmount: number,
+  network: bitcoin.Network,
+) {
+  const userP2trPayment = bitcoin.payments.p2tr({
+    internalPubkey: toXOnly(userPubkey),
+    network,
+  });
+  return regtestUtils.faucetComplex(
+    Buffer.from(userP2trPayment.output!),
+    fundAmount,
+  );
+}
+
 async function makeDeposit(
   contract: NearAccount,
   caller: NearAccount,
@@ -234,26 +276,11 @@ async function makeDeposit(
   network: bitcoin.Network,
 ) {
   // fund user's wallet first
-
-  // fund via p2wpkh address
-  const userP2wpkhPayment = bitcoin.payments.p2wpkh({
-    pubkey: userKeyPair.publicKey,
-    network,
-  });
-  const fundUnspent1 = await regtestUtils.faucet(
-    userP2wpkhPayment.address!,
-    fundAmount,
-  );
-  // fund via p2tr address
-  const userP2trPayment = bitcoin.payments.p2tr({
-    internalPubkey: toXOnly(userKeyPair.publicKey),
-    network,
-  });
-  const fundUnspent2 = await regtestUtils.faucetComplex(
-    Buffer.from(userP2trPayment.output!),
-    fundAmount,
-  );
-  const utxos = [fundUnspent1, fundUnspent2];
+  const utxos = [
+    await fundP2wpkh(regtestUtils, userKeyPair.publicKey, fundAmount, network), // segwit
+    await fundP2pkh(regtestUtils, userKeyPair.publicKey, fundAmount, network), // non-segwit
+    await fundP2tr(regtestUtils, userKeyPair.publicKey, fundAmount, network), // taproot
+  ];
 
   const depositPsbt = new bitcoin.Psbt({ network });
   const isTaproot: boolean[] = [];
@@ -273,7 +300,7 @@ async function makeDeposit(
       depositPsbt.addInput({
         hash: utxo.txId,
         index: utxo.vout,
-        witnessUtxo: getWitnessUtxo(fundUtx.outs[utxo.vout]), // TODO
+        nonWitnessUtxo: Buffer.from(fundUtx.txHex, "hex"), // works with both segwit and non-segwit
       });
       isTaproot.push(false);
     }
@@ -318,6 +345,8 @@ async function makeDeposit(
   }
 
   depositPsbt.finalizeAllInputs();
+
+  // broadcast transaction
   const depositTx = depositPsbt.extractTransaction();
   await regtestUtils.broadcast(depositTx.toHex());
   await regtestUtils.verify({
@@ -327,6 +356,7 @@ async function makeDeposit(
     value: depositAmount,
   });
 
+  // submit transaction to NEAR
   await submitDepositTx(contract, caller, {
     tx_hex: depositTx.toHex(),
     deposit_vout: 0,
