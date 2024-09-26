@@ -45,12 +45,18 @@ test-ava: btc-client-test mock-btc-lightclient mock-chain-signature
 test-integration: btc-client-test mock-btc-lightclient mock-chain-signature
 	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	export AR=/opt/homebrew/opt/llvm/bin/llvm-ar
+	export CC=/opt/homebrew/opt/llvm/bin/clang
+endif
+
 define compile_release
 	@rustup target add wasm32-unknown-unknown
-	AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang RUSTFLAGS=$(RUSTFLAGS) cargo build --package $(1) --target wasm32-unknown-unknown --release
+	RUSTFLAGS=$(RUSTFLAGS) cargo build --package $(1) --target wasm32-unknown-unknown --release
 endef
 
 define compile_test
 	@rustup target add wasm32-unknown-unknown
-	AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang RUSTFLAGS=$(RUSTFLAGS) cargo build --package $(1) --target wasm32-unknown-unknown --release --features=test
+	RUSTFLAGS=$(RUSTFLAGS) cargo build --package $(1) --target wasm32-unknown-unknown --release --features=test
 endef
