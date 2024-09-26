@@ -39,7 +39,7 @@
     "js-sha3": "^0.9.3",
     "lint-staged": "^15.2.9",
     "near-api-js": "^4.0.4",
-    "near-workspaces": "^3.5.0",
+    "near-workspaces": "https://gitpkg.vercel.app/near/near-workspaces-js/packages/js?e20927a",
     "node-global-proxy": "^1.0.1",
     "prettier": "^3.3.3",
     "regtest-client": "^0.2.1",
