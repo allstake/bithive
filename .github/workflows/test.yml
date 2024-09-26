@@ -34,8 +34,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Run tests
-        run: make test
+      - name: Run unit tests
+        run: make test-unit
+      
+      - name: Run AVA tests
+        run: make test-ava
 
   lint:
     name: clippy and fmt
