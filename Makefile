@@ -10,7 +10,7 @@ btc-client: contracts/btc-client
 btc-client-test: contracts/btc-client
 	$(call compile_test,btc-client)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/debug/btc_client.wasm ./res/btc_client_test.wasm
+	@cp target/wasm32-unknown-unknown/release/btc_client.wasm ./res/btc_client_test.wasm
 
 mock-btc-lightclient: contracts/mock-btc-lightclient
 	$(call compile_release,mock-btc-lightclient)
@@ -52,5 +52,5 @@ endef
 
 define compile_test
 	@rustup target add wasm32-unknown-unknown
-	AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang RUSTFLAGS=$(RUSTFLAGS) cargo build --package $(1) --target wasm32-unknown-unknown --features=test
+	AR=/opt/homebrew/opt/llvm/bin/llvm-ar CC=/opt/homebrew/opt/llvm/bin/clang RUSTFLAGS=$(RUSTFLAGS) cargo build --package $(1) --target wasm32-unknown-unknown --release --features=test
 endef

@@ -65,7 +65,7 @@ export function initUnit(sandbox = true) {
     t.context.unisatSig = unisatSig;
   });
 
-  test.afterEach(async (t) => {
+  test.afterEach.always(async (t) => {
     if (!sandbox) return;
     // Stop Sandbox server
     await t.context.worker.tearDown().catch((error) => {
