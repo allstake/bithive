@@ -23,9 +23,9 @@ use crate::*;
 
 const ERR_NOT_ENOUGH_STORAGE_DEPOSIT: &str = "Not enough NEAR attached.";
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
-const ERR_BAD_TX_LOCKTIME: &str = "Invalid transaction locktime";
 const ERR_BAD_PUBKER_HEX: &str = "Invalid pubkey hex";
 const ERR_BAD_DEPOSIT_AMOUNT: &str = "Deposit amount is less than minimum deposit amount";
+const ERR_NOT_ABS_TIMELOCK: &str = "Transaction absolute timelock not enabled";
 
 const ERR_BAD_DEPOSIT_IDX: &str = "Bad deposit output index";
 const ERR_BAD_EMBED_IDX: &str = "Bad embed output index";
@@ -76,10 +76,9 @@ impl Contract {
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
-        require!(
-            LockTime::ZERO.partial_cmp(&tx.lock_time).unwrap().is_eq(),
-            ERR_BAD_TX_LOCKTIME
-        );
+        if self.earliest_deposit_block_height > 0 {
+            self.verify_timelock(&tx);
+        }
 
         // verify embed output
         let embed_output = tx
@@ -173,6 +172,26 @@ impl Contract {
 }
 
 impl Contract {
+    /// Verify if transaction has absolute timelock enabled and set to the correct value.
+    fn verify_timelock(&self, tx: &Transaction) {
+        for input in &tx.input {
+            require!(
+                input.sequence.enables_absolute_lock_time(),
+                ERR_NOT_ABS_TIMELOCK
+            );
+        }
+
+        require!(
+            LockTime::from_height(self.earliest_deposit_block_height)
+                .unwrap()
+                .is_implied_by(tx.lock_time),
+            format!(
+                "Transaction locktime should be set to {}",
+                self.earliest_deposit_block_height
+            )
+        );
+    }
+
     /// Verify if output is a valid deposit output.
     /// Note that this function should **NEVER** be changed once goes online!
     fn verify_deposit_output_v1(
@@ -292,16 +311,21 @@ mod tests {
         sequence: Sequence,
         embed_msg: &str,
         embed_value: u64,
+        locktime: Option<LockTime>,
     ) -> String {
         let mut tx = Transaction {
             version: Version::TWO,
-            lock_time: LockTime::ZERO,
+            lock_time: locktime.unwrap_or(LockTime::from_height(0).unwrap()),
             input: vec![],
             output: vec![],
         };
 
         // Add a dummy input
-        tx.input.push(TxIn::default());
+        let mut input = TxIn::default();
+        if locktime.is_some() {
+            input.sequence = Sequence::ENABLE_LOCKTIME_NO_RBF;
+        }
+        tx.input.push(input);
 
         // Add the deposit output
         let allstake_pubkey = contract.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
@@ -340,6 +364,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex[2..].to_string(), 0, 1);
     }
@@ -354,6 +379,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             1,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
@@ -368,6 +394,7 @@ mod tests {
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 0);
     }
@@ -382,31 +409,89 @@ mod tests {
             sequence_height(),
             "016c6c7374616b652e6465706f7369742e7631",
             0,
+            None,
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 
     #[test]
     #[should_panic(expected = "Deposit output bad script hash")]
-    fn test_invalid_stake_script() {
+    fn test_invalid_deposit_script() {
         let mut contract = test_contract_instance();
         let pubkey = PublicKey::from_str(
             "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e6",
         )
         .unwrap();
-        let tx_hex = build_tx(&contract, &pubkey, sequence_height(), DEPOSIT_MSG_HEX_V1, 0);
+        let tx_hex = build_tx(
+            &contract,
+            &pubkey,
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+            None,
+        );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }
 
     #[test]
-    fn test_valid_stake_output() {
+    #[should_panic(expected = "Transaction absolute timelock not enabled")]
+    fn test_locktime_not_set() {
         let mut contract = test_contract_instance();
+        contract.earliest_deposit_block_height = 100;
         let tx_hex = build_tx(
             &contract,
             &user_pubkey(),
             sequence_height(),
             DEPOSIT_MSG_HEX_V1,
             0,
+            None, // wrong
+        );
+        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Transaction locktime should be set to 100")]
+    fn test_wrong_locktime_value() {
+        let mut contract = test_contract_instance();
+        contract.earliest_deposit_block_height = 100;
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+            Some(LockTime::from_height(99).unwrap()), // wrong
+        );
+        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Transaction locktime should be set to 100")]
+    fn test_wrong_locktime_type() {
+        let mut contract = test_contract_instance();
+        contract.earliest_deposit_block_height = 100;
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+            Some(LockTime::from_time(1653195600).unwrap()), // wrong
+        );
+        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+    }
+
+    #[test]
+    fn test_valid_deposit_output() {
+        let mut contract = test_contract_instance();
+        contract.earliest_deposit_block_height = 100;
+        let tx_hex = build_tx(
+            &contract,
+            &user_pubkey(),
+            sequence_height(),
+            DEPOSIT_MSG_HEX_V1,
+            0,
+            Some(LockTime::from_height(100).unwrap()),
         );
         submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
     }

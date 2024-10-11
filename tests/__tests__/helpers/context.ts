@@ -182,6 +182,7 @@ async function createFixtures(root: NearAccount) {
           n_confirmation: 6,
           withdraw_waiting_time_ms: daysToMs(2),
           min_deposit_satoshi: 100,
+          earliest_deposit_block_height: 0,
           solo_withdraw_seq_heights: [5],
         },
       },

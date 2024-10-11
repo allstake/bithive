@@ -42,6 +42,8 @@ pub struct Contract {
     withdraw_waiting_time_ms: u64,
     /// minimum deposit amount in satoshi
     min_deposit_satoshi: u64,
+    /// earliest block height acceptable for deposit
+    earliest_deposit_block_height: u32,
     /// list of available solo withdraw sequence heights, used by redeem script
     solo_withdraw_seq_heights: Vec<u16>,
     /// set of all confirmed deposit txns
@@ -63,6 +65,7 @@ impl Contract {
             n_confirmation: args.n_confirmation,
             withdraw_waiting_time_ms: args.withdraw_waiting_time_ms,
             min_deposit_satoshi: args.min_deposit_satoshi,
+            earliest_deposit_block_height: args.earliest_deposit_block_height,
             solo_withdraw_seq_heights: args.solo_withdraw_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: LookupMap::new(StorageKey::Accounts),
@@ -133,6 +136,7 @@ mod tests {
             n_confirmation: 6,
             withdraw_waiting_time_ms: 0,
             min_deposit_satoshi: 0,
+            earliest_deposit_block_height: 0,
             solo_withdraw_seq_heights: vec![5],
         });
 

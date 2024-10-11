@@ -41,6 +41,12 @@ impl Contract {
     }
 
     #[payable]
+    pub fn set_earliest_deposit_block_height(&mut self, height: u32) {
+        self.assert_owner();
+        self.earliest_deposit_block_height = height;
+    }
+
+    #[payable]
     pub fn set_solo_withdraw_sequence_heights(&mut self, values: Vec<u16>) {
         self.assert_owner();
         self.solo_withdraw_seq_heights = values;
