@@ -5,6 +5,10 @@ import { initNear } from "../near";
 
 interface Args {
   env: string;
+  pubkey: string;
+  txid: string;
+  vout: number;
+  sig: string;
 }
 
 export const queueWithdraw: CommandModule<unknown, Args> = {
@@ -12,18 +16,36 @@ export const queueWithdraw: CommandModule<unknown, Args> = {
   describe: "Submit a BTC queue withdraw request",
   builder: {
     env: envBuilder,
+    pubkey: {
+      describe: "User public key",
+      type: "string",
+      demandOption: true,
+    },
+    txid: {
+      describe: "Deposit txid",
+      type: "string",
+      demandOption: true,
+    },
+    vout: {
+      describe: "Deposit vout",
+      type: "number",
+      demandOption: true,
+    },
+    sig: {
+      describe: "Signature",
+      type: "string",
+      demandOption: true,
+    },
   },
-  async handler({ env }) {
+  async handler({ env, pubkey, txid, vout, sig }) {
     const config = await getConfig(env);
     const { signer } = await initNear(env);
 
     const args = {
-      user_pubkey:
-        "0299b4097603b073aa2390203303fe0e60c87bd2af8e621a3df22818c40e3dd217",
-      deposit_tx_id:
-        "1750aacd94ab84aa70186685da6fc869a56807ca7ed3097c3f5c229d8644365a",
-      deposit_vout: 0,
-      msg_sig: "",
+      user_pubkey: pubkey,
+      deposit_tx_id: txid,
+      deposit_vout: vout,
+      msg_sig: sig,
       sig_type: "Unisat",
     };
 

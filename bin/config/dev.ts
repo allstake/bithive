@@ -4,6 +4,9 @@ import * as os from "os";
 import { Config } from "./index";
 
 export const config: Config = {
+  bitcoin: {
+    network: "testnet",
+  },
   near: {
     networkId: "testnet",
     keyStore: new UnencryptedFileSystemKeyStore(
