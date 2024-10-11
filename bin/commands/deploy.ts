@@ -10,7 +10,7 @@ interface Args {
 
 export const deployBtcClient: CommandModule<unknown, Args> = {
   command: "deploy",
-  describe: "Deploy and init BTC client contract",
+  describe: "Deploy BTC client contract",
   builder: {
     env: envBuilder,
   },
