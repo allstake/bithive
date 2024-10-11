@@ -76,6 +76,12 @@ impl Account {
             .into()
     }
 
+    pub fn try_get_active_deposit(&self, tx_id: &TxId, vout: u64) -> Option<Deposit> {
+        self.active_deposits
+            .get(&output_id(tx_id, vout))
+            .map(|d| d.into())
+    }
+
     pub fn get_active_deposit(&self, tx_id: &TxId, vout: u64) -> Deposit {
         self.active_deposits
             .get(&output_id(tx_id, vout))
@@ -132,6 +138,12 @@ impl Account {
 
     pub fn withdrawn_deposits_len(&self) -> u64 {
         self.withdrawn_deposits.len()
+    }
+
+    pub fn try_get_withdrawn_deposit(&self, tx_id: &TxId, vout: u64) -> Option<Deposit> {
+        self.withdrawn_deposits
+            .get(&output_id(tx_id, vout))
+            .map(|d| d.into())
     }
 
     pub fn get_withdrawn_deposit_by_index(&self, idx: u64) -> Option<Deposit> {
@@ -196,6 +208,15 @@ pub struct Deposit {
     withdrawal_tx_id: Option<TxId>,
 }
 
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub enum DepositStatus {
+    Active,
+    QueuedWithdraw,
+    CanWithdraw,
+    Withdrawn,
+}
+
 impl Deposit {
     pub fn new(
         redeem_version: RedeemVersion,
@@ -245,6 +266,18 @@ impl Deposit {
     pub fn complete_withdraw(&mut self, withdrawal_tx_id: String) {
         self.complete_withdraw_ts = current_timestamp_ms();
         self.withdrawal_tx_id = Some(withdrawal_tx_id.into());
+    }
+
+    pub fn status(&self, waiting_time_ms: u64) -> DepositStatus {
+        if self.queue_withdraw_ts == 0 && self.complete_withdraw_ts == 0 {
+            DepositStatus::Active
+        } else if self.complete_withdraw_ts > 0 {
+            DepositStatus::Withdrawn
+        } else if self.can_complete_withdraw(waiting_time_ms) {
+            DepositStatus::CanWithdraw
+        } else {
+            DepositStatus::QueuedWithdraw
+        }
     }
 }
 
