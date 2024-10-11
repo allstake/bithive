@@ -1,6 +1,6 @@
-import { Gas, NEAR } from "near-workspaces";
+import { connect } from "near-api-js";
+import { NEAR } from "near-workspaces";
 import { getConfig } from "./config";
-import { connect, Near } from "near-api-js";
 import { nearTGas } from "./helper";
 
 export async function initNear(env: string, signerId?: string) {
