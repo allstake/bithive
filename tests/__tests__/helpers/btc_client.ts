@@ -5,10 +5,7 @@ export const V1_PK_PATH = "/btc/manage/v1"; // this should be equal to the one d
 
 interface SubmitDepositArg {
   tx_hex: string;
-  deposit_vout: number;
   embed_vout: number;
-  user_pubkey_hex: string;
-  sequence_height: number;
   tx_block_hash: string;
   tx_index: number;
   merkle_proof: string[];

@@ -2,8 +2,9 @@ use std::cmp::min;
 
 use crate::*;
 use account::{Deposit, DepositStatus};
-use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
+use consts::CHAIN_SIGNATURE_PATH_V1;
 use serde::{Deserialize, Serialize};
+use types::DepositEmbedMsg;
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -22,13 +23,19 @@ pub struct ContractSummary {
 /// Constants for version 1 of the deposit script
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct ConstantsV1 {
+pub struct DepositConstantsV1 {
     /// allstake pubkey used in the deposit script
     allstake_pubkey: String,
-    /// message that should be embedded in the deposit transaction
+    /// message that needs to be embedded in the deposit transaction via OP_RETURN
     deposit_embed_msg: String,
+}
+
+/// Constants for withdrawing v1 deposits
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct WithdrawalConstantsV1 {
     /// raw message that needs to be signed by the user for queueing withdraw
-    queue_withdrawal_msg: Option<String>,
+    queue_withdrawal_msg: String,
 }
 
 /// Deposit info
@@ -55,22 +62,43 @@ impl Contract {
         }
     }
 
-    /// Return constants that will be used by deposit/withdraw scripts of version 1
+    /// Return constants that will be used by deposit scripts of version 1
     /// ### Arguments
-    /// * `deposit_tx_id` - (needed for queue withdraw) deposit transaction id
-    /// * `deposit_vout` - (needed for queue withdraw) deposit vout index
-    pub fn get_v1_constants(
+    /// * `deposit_vout` - deposit vout index
+    /// * `user_pubkey` - user pubkey
+    /// * `sequence_height` - sequence height
+    pub fn get_v1_deposit_constants(
         &self,
-        deposit_tx_id: Option<String>,
-        deposit_vout: Option<u64>,
-    ) -> ConstantsV1 {
-        ConstantsV1 {
+        deposit_vout: u64,
+        user_pubkey: String,
+        sequence_height: u16,
+    ) -> DepositConstantsV1 {
+        let embed_msg = DepositEmbedMsg::V1 {
+            deposit_vout,
+            user_pubkey: hex::decode(user_pubkey).unwrap().try_into().unwrap(),
+            sequence_height,
+        };
+
+        DepositConstantsV1 {
             allstake_pubkey: self
                 .generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1)
                 .to_string(),
-            deposit_embed_msg: DEPOSIT_MSG_HEX_V1.to_string(),
-            queue_withdrawal_msg: deposit_tx_id
-                .map(|tx_id| self.withdrawal_message(&tx_id.into(), deposit_vout.unwrap())),
+            deposit_embed_msg: hex::encode(embed_msg.encode()),
+        }
+    }
+
+    /// Return constants that will be used for withdrawing v1 deposits
+    /// ### Arguments
+    /// * `deposit_tx_id` - deposit transaction id
+    /// * `deposit_vout` - deposit vout index
+    pub fn get_v1_withdrawal_constants(
+        &self,
+        deposit_tx_id: String,
+        deposit_vout: u64,
+    ) -> WithdrawalConstantsV1 {
+        let msg = self.withdrawal_message(&deposit_tx_id.into(), deposit_vout);
+        WithdrawalConstantsV1 {
+            queue_withdrawal_msg: msg,
         }
     }
 

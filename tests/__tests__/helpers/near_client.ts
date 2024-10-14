@@ -8,9 +8,6 @@ import * as os from "os";
 import path from "path";
 import { ChainSignatureResponse } from "./utils";
 
-// proxy.setConfig("http://127.0.0.1:7890");
-// proxy.start();
-
 export async function initNearClient(signerId: string) {
   const config = {
     networkId: "testnet",

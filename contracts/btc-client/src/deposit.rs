@@ -10,13 +10,13 @@ use bitcoin::{
     script::Builder,
     PublicKey, ScriptBuf, Sequence, Transaction, TxOut,
 };
-use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
+use consts::CHAIN_SIGNATURE_PATH_V1;
 use events::Event;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{
     near_bindgen, require, Balance, Gas, Promise, PromiseError, PromiseOrValue, ONE_NEAR,
 };
-use types::{output_id, RedeemVersion, SubmitDepositTxArgs, TxId};
+use types::{output_id, DepositEmbedMsg, RedeemVersion, SubmitDepositTxArgs, TxId};
 use utils::{assert_gas, get_embed_message};
 
 use crate::*;
@@ -29,8 +29,6 @@ const ERR_NOT_ABS_TIMELOCK: &str = "Transaction absolute timelock not enabled";
 
 const ERR_BAD_DEPOSIT_IDX: &str = "Bad deposit output index";
 const ERR_BAD_EMBED_IDX: &str = "Bad embed output index";
-
-const ERR_EMBED_INVALID_MSG: &str = "Invalid embed output msg";
 
 const ERR_DEPOSIT_NOT_P2WSH: &str = "Deposit output is not P2WSH";
 const ERR_DEPOSIT_BAD_SCRIPT_HASH: &str = "Deposit output bad script hash";
@@ -46,10 +44,7 @@ impl Contract {
     /// Submit a BTC deposit transaction
     /// ### Arguments
     /// * `args.tx_hex` - hex encoded transaction body
-    /// * `args.deposit_vout` - index of deposit (p2wsh) output
     /// * `args.embed_vout` - index of embed (OP_RETURN) output
-    /// * `args.user_pubkey_hex` - user pubkey hex encoded
-    /// * `args.sequence_height` - sequence height used in the redeem script, must be a valid value from the configuration
     /// * `args.tx_block_hash` - block hash in which the transaction is included
     /// * `args.tx_index` - transaction index in the block
     /// * `args.merkle_proof` - merkle proof of transaction in the block
@@ -64,21 +59,8 @@ impl Contract {
             ERR_NOT_ENOUGH_STORAGE_DEPOSIT
         );
 
-        require!(
-            self.solo_withdraw_seq_heights
-                .contains(&args.sequence_height),
-            format!(
-                "Invalid seq height. Available values are: {:?}",
-                self.solo_withdraw_seq_heights
-            )
-        );
-
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
-
-        if self.earliest_deposit_block_height > 0 {
-            self.verify_timelock(&tx);
-        }
 
         // verify embed output
         let embed_output = tx
@@ -86,20 +68,39 @@ impl Contract {
             .get(args.embed_vout as usize)
             .expect(ERR_BAD_EMBED_IDX);
         let msg = get_embed_message(embed_output);
+        let embed_msg = DepositEmbedMsg::decode_hex(&msg).unwrap();
+        let (deposit_vout, user_pubkey_hex, sequence_height) = match embed_msg {
+            DepositEmbedMsg::V1 {
+                deposit_vout,
+                user_pubkey,
+                sequence_height,
+            } => (deposit_vout, hex::encode(user_pubkey), sequence_height),
+        };
+
+        require!(
+            self.solo_withdraw_seq_heights.contains(&sequence_height),
+            format!(
+                "Invalid seq height. Available values are: {:?}",
+                self.solo_withdraw_seq_heights
+            )
+        );
+
+        if self.earliest_deposit_block_height > 0 {
+            self.verify_timelock(&tx);
+        }
 
         // verify deposit output
         let deposit_output = tx
             .output
-            .get(args.deposit_vout as usize)
+            .get(deposit_vout as usize)
             .expect(ERR_BAD_DEPOSIT_IDX);
-        let user_pubkey = PublicKey::from_str(&args.user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
-        let sequence = Sequence::from_height(args.sequence_height);
-        let redeem_version = match msg.as_str() {
-            DEPOSIT_MSG_HEX_V1 => {
+        let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
+        let sequence = Sequence::from_height(sequence_height);
+        let redeem_version = match embed_msg {
+            DepositEmbedMsg::V1 { .. } => {
                 self.verify_deposit_output_v1(deposit_output, &user_pubkey, sequence);
                 RedeemVersion::V1
             }
-            _ => panic!("{}", ERR_EMBED_INVALID_MSG),
         };
 
         let value = deposit_output.value;
@@ -109,7 +110,7 @@ impl Contract {
         );
 
         // set deposit transaction(output) as confirmed now to prevent duplicate verification
-        self.set_deposit_confirmed(&txid.to_string().into(), args.deposit_vout);
+        self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
 
         // verify confirmation through btc light client
         ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
@@ -127,10 +128,10 @@ impl Contract {
                     .on_verify_deposit_tx(
                         redeem_version,
                         txid.to_string(),
-                        args.deposit_vout,
+                        deposit_vout,
                         value.to_sat(),
                         sequence.to_consensus_u32(),
-                        args.user_pubkey_hex,
+                        user_pubkey_hex,
                     ),
             )
     }
@@ -287,17 +288,14 @@ mod tests {
             .unwrap()
     }
 
-    fn submit_deposit(contract: &mut Contract, tx_hex: String, deposit_vout: u64, embed_vout: u64) {
+    fn submit_deposit(contract: &mut Contract, tx_hex: String, embed_vout: u64) {
         let mut builder = VMContextBuilder::new();
         builder.attached_deposit(STORAGE_DEPOSIT_ACCOUNT);
         testing_env!(builder.build());
 
         contract.submit_deposit_tx(SubmitDepositTxArgs {
             tx_hex,
-            deposit_vout,
             embed_vout,
-            user_pubkey_hex: user_pubkey().to_string(),
-            sequence_height: sequence_height().0 as u16,
             tx_block_hash: "00000000000000000000088feef67bf3addee2624be0da65588c032192368de8"
                 .to_string(),
             tx_index: 0,
@@ -307,9 +305,8 @@ mod tests {
 
     fn build_tx(
         contract: &Contract,
-        user_pubkey: &PublicKey,
+        embed_pubkey: &PublicKey,
         sequence: Sequence,
-        embed_msg: &str,
         embed_value: u64,
         locktime: Option<LockTime>,
     ) -> String {
@@ -329,7 +326,8 @@ mod tests {
 
         // Add the deposit output
         let allstake_pubkey = contract.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
-        let deposit_script = Contract::deposit_script_v1(user_pubkey, &allstake_pubkey, sequence);
+        let deposit_script =
+            Contract::deposit_script_v1(&user_pubkey(), &allstake_pubkey, sequence);
         let witness_script_hash = env::sha256_array(deposit_script.as_bytes());
 
         let p2wsh_script = Builder::new()
@@ -343,9 +341,18 @@ mod tests {
         });
 
         // Add the embed output
-        let mut embed_msg_bytes = [0u8; 19];
-        embed_msg_bytes.copy_from_slice(&hex::decode(embed_msg).expect("Invalid embed message"));
-        let embed_script = ScriptBuf::new_op_return(embed_msg_bytes);
+        let embed_msg = DepositEmbedMsg::V1 {
+            deposit_vout: 0,
+            user_pubkey: hex::decode(embed_pubkey.to_string())
+                .unwrap()
+                .try_into()
+                .unwrap(),
+            sequence_height: sequence.to_consensus_u32() as u16,
+        };
+        println!("embed_msg: {:?}", embed_msg);
+        println!("embed_msg.encode(): {:?}", hex::encode(embed_msg.encode()));
+        let msg: [u8; 52] = embed_msg.encode().as_slice().try_into().unwrap();
+        let embed_script = ScriptBuf::new_op_return(msg);
         tx.output.push(TxOut {
             value: Amount::from_sat(embed_value),
             script_pubkey: embed_script,
@@ -358,60 +365,24 @@ mod tests {
     #[should_panic(expected = "Invalid hex transaction")]
     fn test_invalid_tx_hex() {
         let mut contract = test_contract_instance();
-        let tx_hex = build_tx(
-            &contract,
-            &user_pubkey(),
-            sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
-            0,
-            None,
-        );
-        submit_deposit(&mut contract, tx_hex[2..].to_string(), 0, 1);
+        let tx_hex = build_tx(&contract, &user_pubkey(), sequence_height(), 0, None);
+        submit_deposit(&mut contract, tx_hex[2..].to_string(), 1);
     }
 
     #[test]
     #[should_panic(expected = "Embed output should have 0 value")]
     fn test_embed_output_not_zero() {
         let mut contract = test_contract_instance();
-        let tx_hex = build_tx(
-            &contract,
-            &user_pubkey(),
-            sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
-            1,
-            None,
-        );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        let tx_hex = build_tx(&contract, &user_pubkey(), sequence_height(), 1, None);
+        submit_deposit(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
     #[should_panic(expected = "Embed output is not OP_RETURN")]
     fn test_embed_output_not_opreturn() {
         let mut contract = test_contract_instance();
-        let tx_hex = build_tx(
-            &contract,
-            &user_pubkey(),
-            sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
-            0,
-            None,
-        );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 0);
-    }
-
-    #[test]
-    #[should_panic(expected = "Invalid embed output msg")]
-    fn test_embed_output_bad_msg() {
-        let mut contract = test_contract_instance();
-        let tx_hex = build_tx(
-            &contract,
-            &user_pubkey(),
-            sequence_height(),
-            "016c6c7374616b652e6465706f7369742e7631",
-            0,
-            None,
-        );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        let tx_hex = build_tx(&contract, &user_pubkey(), sequence_height(), 0, None);
+        submit_deposit(&mut contract, tx_hex.to_string(), 0);
     }
 
     #[test]
@@ -422,15 +393,8 @@ mod tests {
             "02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e6",
         )
         .unwrap();
-        let tx_hex = build_tx(
-            &contract,
-            &pubkey,
-            sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
-            0,
-            None,
-        );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        let tx_hex = build_tx(&contract, &pubkey, sequence_height(), 0, None);
+        submit_deposit(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -442,11 +406,10 @@ mod tests {
             &contract,
             &user_pubkey(),
             sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
             0,
             None, // wrong
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        submit_deposit(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -458,11 +421,10 @@ mod tests {
             &contract,
             &user_pubkey(),
             sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
             0,
             Some(LockTime::from_height(99).unwrap()), // wrong
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        submit_deposit(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -474,11 +436,10 @@ mod tests {
             &contract,
             &user_pubkey(),
             sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
             0,
             Some(LockTime::from_time(1653195600).unwrap()), // wrong
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        submit_deposit(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -489,10 +450,9 @@ mod tests {
             &contract,
             &user_pubkey(),
             sequence_height(),
-            DEPOSIT_MSG_HEX_V1,
             0,
             Some(LockTime::from_height(100).unwrap()),
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 0, 1);
+        submit_deposit(&mut contract, tx_hex.to_string(), 1);
     }
 }
