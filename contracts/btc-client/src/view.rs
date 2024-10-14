@@ -1,7 +1,7 @@
 use std::cmp::min;
 
 use crate::*;
-use account::Deposit;
+use account::{Deposit, DepositStatus};
 use consts::{CHAIN_SIGNATURE_PATH_V1, DEPOSIT_MSG_HEX_V1};
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +29,14 @@ pub struct ConstantsV1 {
     deposit_embed_msg: String,
     /// raw message that needs to be signed by the user for queueing withdraw
     queue_withdrawal_msg: Option<String>,
+}
+
+/// Deposit info
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct DepositInfo {
+    deposit: Deposit,
+    status: DepositStatus,
 }
 
 #[near_bindgen]
@@ -115,5 +123,26 @@ impl Contract {
         (offset..min(account.withdrawn_deposits_len(), offset + limit))
             .map(|idx| account.get_withdrawn_deposit_by_index(idx).unwrap())
             .collect()
+    }
+
+    pub fn get_deposit(
+        &self,
+        user_pubkey: String,
+        tx_id: String,
+        vout: u64,
+    ) -> Option<DepositInfo> {
+        let account = self.get_account(&user_pubkey.into());
+        let deposit = account
+            .try_get_active_deposit(&tx_id.clone().into(), vout)
+            .or_else(|| account.try_get_queue_withdrawal_deposit(&tx_id.clone().into(), vout))
+            .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout));
+
+        let status = deposit
+            .as_ref()
+            .map(|d| d.status(self.withdraw_waiting_time_ms));
+        deposit.map(|d| DepositInfo {
+            deposit: d,
+            status: status.unwrap(),
+        })
     }
 }
