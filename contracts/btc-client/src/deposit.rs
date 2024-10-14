@@ -349,8 +349,6 @@ mod tests {
                 .unwrap(),
             sequence_height: sequence.to_consensus_u32() as u16,
         };
-        println!("embed_msg: {:?}", embed_msg);
-        println!("embed_msg.encode(): {:?}", hex::encode(embed_msg.encode()));
         let msg: [u8; 52] = embed_msg.encode().as_slice().try_into().unwrap();
         let embed_script = ScriptBuf::new_op_return(msg);
         tx.output.push(TxOut {
