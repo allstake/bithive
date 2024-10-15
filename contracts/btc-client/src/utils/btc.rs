@@ -27,7 +27,7 @@ pub fn get_hash_to_sign(psbt: &Psbt, vin: u64) -> [u8; 32] {
 ///
 /// ### Returns
 /// plain text message that is then hashed and signed
-pub fn verify_signed_message_unisat(plain_msg: &[u8], sig: &[u8], pubkey: &[u8]) -> Vec<u8> {
+pub fn verify_signed_message_ecdsa(plain_msg: &[u8], sig: &[u8], pubkey: &[u8]) -> Vec<u8> {
     // build message to hash from plain_msg and prefix
     let mut msg_to_hash: Vec<u8> = vec![];
     msg_to_hash.push(BITCOIN_SIGNED_MSG_PREFIX_UNISAT.len() as u8);
@@ -107,7 +107,7 @@ mod tests {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e17172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
-        let msg = verify_signed_message_unisat(
+        let msg = verify_signed_message_ecdsa(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
@@ -125,7 +125,7 @@ mod tests {
         let plain_msg = "heiio:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e17172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
-        verify_signed_message_unisat(
+        verify_signed_message_ecdsa(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
@@ -139,7 +139,7 @@ mod tests {
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         // sig is from the same plain_msg but signed by a different key
         let sig = "20c6340b918107d565ef9ff80995289ca19366b7280ceae99f1c6ce38f9e0822b74240f315ddf981dd19f7f7d18ef1ca7959a8a6e0544d1efef8376b7a5fe394a4";
-        verify_signed_message_unisat(
+        verify_signed_message_ecdsa(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),
@@ -152,7 +152,7 @@ mod tests {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e27172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
-        verify_signed_message_unisat(
+        verify_signed_message_ecdsa(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
             &hex::decode(pubkey).unwrap(),

@@ -13,7 +13,7 @@ use near_sdk::{
 };
 use serde::{Deserialize, Serialize};
 use types::{output_id, PubKey, RedeemVersion, TxId};
-use utils::{assert_gas, get_hash_to_sign, verify_signed_message_unisat};
+use utils::{assert_gas, get_hash_to_sign, verify_signed_message_ecdsa};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
@@ -31,7 +31,8 @@ const ERR_BAD_DEPOSIT_VIN: &str = "Deposit vin not exist";
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub enum SigType {
-    Unisat,
+    #[allow(clippy::upper_case_acronyms)]
+    ECDSA,
 }
 
 #[near_bindgen]
@@ -55,7 +56,7 @@ impl Contract {
         // verify msg signature
         let expected_withdraw_msg = self.withdrawal_message(&tx_id, deposit_vout);
         let msg = match sig_type {
-            SigType::Unisat => verify_signed_message_unisat(
+            SigType::ECDSA => verify_signed_message_ecdsa(
                 &expected_withdraw_msg.into_bytes(),
                 &hex::decode(&msg_sig).unwrap(),
                 &hex::decode(&user_pubkey).unwrap(),

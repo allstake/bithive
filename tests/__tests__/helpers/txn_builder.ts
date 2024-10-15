@@ -103,7 +103,7 @@ export class TestTransactionBuilder {
       this.tx.getId(),
       0,
       sig,
-      "Unisat",
+      "ECDSA",
     );
   }
 
