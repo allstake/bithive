@@ -7,6 +7,7 @@ import { init } from "./commands/init";
 import { submitDeposit } from "./commands/submit_deposit";
 import { queueWithdraw } from "./commands/queue_withdraw";
 import { submitWithdraw } from "./commands/submit_withdraw";
+import { signWithdraw } from "./commands/sign_withdraw";
 
 yargs(hideBin(process.argv))
   .strict()
@@ -16,5 +17,6 @@ yargs(hideBin(process.argv))
   .command(submitDeposit)
   .command(queueWithdraw)
   .command(submitWithdraw)
+  .command(signWithdraw)
   .command(init)
   .parse();
