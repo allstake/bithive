@@ -1,4 +1,5 @@
 import { TransactionResult } from "near-workspaces";
+import * as borsh from "borsh";
 
 export function daysToMs(days: number) {
   return days * 24 * 3600 * 1000;
@@ -66,4 +67,36 @@ export async function assertFailure(
   }
 
   test.is(failed, true, "Function call didn't fail");
+}
+
+export function buildDepositEmbedMsg(
+  depositVout: number,
+  pubkey: string,
+  sequence: number,
+) {
+  const schema = {
+    enum: [
+      {
+        struct: {
+          V1: {
+            struct: {
+              deposit_vout: "u64",
+              user_pubkey: { array: { type: "u8", len: 33 } },
+              sequence_height: "u16",
+            },
+          },
+        },
+      },
+    ],
+  };
+  const data = {
+    V1: {
+      deposit_vout: depositVout,
+      user_pubkey: Buffer.from(pubkey, "hex"),
+      sequence_height: sequence,
+    },
+  };
+  const msg = borsh.serialize(schema, data);
+  const magicHeader = "allstake";
+  return Buffer.concat([Buffer.from(magicHeader), msg]);
 }

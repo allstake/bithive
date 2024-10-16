@@ -4,9 +4,10 @@ import {
   setEarliestDepositBlockHeight,
   submitDepositTx,
 } from "./helpers/btc_client";
+import * as bitcoin from "bitcoinjs-lib";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
-import { assertFailure, someH256 } from "./helpers/utils";
+import { assertFailure, buildDepositEmbedMsg, someH256 } from "./helpers/utils";
 
 const test = initUnit();
 
@@ -37,6 +38,34 @@ test("submit valid deposit txn", async (t) => {
   t.is(activeDeposits[0].withdrawal_tx_id, null);
 });
 
+test("submit invalid embed msg", async (t) => {
+  const { contract, alice } = t.context.accounts;
+
+  const builder = new TestTransactionBuilder(contract, alice, {
+    userPubkey: t.context.aliceKeyPair.publicKey,
+    allstakePubkey: t.context.allstakePubkey,
+  });
+  const tx = builder.tx;
+  // manually add an invalid embed output
+  const embedMsg = Buffer.from("wrong"); // wrong
+  const embed = bitcoin.payments.embed({
+    data: [embedMsg],
+  });
+  tx.addOutput(embed.output!, 0);
+
+  await assertFailure(
+    t,
+    submitDepositTx(contract, alice, {
+      tx_hex: builder.tx.toHex(),
+      embed_vout: 2,
+      tx_block_hash: someH256,
+      tx_index: 1,
+      merkle_proof: [someH256],
+    }),
+    "Invalid magic header",
+  );
+});
+
 test("submit invalid sequence height", async (t) => {
   const { contract, alice } = t.context.accounts;
 
@@ -56,16 +85,20 @@ test("submit invalid deposit txn", async (t) => {
     userPubkey: t.context.bobKeyPair.publicKey, // wrong
     allstakePubkey: t.context.allstakePubkey,
   });
-
+  const tx = builder.tx;
+  // add an other embed output which refers to a different user pubkey
   const userPubkey = t.context.aliceKeyPair.publicKey.toString("hex");
+  const embedMsg = buildDepositEmbedMsg(0, userPubkey, builder.sequence);
+  const embed = bitcoin.payments.embed({
+    data: [embedMsg],
+  });
+  tx.addOutput(embed.output!, 0);
+
   await assertFailure(
     t,
     submitDepositTx(contract, alice, {
       tx_hex: builder.tx.toHex(),
-      deposit_vout: 0,
-      embed_vout: 1,
-      user_pubkey_hex: userPubkey,
-      sequence_height: builder.sequence,
+      embed_vout: 2,
       tx_block_hash: someH256,
       tx_index: 1,
       merkle_proof: [someH256],
@@ -86,10 +119,7 @@ test("submit deposit txn not confirmed", async (t) => {
 
   await submitDepositTx(contract, alice, {
     tx_hex: builder.tx.toHex(),
-    deposit_vout: 0,
     embed_vout: 1,
-    user_pubkey_hex: builder.userPubkeyHex,
-    sequence_height: builder.sequence,
     tx_block_hash: someH256,
     tx_index: 0, // this makes it unconfirmed
     merkle_proof: [someH256],

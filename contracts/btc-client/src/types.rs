@@ -31,13 +31,39 @@ pub struct InitArgs {
 #[serde(crate = "near_sdk::serde")]
 pub struct SubmitDepositTxArgs {
     pub tx_hex: String,
-    pub deposit_vout: u64,
     pub embed_vout: u64,
-    pub user_pubkey_hex: String,
-    pub sequence_height: u16,
     pub tx_block_hash: String,
     pub tx_index: u64,
     pub merkle_proof: Vec<String>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
+pub enum DepositEmbedMsg {
+    V1 {
+        deposit_vout: u64,
+        user_pubkey: [u8; 33],
+        sequence_height: u16,
+    },
+}
+
+impl DepositEmbedMsg {
+    const MAGIC_HEADER: &'static str = "allstake";
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut encoded = Self::MAGIC_HEADER.as_bytes().to_vec();
+        encoded.extend(self.try_to_vec().unwrap());
+        encoded
+    }
+
+    pub fn decode_hex(data: &str) -> Result<Self, String> {
+        let raw_data = hex::decode(data).map_err(|e| format!("Failed to decode hex: {}", e))?;
+        if raw_data.starts_with(Self::MAGIC_HEADER.as_bytes()) {
+            let mut slice = &raw_data[Self::MAGIC_HEADER.len()..];
+            Self::deserialize(&mut slice).map_err(|e| format!("Failed to deserialize: {}", e))
+        } else {
+            Err("Invalid magic header".to_string())
+        }
+    }
 }
 
 /// Version of redeem script
@@ -102,5 +128,26 @@ impl borsh::BorshDeserialize for LowercaseString {
 impl borsh::BorshSerialize for LowercaseString {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         String::serialize(&self.0, writer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_embed_msg_encode_decode() {
+        let pubkey =
+            hex::decode("02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5")
+                .unwrap();
+        let msg = DepositEmbedMsg::V1 {
+            deposit_vout: 1,
+            user_pubkey: pubkey.try_into().unwrap(),
+            sequence_height: 1,
+        };
+        let encoded = msg.encode();
+        let hex_encoded = hex::encode(encoded);
+        let decoded = DepositEmbedMsg::decode_hex(&hex_encoded).unwrap();
+        assert_eq!(msg, decoded);
     }
 }

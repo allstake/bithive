@@ -12,7 +12,7 @@ import {
   submitDepositTx,
   submitWithdrawalTx,
 } from "./btc_client";
-import { someH256 } from "./utils";
+import { buildDepositEmbedMsg, someH256 } from "./utils";
 const bip68 = require("bip68"); // eslint-disable-line
 
 const SEQUENCE_TIMELOCK = 0xfffffffd; // sequence that enables time-lock and RBF
@@ -72,8 +72,11 @@ export class TestTransactionBuilder {
       toOutputScript(this.p2wsh.address!, bitcoin.networks.bitcoin),
       this.depositAmount,
     );
+
+    // add embed output
+    const embedMsg = buildDepositEmbedMsg(0, this.userPubkeyHex, args.seq ?? 5);
     const embed = bitcoin.payments.embed({
-      data: [Buffer.from("allstake.deposit.v1")],
+      data: [embedMsg],
     });
     this.tx.addOutput(embed.output!, 0);
   }
@@ -85,10 +88,7 @@ export class TestTransactionBuilder {
   async submit() {
     return submitDepositTx(this.btcClient, this.caller, {
       tx_hex: this.tx.toHex(),
-      deposit_vout: 0,
       embed_vout: 1,
-      user_pubkey_hex: this.userPubkey.toString("hex"),
-      sequence_height: this.sequence,
       tx_block_hash: someH256,
       tx_index: 1,
       merkle_proof: [someH256],

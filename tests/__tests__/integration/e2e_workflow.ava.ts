@@ -21,7 +21,7 @@ import {
 import { setSignature } from "../helpers/chain_signature";
 import { initIntegration } from "../helpers/context";
 import { requestSigFromTestnet } from "../helpers/near_client";
-import { daysToMs, someH256 } from "../helpers/utils";
+import { buildDepositEmbedMsg, daysToMs, someH256 } from "../helpers/utils";
 import { RegtestUtils } from "regtest-client";
 import { ECPairInterface } from "ecpair";
 import * as ecc from "tiny-secp256k1";
@@ -315,8 +315,13 @@ async function makeDeposit(
     network,
   });
 
+  const embedDepositMsg = buildDepositEmbedMsg(
+    0,
+    userKeyPair.publicKey.toString("hex"),
+    waitBlocks,
+  );
   const depositEmbed = bitcoin.payments.embed({
-    data: [Buffer.from("allstake.deposit.v1")],
+    data: [embedDepositMsg],
   });
 
   depositPsbt
@@ -359,10 +364,7 @@ async function makeDeposit(
   // submit transaction to NEAR
   await submitDepositTx(contract, caller, {
     tx_hex: depositTx.toHex(),
-    deposit_vout: 0,
     embed_vout: 1,
-    user_pubkey_hex: userKeyPair.publicKey.toString("hex"),
-    sequence_height: waitBlocks,
     tx_block_hash: someH256,
     tx_index: 1,
     merkle_proof: [someH256],
