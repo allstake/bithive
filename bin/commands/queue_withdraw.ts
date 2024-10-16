@@ -46,7 +46,7 @@ export const queueWithdraw: CommandModule<unknown, Args> = {
       deposit_tx_id: txid,
       deposit_vout: vout,
       msg_sig: sig,
-      sig_type: "Unisat",
+      sig_type: "ECDSA",
     };
 
     await signer.functionCall({

@@ -394,7 +394,7 @@ async function makeQueueWithdrawal(
     depositTxId,
     depositVout,
     sigHex,
-    "Unisat",
+    "ECDSA",
   );
   console.log("queueWithdraw ok");
 }
