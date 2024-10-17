@@ -21,6 +21,7 @@ const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
 const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
 
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
+const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdraw request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
 const ERR_BAD_WITHDRAW_AMOUNT: &str = "Withdraw amount is larger than queued amount";
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
@@ -270,6 +271,11 @@ impl Contract {
         psbt: &Psbt,
         reinvest_embed_vout: Option<u64>,
     ) {
+        require!(
+            account.queue_withdrawal_amount > 0 && account.queue_withdrawal_start_ts > 0,
+            ERR_NO_WITHDRAW_REQUESTED
+        );
+
         // make sure queue waiting time has passed
         require!(
             current_timestamp_ms()
