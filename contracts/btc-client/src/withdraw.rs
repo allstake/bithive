@@ -291,11 +291,11 @@ impl Contract {
                 deposit.value
             })
             .unwrap_or(0);
-        let leftover = deposit_input_sum - reinvest_amount;
+        let actual_withdraw_amount = deposit_input_sum - reinvest_amount;
 
-        // make sure the leftover is less than the requested withdraw amount
+        // make sure the actual amount is less than the requested withdraw amount
         require!(
-            leftover <= account.queue_withdrawal_amount,
+            actual_withdraw_amount <= account.queue_withdrawal_amount,
             ERR_BAD_WITHDRAW_AMOUNT
         );
     }
