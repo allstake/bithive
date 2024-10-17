@@ -356,7 +356,7 @@ mod tests {
                 .unwrap(),
             sequence_height: sequence.to_consensus_u32() as u16,
         };
-        let msg: [u8; 52] = embed_msg.encode().as_slice().try_into().unwrap();
+        let msg: [u8; 51] = embed_msg.encode().as_slice().try_into().unwrap();
         let embed_script = ScriptBuf::new_op_return(msg);
         tx.output.push(TxOut {
             value: Amount::from_sat(embed_value),

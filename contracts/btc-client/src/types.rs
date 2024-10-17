@@ -46,7 +46,7 @@ pub enum DepositEmbedMsg {
 }
 
 impl DepositEmbedMsg {
-    const MAGIC_HEADER: &'static str = "allstake";
+    const MAGIC_HEADER: &'static str = "bithive";
 
     pub fn encode(&self) -> Vec<u8> {
         let mut encoded = Self::MAGIC_HEADER.as_bytes().to_vec();

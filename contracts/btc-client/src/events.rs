@@ -3,7 +3,7 @@ use near_sdk::log;
 use near_sdk::serde::Serialize;
 use near_sdk::serde_json::json;
 
-pub const EVENT_STANDARD: &str = "allstake.btc";
+pub const EVENT_STANDARD: &str = "bithive.btc";
 pub const EVENT_STANDARD_VERSION: &str = "1.0.0";
 
 #[derive(Serialize)]

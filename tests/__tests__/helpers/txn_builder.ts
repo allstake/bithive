@@ -36,6 +36,7 @@ export class TestTransactionBuilder {
     args: {
       userPubkey: Buffer;
       allstakePubkey: Buffer;
+      inputTxIndex?: number;
       seq?: number;
       depositAmount?: number;
       enableTimelock?: boolean;
@@ -57,11 +58,12 @@ export class TestTransactionBuilder {
         ),
       },
     });
+
+    const inputTxId =
+      "e813831dccfd1537517c0e62431c9a2a1ca2580b9401cb2274e3f2e06c43ae43";
     this.tx.addInput(
-      idToHash(
-        "e813831dccfd1537517c0e62431c9a2a1ca2580b9401cb2274e3f2e06c43ae43",
-      ),
-      0,
+      idToHash(inputTxId),
+      args.inputTxIndex ?? 0, // this allows us to generate deposit txn with different ID
       args.enableTimelock ? SEQUENCE_TIMELOCK : 0xffffffff,
     );
     if (args.enableTimelock) {
@@ -95,13 +97,12 @@ export class TestTransactionBuilder {
     });
   }
 
-  async queueWithdraw(sig: string) {
+  async queueWithdraw(amount: number, sig: string) {
     return queueWithdrawal(
       this.btcClient,
       this.caller,
       this.userPubkeyHex,
-      this.tx.getId(),
-      0,
+      amount,
       sig,
       "ECDSA",
     );

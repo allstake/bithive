@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
@@ -17,14 +19,17 @@ const ERR_DEPOSIT_ALREADY_WITHDRAWN: &str = "Deposit already withdrawn";
 
 const ERR_INVALID_QUEUE_WITHDRAWAL: &str = "Invalid queue withdrawal amount";
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Account {
     pub pubkey: PubKey,
     /// total deposit amount in full BTC decimals
     pub total_deposit: u64,
     /// set of deposits that are not known to be withdrawed
+    #[serde(skip_serializing)]
     active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are confirmed to have been withdrawn
+    #[serde(skip_serializing)]
     withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// amount of deposits queued for withdrawl in full BTC decimals
     pub queue_withdrawal_amount: u64,
@@ -189,6 +194,10 @@ impl Account {
 
         deposit.complete_withdraw(tx_id.clone());
         self.total_deposit -= deposit.value;
+        // make sure the amount queued for withdraw is less than the total deposit
+        // TODO test this
+        self.queue_withdrawal_amount = min(self.total_deposit, self.queue_withdrawal_amount);
+
         self.remove_active_deposit(&deposit_tx_id, deposit_vout);
         self.insert_withdrawn_deposit(deposit);
 

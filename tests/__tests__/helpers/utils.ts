@@ -97,6 +97,6 @@ export function buildDepositEmbedMsg(
     },
   };
   const msg = borsh.serialize(schema, data);
-  const magicHeader = "allstake";
+  const magicHeader = "bithive";
   return Buffer.concat([Buffer.from(magicHeader), msg]);
 }

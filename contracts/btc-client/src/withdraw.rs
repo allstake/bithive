@@ -240,6 +240,8 @@ impl Contract {
         }
         self.set_account(account);
 
+        // TODO shall we submit the reinvest txn separately later ?
+        // since if the withdrawal txn is valid, we have to record it no matter whether the reinvest succeeds or not
         if let Some(reinvest_embed_vout) = reinvest_embed_vout {
             self.save_deposit_txn(&tx, reinvest_embed_vout);
         }
@@ -250,7 +252,7 @@ impl Contract {
 
 impl Contract {
     pub(crate) fn withdrawal_message(&self, nonce: u64, amount: u64) -> String {
-        format!("allstake.withdraw:{}:{}sats", nonce, amount)
+        format!("bithive.withdraw:{}:{}sats", nonce, amount)
     }
 
     fn filter_deposit_inputs(&self, account: &Account, inputs: &[bitcoin::TxIn]) -> Vec<Deposit> {

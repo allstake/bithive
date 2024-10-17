@@ -3,6 +3,7 @@ import {
   listUserActiveDeposits,
   setEarliestDepositBlockHeight,
   submitDepositTx,
+  viewAccount,
 } from "./helpers/btc_client";
 import * as bitcoin from "bitcoinjs-lib";
 import { initUnit } from "./helpers/context";
@@ -37,6 +38,15 @@ test("submit valid deposit txn", async (t) => {
   t.is(activeDeposits[0].sequence, builder.sequence);
   t.is(activeDeposits[0].complete_withdraw_ts, 0);
   t.is(activeDeposits[0].withdrawal_tx_id, null);
+
+  const account = await viewAccount(contract, builder.userPubkeyHex);
+  t.is(account.pubkey, builder.userPubkeyHex);
+  t.is(account.total_deposit, builder.depositAmount);
+  t.is(account.queue_withdrawal_amount, 0);
+  t.is(account.queue_withdrawal_start_ts, 0);
+  t.is(account.nonce, 0);
+  t.is(account.pending_withdraw_tx_id, null);
+  t.is(account.pending_withdraw_unsigned_count, 0);
 });
 
 test("submit invalid embed msg", async (t) => {

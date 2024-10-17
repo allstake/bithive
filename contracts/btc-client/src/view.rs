@@ -103,6 +103,10 @@ impl Contract {
     // }
     // TODO
 
+    pub fn view_account(&self, user_pubkey: String) -> Account {
+        self.get_account(&user_pubkey.into())
+    }
+
     pub fn user_active_deposits_len(&self, user_pubkey: String) -> u64 {
         let account = self.get_account(&user_pubkey.into());
         account.active_deposits_len()

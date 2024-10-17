@@ -31,15 +31,13 @@ export async function queueWithdrawal(
   btcClient: NearAccount,
   caller: NearAccount,
   user_pubkey: string,
-  deposit_tx_id: string,
-  deposit_vout: number,
+  withdraw_amount: number,
   msg_sig: string,
-  sig_type: string,
+  sig_type: "ECDSA",
 ) {
   return caller.call(btcClient, "queue_withdrawal", {
     user_pubkey,
-    deposit_tx_id,
-    deposit_vout,
+    withdraw_amount,
     msg_sig,
     sig_type,
   });
@@ -261,3 +259,20 @@ export const listUserQueueWithdrawalDeposits = buildListUserDepositFunction(
 );
 export const listUserWithdrawnDeposits =
   buildListUserDepositFunction("withdrawn_deposits");
+
+interface Account {
+  pubkey: string;
+  total_deposit: number;
+  queue_withdrawal_amount: number;
+  queue_withdrawal_start_ts: number;
+  nonce: number;
+  pending_withdraw_tx_id: string | null;
+  pending_withdraw_unsigned_count: number;
+}
+
+export async function viewAccount(
+  btcClient: NearAccount,
+  userPubkey: string,
+): Promise<Account> {
+  return btcClient.view("view_account", { user_pubkey: userPubkey });
+}
