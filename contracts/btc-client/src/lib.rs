@@ -118,7 +118,8 @@ impl Contract {
     }
 
     fn set_account(&mut self, account: Account) {
-        self.accounts.insert(&account.pubkey(), &account.into());
+        self.accounts
+            .insert(&account.pubkey.clone(), &account.into());
     }
 }
 

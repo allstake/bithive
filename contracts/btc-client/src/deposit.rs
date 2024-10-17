@@ -11,11 +11,8 @@ use bitcoin::{
     PublicKey, ScriptBuf, Sequence, Transaction, TxOut,
 };
 use consts::CHAIN_SIGNATURE_PATH_V1;
-use events::Event;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
-use near_sdk::{
-    near_bindgen, require, Balance, Gas, Promise, PromiseError, PromiseOrValue, ONE_NEAR,
-};
+use near_sdk::{near_bindgen, require, Balance, Gas, Promise, PromiseError, ONE_NEAR};
 use types::{output_id, DepositEmbedMsg, RedeemVersion, SubmitDepositTxArgs, TxId};
 use utils::{assert_gas, get_embed_message};
 
@@ -61,14 +58,60 @@ impl Contract {
 
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
+        let deposit_vout = match self.verify_embed_output(&tx, args.embed_vout) {
+            DepositEmbedMsg::V1 { deposit_vout, .. } => deposit_vout,
+        };
 
+        // set deposit transaction(output) as confirmed now to prevent duplicate verification
+        // NOTE that deposit vout should be used instead of embed vout!
+        self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
+
+        // verify confirmation through btc light client
+        ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
+            .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
+            .verify_transaction_inclusion(ProofArgs::new(
+                txid.to_string(),
+                args.tx_block_hash,
+                args.tx_index,
+                args.merkle_proof,
+                self.n_confirmation,
+            ))
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_DEPOSIT_VERIFY_CB)
+                    .on_verify_deposit_tx(args.tx_hex, args.embed_vout, deposit_vout),
+            )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[private]
+    pub fn on_verify_deposit_tx(
+        &mut self,
+        tx_hex: String,
+        embed_vout: u64,
+        deposit_vout: u64,
+        #[callback_result] result: Result<bool, PromiseError>,
+    ) -> bool {
+        let valid = result.unwrap_or(false);
+        let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
+        let txid = tx.compute_txid();
+        if !valid {
+            self.unset_deposit_confirmed(&txid.to_string().into(), deposit_vout);
+            // TODO refund storage deposit
+            return false;
+        }
+
+        self.save_deposit_txn(&tx, embed_vout);
+
+        true
+    }
+}
+
+impl Contract {
+    pub(crate) fn verify_deposit_txn(&self, tx: &Transaction, embed_vout: u64) -> Deposit {
+        let txid = tx.compute_txid();
         // verify embed output
-        let embed_output = tx
-            .output
-            .get(args.embed_vout as usize)
-            .expect(ERR_BAD_EMBED_IDX);
-        let msg = get_embed_message(embed_output);
-        let embed_msg = DepositEmbedMsg::decode_hex(&msg).unwrap();
+        let embed_msg = self.verify_embed_output(tx, embed_vout);
         let (deposit_vout, user_pubkey_hex, sequence_height) = match embed_msg {
             DepositEmbedMsg::V1 {
                 deposit_vout,
@@ -86,7 +129,7 @@ impl Contract {
         );
 
         if self.earliest_deposit_block_height > 0 {
-            self.verify_timelock(&tx);
+            self.verify_timelock(tx);
         }
 
         // verify deposit output
@@ -109,70 +152,29 @@ impl Contract {
             ERR_BAD_DEPOSIT_AMOUNT
         );
 
-        // set deposit transaction(output) as confirmed now to prevent duplicate verification
-        self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
-
-        // verify confirmation through btc light client
-        ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
-            .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
-            .verify_transaction_inclusion(ProofArgs::new(
-                txid.to_string(),
-                args.tx_block_hash,
-                args.tx_index,
-                args.merkle_proof,
-                self.n_confirmation,
-            ))
-            .then(
-                Self::ext(env::current_account_id())
-                    .with_static_gas(GAS_DEPOSIT_VERIFY_CB)
-                    .on_verify_deposit_tx(
-                        redeem_version,
-                        txid.to_string(),
-                        deposit_vout,
-                        value.to_sat(),
-                        sequence.to_consensus_u32(),
-                        user_pubkey_hex,
-                    ),
-            )
+        Deposit::new(
+            user_pubkey_hex.clone().into(),
+            redeem_version,
+            txid.to_string().into(),
+            deposit_vout,
+            value.to_sat(),
+            sequence_height.into(),
+        )
     }
 
-    #[allow(clippy::too_many_arguments)]
-    #[private]
-    pub fn on_verify_deposit_tx(
-        &mut self,
-        redeem_version: RedeemVersion,
-        tx_id: String,
-        deposit_vout: u64,
-        value: u64,
-        sequence: u32,
-        user_pubkey: String,
-        #[callback_result] result: Result<bool, PromiseError>,
-    ) -> PromiseOrValue<bool> {
-        let valid = result.unwrap_or(false);
-        let txid: TxId = tx_id.clone().into();
-        if valid {
-            // append to user's active deposits
-            let mut account = self.get_account(&user_pubkey.clone().into());
-            let deposit = Deposit::new(redeem_version, txid.clone(), deposit_vout, value, sequence);
-            account.insert_active_deposit(deposit);
-            self.set_account(account);
-
-            Event::Deposit {
-                user_pubkey: &user_pubkey,
-                tx_id: &tx_id,
-                deposit_vout: deposit_vout.into(),
-                value: value.into(),
-            }
-            .emit();
-        } else {
-            self.unset_deposit_confirmed(&txid, deposit_vout);
-        }
-
-        PromiseOrValue::Value(valid)
+    pub(crate) fn save_deposit_txn(&mut self, tx: &Transaction, embed_vout: u64) {
+        let deposit = self.verify_deposit_txn(tx, embed_vout);
+        let mut account = self.get_account(&deposit.user_pubkey.clone());
+        account.create_deposit(deposit);
+        self.set_account(account);
     }
-}
 
-impl Contract {
+    fn verify_embed_output(&self, tx: &Transaction, embed_vout: u64) -> DepositEmbedMsg {
+        let embed_output = tx.output.get(embed_vout as usize).expect(ERR_BAD_EMBED_IDX);
+        let msg = get_embed_message(embed_output);
+        DepositEmbedMsg::decode_hex(&msg).unwrap()
+    }
+
     /// Verify if transaction has absolute timelock enabled and set to the correct value.
     fn verify_timelock(&self, tx: &Transaction) {
         for input in &tx.input {
@@ -288,7 +290,7 @@ mod tests {
             .unwrap()
     }
 
-    fn submit_deposit(contract: &mut Contract, tx_hex: String, embed_vout: u64) {
+    fn submit_deposit_tx(contract: &mut Contract, tx_hex: String, embed_vout: u64) {
         let mut builder = VMContextBuilder::new();
         builder.attached_deposit(STORAGE_DEPOSIT_ACCOUNT);
         testing_env!(builder.build());
@@ -301,6 +303,11 @@ mod tests {
             tx_index: 0,
             merkle_proof: vec![],
         });
+    }
+
+    fn verify_deposit_tx(contract: &mut Contract, tx_hex: String, embed_vout: u64) {
+        let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
+        contract.verify_deposit_txn(&tx, embed_vout);
     }
 
     fn build_tx(
@@ -364,7 +371,7 @@ mod tests {
     fn test_invalid_tx_hex() {
         let mut contract = test_contract_instance();
         let tx_hex = build_tx(&contract, &user_pubkey(), sequence_height(), 0, None);
-        submit_deposit(&mut contract, tx_hex[2..].to_string(), 1);
+        submit_deposit_tx(&mut contract, tx_hex[2..].to_string(), 1);
     }
 
     #[test]
@@ -372,7 +379,7 @@ mod tests {
     fn test_embed_output_not_zero() {
         let mut contract = test_contract_instance();
         let tx_hex = build_tx(&contract, &user_pubkey(), sequence_height(), 1, None);
-        submit_deposit(&mut contract, tx_hex.to_string(), 1);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -380,7 +387,7 @@ mod tests {
     fn test_embed_output_not_opreturn() {
         let mut contract = test_contract_instance();
         let tx_hex = build_tx(&contract, &user_pubkey(), sequence_height(), 0, None);
-        submit_deposit(&mut contract, tx_hex.to_string(), 0);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 0);
     }
 
     #[test]
@@ -392,7 +399,7 @@ mod tests {
         )
         .unwrap();
         let tx_hex = build_tx(&contract, &pubkey, sequence_height(), 0, None);
-        submit_deposit(&mut contract, tx_hex.to_string(), 1);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -407,7 +414,7 @@ mod tests {
             0,
             None, // wrong
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 1);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -422,7 +429,7 @@ mod tests {
             0,
             Some(LockTime::from_height(99).unwrap()), // wrong
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 1);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -437,7 +444,7 @@ mod tests {
             0,
             Some(LockTime::from_time(1653195600).unwrap()), // wrong
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 1);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 1);
     }
 
     #[test]
@@ -451,6 +458,6 @@ mod tests {
             0,
             Some(LockTime::from_height(100).unwrap()),
         );
-        submit_deposit(&mut contract, tx_hex.to_string(), 1);
+        verify_deposit_tx(&mut contract, tx_hex.to_string(), 1);
     }
 }

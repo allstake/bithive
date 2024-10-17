@@ -23,13 +23,13 @@ pub enum Event<'a> {
     },
     QueueWithdrawal {
         user_pubkey: &'a String,
-        deposit_tx_id: &'a String,
-        deposit_vout: U64,
+        amount: U64,
+        withdraw_msg: &'a String,
+        withdraw_sig: &'a String,
     },
     SignWithdrawal {
         user_pubkey: &'a String,
-        deposit_tx_id: &'a String,
-        deposit_vout: U64,
+        pending_withdraw_tx_id: &'a String,
     },
     CompleteWithdrawal {
         user_pubkey: &'a String,

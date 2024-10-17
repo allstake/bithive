@@ -10,7 +10,6 @@ pub enum StorageKey {
     ConfirmedDeposits,
     Accounts,
     ActiveDeposits(PubKey),
-    QueueWithdrawDeposits(PubKey),
     WithdrawnDeposits(PubKey),
 }
 

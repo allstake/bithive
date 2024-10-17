@@ -228,13 +228,13 @@ export const getUserWithdrawnDepositsLen =
   buildGetUserLenFunction("withdrawn_deposits");
 
 interface Deposit {
+  user_pubkey: string;
+  status: "Active" | "Withdrawn";
   redeem_version: string;
   deposit_tx_id: string;
   deposit_vout: number;
   value: number;
-  queue_withdraw_ts: number;
-  queue_withdraw_message: string | null;
-  queue_withdraw_sig: string | null;
+  sequence: number;
   complete_withdraw_ts: number;
   withdrawal_tx_id: string | null;
 }

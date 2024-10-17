@@ -91,16 +91,17 @@ impl Contract {
     /// ### Arguments
     /// * `deposit_tx_id` - deposit transaction id
     /// * `deposit_vout` - deposit vout index
-    pub fn get_v1_withdrawal_constants(
-        &self,
-        deposit_tx_id: String,
-        deposit_vout: u64,
-    ) -> WithdrawalConstantsV1 {
-        let msg = self.withdrawal_message(&deposit_tx_id.into(), deposit_vout);
-        WithdrawalConstantsV1 {
-            queue_withdrawal_msg: msg,
-        }
-    }
+    // pub fn get_v1_withdrawal_constants(
+    //     &self,
+    //     deposit_tx_id: String,
+    //     deposit_vout: u64,
+    // ) -> WithdrawalConstantsV1 {
+    //     let msg = self.withdrawal_message(&deposit_tx_id.into(), deposit_vout);
+    //     WithdrawalConstantsV1 {
+    //         queue_withdrawal_msg: msg,
+    //     }
+    // }
+    // TODO
 
     pub fn user_active_deposits_len(&self, user_pubkey: String) -> u64 {
         let account = self.get_account(&user_pubkey.into());
@@ -116,23 +117,6 @@ impl Contract {
         let account = self.get_account(&user_pubkey.into());
         (offset..min(account.active_deposits_len(), offset + limit))
             .map(|idx| account.get_active_deposit_by_index(idx).unwrap())
-            .collect()
-    }
-
-    pub fn user_queue_withdrawal_deposits_len(&self, user_pubkey: String) -> u64 {
-        let account = self.get_account(&user_pubkey.into());
-        account.queue_withdrawal_deposits_len()
-    }
-
-    pub fn list_user_queue_withdrawal_deposits(
-        &self,
-        user_pubkey: String,
-        offset: u64,
-        limit: u64,
-    ) -> Vec<Deposit> {
-        let account = self.get_account(&user_pubkey.into());
-        (offset..min(account.queue_withdrawal_deposits_len(), offset + limit))
-            .map(|idx| account.get_queue_withdrawal_deposit_by_index(idx).unwrap())
             .collect()
     }
 
@@ -153,24 +137,17 @@ impl Contract {
             .collect()
     }
 
-    pub fn get_deposit(
-        &self,
-        user_pubkey: String,
-        tx_id: String,
-        vout: u64,
-    ) -> Option<DepositInfo> {
-        let account = self.get_account(&user_pubkey.into());
-        let deposit = account
-            .try_get_active_deposit(&tx_id.clone().into(), vout)
-            .or_else(|| account.try_get_queue_withdrawal_deposit(&tx_id.clone().into(), vout))
-            .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout));
+    // pub fn get_deposit(
+    //     &self,
+    //     user_pubkey: String,
+    //     tx_id: String,
+    //     vout: u64,
+    // ) -> Option<DepositInfo> {
+    //     let account = self.get_account(&user_pubkey.into());
+    //     let deposit = account
+    //         .try_get_active_deposit(&tx_id.clone().into(), vout)
+    //         .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout));
 
-        let status = deposit
-            .as_ref()
-            .map(|d| d.status(self.withdraw_waiting_time_ms));
-        deposit.map(|d| DepositInfo {
-            deposit: d,
-            status: status.unwrap(),
-        })
-    }
+    // }
+    // TODO
 }

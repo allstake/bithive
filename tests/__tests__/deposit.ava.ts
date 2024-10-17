@@ -28,12 +28,13 @@ test("submit valid deposit txn", async (t) => {
     1,
   );
 
+  t.is(activeDeposits[0].user_pubkey, builder.userPubkeyHex);
+  t.is(activeDeposits[0].status, "Active");
   t.is(activeDeposits[0].redeem_version, "V1");
   t.is(activeDeposits[0].deposit_tx_id, builder.tx.getId());
   t.is(activeDeposits[0].deposit_vout, 0);
   t.is(activeDeposits[0].value, builder.depositAmount);
-  t.is(activeDeposits[0].queue_withdraw_ts, 0);
-  t.is(activeDeposits[0].queue_withdraw_message, null);
+  t.is(activeDeposits[0].sequence, builder.sequence);
   t.is(activeDeposits[0].complete_withdraw_ts, 0);
   t.is(activeDeposits[0].withdrawal_tx_id, null);
 });
