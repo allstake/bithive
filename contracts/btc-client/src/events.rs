@@ -31,7 +31,7 @@ pub enum Event<'a> {
         user_pubkey: &'a String,
         pending_withdraw_tx_id: &'a String,
     },
-    CompleteWithdrawal {
+    Withdrawn {
         user_pubkey: &'a String,
         withdrawal_tx_id: &'a String,
         deposit_tx_id: &'a String,

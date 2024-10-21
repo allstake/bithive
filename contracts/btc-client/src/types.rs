@@ -36,6 +36,17 @@ pub struct SubmitDepositTxArgs {
     pub merkle_proof: Vec<String>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SubmitWithdrawTxArgs {
+    pub tx_hex: String,
+    pub user_pubkey: String,
+    pub reinvest_embed_vout: Option<u64>,
+    pub tx_block_hash: String,
+    pub tx_index: u64,
+    pub merkle_proof: Vec<String>,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
 pub enum DepositEmbedMsg {
     V1 {

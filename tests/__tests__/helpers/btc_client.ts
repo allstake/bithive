@@ -48,7 +48,8 @@ export async function signWithdrawal(
   caller: NearAccount,
   psbtHex: string,
   userPubkey: string,
-  depositVin: number,
+  vinToSign: number,
+  reinvestEmbedVout?: number,
 ): Promise<ChainSignatureResponse> {
   return caller.call(
     btcClient.accountId,
@@ -56,7 +57,8 @@ export async function signWithdrawal(
     {
       psbt_hex: psbtHex,
       user_pubkey: userPubkey,
-      deposit_vin: depositVin,
+      vin_to_sign: vinToSign,
+      reinvest_embed_vout: reinvestEmbedVout,
     },
     {
       attachedDeposit: NEAR.parse("0.5"),
@@ -68,23 +70,20 @@ export async function signWithdrawal(
 export async function submitWithdrawalTx(
   btcClient: NearAccount,
   caller: NearAccount,
-  tx_hex: string,
-  user_pubkey: string,
-  deposit_vin: number,
-  tx_block_hash: string,
-  tx_index: number,
-  merkle_proof: string[],
+  args: {
+    tx_hex: string;
+    user_pubkey: string;
+    reinvest_embed_vout: number | null;
+    tx_block_hash: string;
+    tx_index: number;
+    merkle_proof: string[];
+  },
 ) {
   return caller.call(
     btcClient,
     "submit_withdrawal_tx",
     {
-      tx_hex,
-      user_pubkey,
-      deposit_vin,
-      tx_block_hash,
-      tx_index,
-      merkle_proof,
+      args,
     },
     {
       gas: Gas.parse("200 Tgas"),

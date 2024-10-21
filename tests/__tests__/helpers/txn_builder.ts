@@ -23,9 +23,10 @@ export class TestTransactionBuilder {
   public userPubkey: Buffer;
   public sequence: any;
   public readonly depositAmount: number;
+  public reinvest = false;
 
   private p2wsh: bitcoin.Payment;
-  private psbt: bitcoin.Psbt | undefined;
+  public psbt: bitcoin.Psbt | undefined;
 
   private btcClient: NearAccount;
   private caller: NearAccount;
@@ -108,11 +109,13 @@ export class TestTransactionBuilder {
     );
   }
 
-  generatePsbt(
-    extraInput = false,
-    embedMsg = "allstake.withdraw",
+  generateWithdrawPsbt(
+    extraInput?: {
+      hash: string;
+      index: number;
+    },
+    reinvestAmount = 0,
   ): bitcoin.Psbt {
-    const withdrawMsg = Buffer.from(embedMsg);
     const userP2WPKHAddress = bitcoin.payments.p2wpkh({
       pubkey: this.userPubkey,
       network: bitcoin.networks.bitcoin,
@@ -127,39 +130,51 @@ export class TestTransactionBuilder {
 
     if (extraInput) {
       this.psbt = this.psbt.addInput({
-        hash: this.tx.getId(),
-        index: 1,
+        hash: extraInput.hash,
+        index: extraInput.index,
         witnessUtxo: getWitnessUtxo(this.tx.outs[0]),
         witnessScript: this.p2wsh.redeem!.output!,
       });
     }
 
-    this.psbt = this.psbt
-      .addOutput({
-        address: userP2WPKHAddress.address!,
-        value: this.depositAmount - 10,
-      })
-      .addOutput({
-        script: bitcoin.script.compile([
-          bitcoin.opcodes.OP_RETURN,
-          withdrawMsg,
-        ]),
-        value: 0,
+    this.psbt = this.psbt.addOutput({
+      address: userP2WPKHAddress.address!,
+      value: 100,
+    });
+    if (reinvestAmount > 0) {
+      // this reinvest vout will be 1
+      const embedReinvestMsg = buildDepositEmbedMsg(1, this.userPubkeyHex, 5);
+      const reinvestEmbed = bitcoin.payments.embed({
+        data: [embedReinvestMsg],
       });
+
+      this.psbt = this.psbt
+        .addOutput({
+          address: this.p2wsh.address!,
+          value: reinvestAmount,
+        })
+        .addOutput({
+          script: reinvestEmbed.output!,
+          value: 0,
+        });
+
+      this.reinvest = true;
+    }
 
     return this.psbt;
   }
 
-  signWithdraw() {
+  signWithdraw(vinToSign: number) {
     if (!this.psbt) {
-      this.psbt = this.generatePsbt();
+      throw new Error("Generate PSBT first");
     }
     return signWithdrawal(
       this.btcClient,
       this.caller,
       this.psbt.toHex(),
       this.userPubkey.toString("hex"),
-      0,
+      vinToSign,
+      this.reinvest ? 2 : undefined, // if reinvest, the embed ouput will be index 2
     );
   }
 

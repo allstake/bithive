@@ -3,7 +3,7 @@ use std::cmp::min;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    require, Timestamp,
+    log, require, Timestamp,
 };
 use serde::Serialize;
 
@@ -201,7 +201,7 @@ impl Account {
         self.remove_active_deposit(&deposit_tx_id, deposit_vout);
         self.insert_withdrawn_deposit(deposit);
 
-        Event::CompleteWithdrawal {
+        Event::Withdrawn {
             user_pubkey: &self.pubkey.clone().into(),
             withdrawal_tx_id: &tx_id.into(),
             deposit_tx_id: &deposit_tx_id.into(),

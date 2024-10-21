@@ -13,7 +13,7 @@ use near_sdk::{
     near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
-use types::RedeemVersion;
+use types::{RedeemVersion, SubmitWithdrawTxArgs};
 use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_message_ecdsa};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
@@ -102,9 +102,9 @@ impl Contract {
             // sign another one until the previous one is completed
 
             require!(
-                tx_id.to_string() != psbt.unsigned_tx.compute_txid().to_string(),
+                tx_id.to_string() == psbt.unsigned_tx.compute_txid().to_string(),
                 format!(
-                    "A pending withdrawal tx {} already exists",
+                    "A pending withdrawal tx {} already exists, it must be signed",
                     tx_id.to_string()
                 )
             );
@@ -180,24 +180,16 @@ impl Contract {
 
     /// Submit a BTC withdrawal (either solo or multisig) transaction
     /// ### Arguments
-    /// * `tx_hex` - hex encoded transaction body
-    /// * `user_pubkey` - user public key
-    /// * `reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
-    /// * `tx_block_hash` - block hash in which the transaction is included
-    /// * `tx_index` - transaction index in the block
-    /// * `merkle_proof` - merkle proof of transaction in the block
-    pub fn submit_withdrawal_tx(
-        &mut self,
-        tx_hex: String,
-        user_pubkey: String,
-        reinvest_embed_vout: Option<u64>,
-        tx_block_hash: String,
-        tx_index: u64,
-        merkle_proof: Vec<String>,
-    ) -> Promise {
+    /// * `args.tx_hex` - hex encoded transaction body
+    /// * `args.user_pubkey` - user public key
+    /// * `args.reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
+    /// * `args.tx_block_hash` - block hash in which the transaction is included
+    /// * `args.tx_index` - transaction index in the block
+    /// * `args.merkle_proof` - merkle proof of transaction in the block
+    pub fn submit_withdrawal_tx(&mut self, args: SubmitWithdrawTxArgs) -> Promise {
         assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
 
-        let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
+        let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
         // verify confirmation through btc light client
@@ -205,15 +197,19 @@ impl Contract {
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
             .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
-                tx_block_hash,
-                tx_index,
-                merkle_proof,
+                args.tx_block_hash,
+                args.tx_index,
+                args.merkle_proof,
                 self.n_confirmation,
             ))
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_WITHDRAW_VERIFY_CB)
-                    .on_verify_withdrawal_tx(user_pubkey, tx_hex, reinvest_embed_vout),
+                    .on_verify_withdrawal_tx(
+                        args.user_pubkey,
+                        args.tx_hex,
+                        args.reinvest_embed_vout,
+                    ),
             )
     }
 
