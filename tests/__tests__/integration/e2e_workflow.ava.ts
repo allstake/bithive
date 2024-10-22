@@ -200,7 +200,6 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   await submitWithdrawalTx(contract, alice, {
     tx_hex: withdrawTx.toHex(),
     user_pubkey: aliceKp.publicKey.toString("hex"),
-    reinvest_embed_vout: 1,
     tx_block_hash: someH256,
     tx_index: 66,
     merkle_proof: [someH256, someH256],

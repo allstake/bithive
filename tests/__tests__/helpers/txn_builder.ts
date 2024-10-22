@@ -127,6 +127,7 @@ export class TestTransactionBuilder {
       index: number;
     },
     reinvestAmount = 0,
+    withdrawAmount = 100,
   ): bitcoin.Psbt {
     const userP2WPKHAddress = bitcoin.payments.p2wpkh({
       pubkey: this.userPubkey,
@@ -151,7 +152,7 @@ export class TestTransactionBuilder {
 
     this.psbt = this.psbt.addOutput({
       address: userP2WPKHAddress.address!,
-      value: 100,
+      value: withdrawAmount,
     });
     if (reinvestAmount > 0) {
       // this reinvest vout will be 1
@@ -176,6 +177,13 @@ export class TestTransactionBuilder {
     return this.psbt;
   }
 
+  extractWithdrawTx(): bitcoin.Transaction {
+    if (!this.psbt) {
+      throw new Error("Generate PSBT first");
+    }
+    return (this.psbt as any).__CACHE.__TX;
+  }
+
   signWithdraw(vinToSign: number) {
     if (!this.psbt) {
       throw new Error("Generate PSBT first");
@@ -190,40 +198,11 @@ export class TestTransactionBuilder {
     );
   }
 
-  generateWithdrawTx(extraInput = false, embedMsg = "allstake.withdraw") {
-    const userP2WPKHAddress = bitcoin.payments.p2wpkh({
-      pubkey: this.userPubkey,
-      network: bitcoin.networks.bitcoin,
-    });
-    const withdrawMsg = Buffer.from(embedMsg);
-
-    const withdrawTransaction = new bitcoin.Transaction();
-    withdrawTransaction.version = 2;
-    withdrawTransaction.addInput(idToHash(this.tx.getId()), 0);
-
-    if (extraInput) {
-      withdrawTransaction.addInput(idToHash(this.tx.getId()), 1);
-    }
-
-    withdrawTransaction.addOutput(
-      toOutputScript(userP2WPKHAddress.address!, bitcoin.networks.bitcoin),
-      this.depositAmount - 100,
-    );
-    const embedOutput = bitcoin.payments.embed({ data: [withdrawMsg] });
-    withdrawTransaction.addOutput(embedOutput.output!, 0);
-
-    this.withdrawTx = withdrawTransaction;
-    return withdrawTransaction;
-  }
-
   submitWithdraw() {
-    if (!this.withdrawTx) {
-      this.withdrawTx = this.generateWithdrawTx();
-    }
+    this.withdrawTx = this.extractWithdrawTx();
     return submitWithdrawalTx(this.btcClient, this.caller, {
       tx_hex: this.withdrawTx.toHex(),
       user_pubkey: this.userPubkeyHex,
-      reinvest_embed_vout: 0,
       tx_block_hash: someH256,
       tx_index: 1,
       merkle_proof: [someH256],

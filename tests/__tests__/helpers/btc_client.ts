@@ -73,7 +73,6 @@ export async function submitWithdrawalTx(
   args: {
     tx_hex: string;
     user_pubkey: string;
-    reinvest_embed_vout: number | null;
     tx_block_hash: string;
     tx_index: number;
     merkle_proof: string[];
@@ -218,9 +217,6 @@ function buildGetUserLenFunction(name: string) {
 
 export const getUserActiveDepositsLen =
   buildGetUserLenFunction("active_deposits");
-export const getUserQueueWithdrawalDepositsLen = buildGetUserLenFunction(
-  "queue_withdrawal_deposits",
-);
 export const getUserWithdrawnDepositsLen =
   buildGetUserLenFunction("withdrawn_deposits");
 
@@ -253,9 +249,6 @@ function buildListUserDepositFunction(name: string) {
 
 export const listUserActiveDeposits =
   buildListUserDepositFunction("active_deposits");
-export const listUserQueueWithdrawalDeposits = buildListUserDepositFunction(
-  "queue_withdrawal_deposits",
-);
 export const listUserWithdrawnDeposits =
   buildListUserDepositFunction("withdrawn_deposits");
 
