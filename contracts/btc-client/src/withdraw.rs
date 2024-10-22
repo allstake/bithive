@@ -182,7 +182,6 @@ impl Contract {
     /// ### Arguments
     /// * `args.tx_hex` - hex encoded transaction body
     /// * `args.user_pubkey` - user public key
-    /// * `args.reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
     /// * `args.tx_block_hash` - block hash in which the transaction is included
     /// * `args.tx_index` - transaction index in the block
     /// * `args.merkle_proof` - merkle proof of transaction in the block
@@ -205,11 +204,7 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_WITHDRAW_VERIFY_CB)
-                    .on_verify_withdrawal_tx(
-                        args.user_pubkey,
-                        args.tx_hex,
-                        args.reinvest_embed_vout,
-                    ),
+                    .on_verify_withdrawal_tx(args.user_pubkey, args.tx_hex),
             )
     }
 
@@ -218,7 +213,6 @@ impl Contract {
         &mut self,
         user_pubkey: String,
         tx_hex: String,
-        reinvest_embed_vout: Option<u64>,
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> bool {
         let valid = result.unwrap_or(false);
@@ -235,12 +229,6 @@ impl Contract {
             account.complete_withdrawal(deposit, tx.compute_txid().to_string().into());
         }
         self.set_account(account);
-
-        // TODO shall we submit the reinvest txn separately later ?
-        // since if the withdrawal txn is valid, we have to record it no matter whether the reinvest succeeds or not
-        if let Some(reinvest_embed_vout) = reinvest_embed_vout {
-            self.save_deposit_txn(&tx, reinvest_embed_vout);
-        }
 
         true
     }

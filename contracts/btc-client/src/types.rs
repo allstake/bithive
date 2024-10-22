@@ -41,7 +41,6 @@ pub struct SubmitDepositTxArgs {
 pub struct SubmitWithdrawTxArgs {
     pub tx_hex: String,
     pub user_pubkey: String,
-    pub reinvest_embed_vout: Option<u64>,
     pub tx_block_hash: String,
     pub tx_index: u64,
     pub merkle_proof: Vec<String>,
