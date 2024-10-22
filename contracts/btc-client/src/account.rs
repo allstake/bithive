@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
@@ -194,9 +192,14 @@ impl Account {
 
         deposit.complete_withdraw(tx_id.clone());
         self.total_deposit -= deposit.value;
-        // make sure the amount queued for withdraw is less than the total deposit
-        // TODO test this
-        self.queue_withdrawal_amount = min(self.total_deposit, self.queue_withdrawal_amount);
+
+        // Always decrease the queue withdrawal amount.
+        // This might seem weird for solo withdrawals, but it's necessary to prevent
+        // bypassing the queue withdrawal limit by submitting re-investments before withdrawals
+        self.queue_withdrawal_amount = self.queue_withdrawal_amount.saturating_sub(deposit.value);
+        if self.queue_withdrawal_amount == 0 {
+            self.queue_withdrawal_start_ts = 0;
+        }
 
         self.remove_active_deposit(&deposit_tx_id, deposit_vout);
         self.insert_withdrawn_deposit(deposit);

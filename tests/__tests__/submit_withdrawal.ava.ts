@@ -135,28 +135,40 @@ test("submit multisig withdraw", async (t) => {
   t.is(deposits[0].withdrawal_tx_id, builder.withdrawTx!.getId());
 });
 
-test.only("submit withdraw should decrease queue withdraw amount if necessary", async (t) => {
+test("submit withdraw should always decrease queue withdraw amount", async (t) => {
   const { contract, alice } = t.context.accounts;
   const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
+
+  // make two deposits (1e8 + 2e8), total amount is 3e8
+  const builder1 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
     allstakePubkey,
   });
+  await builder1.submit();
+  const builder2 = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    allstakePubkey,
+    depositAmount: 2e8,
+  });
+  await builder2.submit();
+  const userPubkeyHex = builder1.userPubkeyHex;
 
-  await builder.submit();
-  const sig = builder.queueWithdrawSignature(5e7, 0);
-  await builder.queueWithdraw(5e7, sig);
+  // total queue withdrawal amount is 2e8
+  const sig = builder1.queueWithdrawSignature(2e8, 0);
+  await builder1.queueWithdraw(2e8, sig);
 
-  const accountBefore = await viewAccount(contract, builder.userPubkeyHex);
+  // withdraw 1e8 first, queue withdrawal amount should be decreased to 1e8
+  builder1.generateWithdrawPsbt(undefined, undefined, 1e8);
+  await builder1.submitWithdraw();
 
-  builder.generateWithdrawPsbt(undefined, undefined, 9e7);
-  await builder.submitWithdraw();
+  let account = await viewAccount(contract, userPubkeyHex);
+  t.is(account.queue_withdrawal_amount, 1e8);
 
-  const accountAfter = await viewAccount(contract, builder.userPubkeyHex);
-  t.is(accountAfter.queue_withdrawal_amount, 1e7);
-  // this should not change
-  t.is(
-    accountAfter.queue_withdrawal_start_ts,
-    accountBefore.queue_withdrawal_start_ts,
-  );
+  // withdraw 2e8 next, queue withdrawal amount should be decreased to 0
+  builder2.generateWithdrawPsbt(undefined, undefined, 2e8);
+  await builder2.submitWithdraw();
+
+  account = await viewAccount(contract, userPubkeyHex);
+  t.is(account.queue_withdrawal_amount, 0);
+  t.is(account.queue_withdrawal_start_ts, 0);
 });
