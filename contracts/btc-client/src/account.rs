@@ -3,7 +3,7 @@ use std::cmp::min;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    log, require, Timestamp,
+    require, Timestamp,
 };
 use serde::Serialize;
 

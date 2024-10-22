@@ -1,4 +1,5 @@
 import * as bitcoin from "bitcoinjs-lib";
+import { message } from "@okxweb3/coin-bitcoin";
 import { NearAccount } from "near-workspaces";
 import {
   depositScriptV1,
@@ -13,6 +14,7 @@ import {
   submitWithdrawalTx,
 } from "./btc_client";
 import { buildDepositEmbedMsg, someH256 } from "./utils";
+import { ECPairInterface } from "ecpair";
 const bip68 = require("bip68"); // eslint-disable-line
 
 const SEQUENCE_TIMELOCK = 0xfffffffd; // sequence that enables time-lock and RBF
@@ -20,6 +22,7 @@ const SEQUENCE_TIMELOCK = 0xfffffffd; // sequence that enables time-lock and RBF
 export class TestTransactionBuilder {
   public tx: bitcoin.Transaction;
   public withdrawTx: bitcoin.Transaction | undefined;
+  public userKeyPair: ECPairInterface;
   public userPubkey: Buffer;
   public sequence: any;
   public readonly depositAmount: number;
@@ -35,7 +38,7 @@ export class TestTransactionBuilder {
     btcClient: NearAccount,
     caller: NearAccount,
     args: {
-      userPubkey: Buffer;
+      userKeyPair: ECPairInterface;
       allstakePubkey: Buffer;
       inputTxIndex?: number;
       seq?: number;
@@ -48,12 +51,14 @@ export class TestTransactionBuilder {
 
     this.depositAmount = args.depositAmount ?? 1e8;
     this.sequence = bip68.encode({ blocks: args.seq ?? 5 });
-    this.userPubkey = args.userPubkey;
+    this.userKeyPair = args.userKeyPair;
+    this.userPubkey = args.userKeyPair.publicKey;
+
     this.tx = new bitcoin.Transaction();
     this.p2wsh = bitcoin.payments.p2wsh({
       redeem: {
         output: depositScriptV1(
-          args.userPubkey,
+          this.userPubkey,
           args.allstakePubkey,
           this.sequence,
         ),
@@ -98,13 +103,20 @@ export class TestTransactionBuilder {
     });
   }
 
-  async queueWithdraw(amount: number, sig: string) {
+  queueWithdrawSignature(amount: number, nonce: number) {
+    const withdrawMsgPlain = `bithive.withdraw:${nonce}:${amount}sats`;
+    const sigBase64 = message.sign(this.userKeyPair.toWIF(), withdrawMsgPlain);
+    const sigHex = Buffer.from(sigBase64, "base64").toString("hex");
+    return sigHex;
+  }
+
+  async queueWithdraw(amount: number, sigHex: string) {
     return queueWithdrawal(
       this.btcClient,
       this.caller,
       this.userPubkeyHex,
       amount,
-      sig,
+      sigHex,
       "ECDSA",
     );
   }
@@ -208,15 +220,13 @@ export class TestTransactionBuilder {
     if (!this.withdrawTx) {
       this.withdrawTx = this.generateWithdrawTx();
     }
-    return submitWithdrawalTx(
-      this.btcClient,
-      this.caller,
-      this.withdrawTx.toHex(),
-      this.userPubkeyHex,
-      0,
-      someH256,
-      1,
-      [someH256],
-    );
+    return submitWithdrawalTx(this.btcClient, this.caller, {
+      tx_hex: this.withdrawTx.toHex(),
+      user_pubkey: this.userPubkeyHex,
+      reinvest_embed_vout: 0,
+      tx_block_hash: someH256,
+      tx_index: 1,
+      merkle_proof: [someH256],
+    });
   }
 }

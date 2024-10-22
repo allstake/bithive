@@ -22,9 +22,6 @@ export function initUnit(sandbox = true) {
     aliceKeyPair: ECPairInterface;
     bobKeyPair: ECPairInterface;
     allstakePubkey: Buffer;
-    unisatPubkey: Buffer;
-    unisatSig: string;
-    unisatSig1BTC: string;
   }>;
 
   test.beforeEach(async (t) => {
@@ -51,24 +48,9 @@ export function initUnit(sandbox = true) {
     ).publicKey;
     const allstakePubkey = compressPubKey(allstakePkUncompressed);
 
-    // pubkey and signature from real unisat wallet
-    const unisatPubkey = Buffer.from(
-      "0299b4097603b073aa2390203303fe0e60c87bd2af8e621a3df22818c40e3dd217",
-      "hex",
-    );
-    // signature of msg: "bithive.withdraw:0:100sats"
-    const unisatSig =
-      "1fcd4af7cbe3bd194a59ef40bff427e9d8d747a39696605cfbbf5f7d30ae1b71361a4543906fc5fdad043a6a3f6f4e95d3e3f14093889b4dfdab5864630419d9df";
-    // signature of msg: "bithive.withdraw:0:100000000sats"
-    const unisatSig1BTC =
-      "1facf316c21d796867c7e5e42f8a332e9e37749cc34db1375e21f2a62a88c3ca773793f4549ac3ff1b3ae8879393c4b2248c0716f8cfcf4926b5eee1f8034b18b1";
-
     t.context.aliceKeyPair = aliceKeyPair;
     t.context.bobKeyPair = bobKeyPair;
     t.context.allstakePubkey = allstakePubkey;
-    t.context.unisatPubkey = unisatPubkey;
-    t.context.unisatSig = unisatSig;
-    t.context.unisatSig1BTC = unisatSig1BTC;
   });
 
   test.afterEach.always(async (t) => {

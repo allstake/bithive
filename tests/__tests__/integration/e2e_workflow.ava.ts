@@ -401,7 +401,6 @@ async function makeQueueWithdrawal(
   userKeyPair: ECPairInterface,
 ) {
   const withdrawMsgPlain = `bithive.withdraw:0:${withdrawAmount}sats`;
-  console.log("withdrawMsgPlain", withdrawMsgPlain);
   const sigBase64 = message.sign(userKeyPair.toWIF(), withdrawMsgPlain);
   const sigHex = Buffer.from(sigBase64, "base64").toString("hex");
   await queueWithdrawal(
