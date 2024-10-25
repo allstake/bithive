@@ -10,7 +10,7 @@ use ext::{
 use near_sdk::{
     env::{self},
     json_types::U128,
-    near_bindgen, require, Gas, Promise, PromiseError,
+    log, near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
 use types::{RedeemVersion, SubmitWithdrawTxArgs};
@@ -221,6 +221,7 @@ impl Contract {
         }
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
+
         let mut account = self.get_account(&user_pubkey.clone().into());
         let deposits = self.filter_deposit_inputs(&account, &tx.input);
         require!(!deposits.is_empty(), ERR_NOT_WITHDRAW_TXN);

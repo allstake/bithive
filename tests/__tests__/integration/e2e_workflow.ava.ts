@@ -85,6 +85,8 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   const depositUnspent2 = (await regtestUtils.unspents(p2wsh.address!))[1];
   const depositUtx2 = await regtestUtils.fetch(depositUnspent2.txId);
 
+  console.log("depositUtx1 = ", depositUtx1.txId);
+  console.log("depositUtx2 = ", depositUtx2.txId);
   // construct withdraw PSBT, which needs be sent to user and allstake to sign
   let psbt = new bitcoin.Psbt({ network });
   psbt = psbt

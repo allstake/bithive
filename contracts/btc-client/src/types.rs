@@ -140,9 +140,50 @@ impl borsh::BorshSerialize for LowercaseString {
     }
 }
 
+/// helper type to wrap PSBT so that it can be serialized by Borsh
+#[derive(PartialEq, Debug)]
+pub struct BorshPsbt(bitcoin::Psbt);
+
+impl BorshSerialize for BorshPsbt {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        let psbt_vec = self.0.serialize();
+        psbt_vec.serialize(writer)
+    }
+}
+
+impl serde::Serialize for BorshPsbt {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&hex::encode(self.0.serialize()))
+    }
+}
+
+impl BorshDeserialize for BorshPsbt {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let psbt_vec = Vec::<u8>::deserialize(buf)?;
+        Ok(BorshPsbt(bitcoin::Psbt::deserialize(&psbt_vec).unwrap()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_borsh_psbt() {
+        let psbt_hex = "70736274ff01007e0200000002253b73f1450d6be67a16e46d05f62235f1728d737d9540f12b69f84f4cc5b5950100000000ffffffff2b9507dc02d7a805b8f825f2d4e21b2e8f8b2ae8c9efd7292dcc86e471495a240100000000ffffffff01801a0600000000001976a914f6064f024b21637d7fc244081d7839dbc452d2fe88ac000000000001012be093040000000000220020a8761ded7be3f15c37ef6a84344a94479519218506e18fdb5596c16cd0b61b23010524752103d695ad0a1f72cdd70ca873f84c50cbb428c8f3a61bf6078c2693f3025751903eac0001012be093040000000000220020a8761ded7be3f15c37ef6a84344a94479519218506e18fdb5596c16cd0b61b23010524752103d695ad0a1f72cdd70ca873f84c50cbb428c8f3a61bf6078c2693f3025751903eac0000";
+        let psbt_bytes = hex::decode(psbt_hex).unwrap();
+        let psbt = bitcoin::Psbt::deserialize(&psbt_bytes).unwrap();
+        let borsh_psbt = BorshPsbt(psbt);
+
+        let serde_serialized = serde_json::to_string(&borsh_psbt).unwrap();
+        assert_eq!(serde_serialized, serde_json::to_string(psbt_hex).unwrap());
+
+        let borsh_serialized = borsh_psbt.try_to_vec().unwrap();
+        assert_eq!(borsh_serialized[4..], psbt_bytes);
+
+        let borsh_deserialized = BorshPsbt::deserialize(&mut borsh_serialized.as_slice()).unwrap();
+        assert_eq!(borsh_deserialized, borsh_psbt);
+    }
 
     #[test]
     fn test_embed_msg_encode_decode() {

@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::{
     events::Event,
-    types::{output_id, OutputId, PubKey, RedeemVersion, StorageKey, TxId},
+    types::{output_id, BorshPsbt, OutputId, PubKey, RedeemVersion, StorageKey, TxId},
     utils::current_timestamp_ms,
 };
 
@@ -39,6 +39,7 @@ pub struct Account {
     pub pending_withdraw_tx_id: Option<TxId>,
     /// number of unsigned inputs in the above txn
     pub pending_withdraw_unsigned_count: u16,
+    pub psbt: Option<BorshPsbt>,
 }
 
 impl Account {
@@ -53,6 +54,7 @@ impl Account {
             nonce: 0,
             pending_withdraw_tx_id: None,
             pending_withdraw_unsigned_count: 0,
+            psbt: None,
         }
     }
 
