@@ -78,71 +78,64 @@ test("submit withdraw txn not confirmed", async (t) => {
 
 test("submit solo withdraw", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const builder = new TestTransactionBuilder(contract, alice, {
+
+  // create two deposits
+  const builder1 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
     allstakePubkey: t.context.allstakePubkey,
+    depositAmount: 1e8,
   });
-  await builder.submit();
-  builder.generateWithdrawPsbt();
-  await builder.submitWithdraw();
+  await builder1.submit();
 
-  t.is(await getUserWithdrawnDepositsLen(contract, builder.userPubkeyHex), 1);
-  t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 0);
+  const builder2 = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    allstakePubkey: t.context.allstakePubkey,
+    depositAmount: 2e8,
+  });
+  await builder2.submit();
+
+  // queue withdraw 3e8
+  const sig = builder1.queueWithdrawSignature(3e8, 0);
+  await builder1.queueWithdraw(3e8, sig);
+  const accountBefore = await viewAccount(contract, builder1.userPubkeyHex);
+
+  builder1.generateWithdrawPsbt();
+  await builder1.submitWithdraw();
+
+  t.is(await getUserWithdrawnDepositsLen(contract, builder1.userPubkeyHex), 1);
+  t.is(await getUserActiveDepositsLen(contract, builder1.userPubkeyHex), 1);
 
   const deposits = await listUserWithdrawnDeposits(
     contract,
-    builder.userPubkeyHex,
+    builder1.userPubkeyHex,
     0,
     1,
   );
   t.is(deposits[0].status, "Withdrawn");
-  t.is(deposits[0].deposit_tx_id, builder.tx.getId());
+  t.is(deposits[0].deposit_tx_id, builder1.tx.getId());
   t.is(deposits[0].deposit_vout, 0);
-  t.is(deposits[0].value, builder.depositAmount);
+  t.is(deposits[0].value, builder1.depositAmount);
   t.assert(deposits[0].complete_withdraw_ts > 0);
-  t.is(deposits[0].withdrawal_tx_id, builder.withdrawTx!.getId());
+  t.is(deposits[0].withdrawal_tx_id, builder1.withdrawTx!.getId());
+
+  // account queue amount should be updated
+  const accountAfter = await viewAccount(contract, builder1.userPubkeyHex);
+  t.is(accountAfter.queue_withdrawal_amount, 2e8);
+  t.is(
+    accountAfter.queue_withdrawal_start_ts,
+    accountBefore.queue_withdrawal_start_ts,
+  );
 });
 
 test("submit multisig withdraw", async (t) => {
   const { contract, alice } = t.context.accounts;
   const allstakePubkey = t.context.allstakePubkey;
-  const builder = new TestTransactionBuilder(contract, alice, {
-    userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
-  });
-  await builder.submit();
-  const sig = builder.queueWithdrawSignature(100, 0);
-  await builder.queueWithdraw(100, sig);
 
-  await fastForward(contract, daysToMs(2) + 1);
-  builder.generateWithdrawPsbt();
-  await builder.submitWithdraw();
-
-  t.is(await getUserWithdrawnDepositsLen(contract, builder.userPubkeyHex), 1);
-  t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 0);
-
-  const deposits = await listUserWithdrawnDeposits(
-    contract,
-    builder.userPubkeyHex,
-    0,
-    1,
-  );
-  t.is(deposits[0].status, "Withdrawn");
-  t.is(deposits[0].deposit_tx_id, builder.tx.getId());
-  t.is(deposits[0].deposit_vout, 0);
-  t.is(deposits[0].value, builder.depositAmount);
-  t.assert(deposits[0].complete_withdraw_ts > 0);
-  t.is(deposits[0].withdrawal_tx_id, builder.withdrawTx!.getId());
-});
-
-test("submit withdraw should always decrease queue withdraw amount", async (t) => {
-  const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
-
-  // make two deposits (1e8 + 2e8), total amount is 3e8
+  // make two deposits
   const builder1 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
     allstakePubkey,
+    depositAmount: 1e8,
   });
   await builder1.submit();
   const builder2 = new TestTransactionBuilder(contract, alice, {
@@ -151,24 +144,60 @@ test("submit withdraw should always decrease queue withdraw amount", async (t) =
     depositAmount: 2e8,
   });
   await builder2.submit();
-  const userPubkeyHex = builder1.userPubkeyHex;
 
-  // total queue withdrawal amount is 2e8
-  const sig = builder1.queueWithdrawSignature(2e8, 0);
-  await builder1.queueWithdraw(2e8, sig);
+  // queue withdraw 1e7 first
+  const sig1 = builder1.queueWithdrawSignature(1e7, 0);
+  await builder1.queueWithdraw(1e7, sig1);
 
-  // withdraw 1e8 first, queue withdrawal amount should be decreased to 1e8
-  builder1.generateWithdrawPsbt(undefined, undefined, 1e8);
-  await builder1.submitWithdraw();
+  await fastForward(contract, daysToMs(2) + 1);
+  builder1.generateWithdrawPsbt(undefined, 9e7);
+  // queue withdraw amount 1e7 is cleared here
+  await builder1.signWithdraw(0);
 
-  let account = await viewAccount(contract, userPubkeyHex);
-  t.is(account.queue_withdrawal_amount, 1e8);
+  // queue withdraw another 2e7 before submitting the first withdrawal txn
+  const sig2 = builder1.queueWithdrawSignature(2e7, 1);
+  await builder2.queueWithdraw(2e7, sig2);
+  const accountBefore = await viewAccount(contract, builder1.userPubkeyHex);
 
-  // withdraw 2e8 next, queue withdrawal amount should be decreased to 0
-  builder2.generateWithdrawPsbt(undefined, undefined, 2e8);
-  await builder2.submitWithdraw();
+  // submit the first withdrawal txn
+  // in order to make the contract to treat it as a multisig withdrawal, we manully set the witness
+  const withdrawTx = builder1.extractWithdrawTx();
+  withdrawTx.setWitness(
+    0,
+    Array.from({ length: 5 }, () => Buffer.alloc(0)),
+  );
+  await submitWithdrawalTx(contract, alice, {
+    tx_hex: withdrawTx.toHex(),
+    user_pubkey: builder1.userPubkeyHex,
+    tx_block_hash: someH256,
+    tx_index: 1,
+    merkle_proof: [someH256],
+  });
 
-  account = await viewAccount(contract, userPubkeyHex);
-  t.is(account.queue_withdrawal_amount, 0);
-  t.is(account.queue_withdrawal_start_ts, 0);
+  t.is(await getUserWithdrawnDepositsLen(contract, builder1.userPubkeyHex), 1);
+  t.is(await getUserActiveDepositsLen(contract, builder1.userPubkeyHex), 1);
+
+  const deposits = await listUserWithdrawnDeposits(
+    contract,
+    builder1.userPubkeyHex,
+    0,
+    1,
+  );
+  t.is(deposits[0].status, "Withdrawn");
+  t.is(deposits[0].deposit_tx_id, builder1.tx.getId());
+  t.is(deposits[0].deposit_vout, 0);
+  t.is(deposits[0].value, builder1.depositAmount);
+  t.assert(deposits[0].complete_withdraw_ts > 0);
+  t.is(deposits[0].withdrawal_tx_id, withdrawTx.getId());
+
+  // queue amount should not be affected
+  const accountAfter = await viewAccount(contract, builder1.userPubkeyHex);
+  t.is(
+    accountAfter.queue_withdrawal_amount,
+    accountBefore.queue_withdrawal_amount,
+  );
+  t.is(
+    accountAfter.queue_withdrawal_start_ts,
+    accountBefore.queue_withdrawal_start_ts,
+  );
 });

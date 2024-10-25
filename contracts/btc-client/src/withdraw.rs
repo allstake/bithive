@@ -1,6 +1,6 @@
 use crate::*;
 use account::Deposit;
-use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
+use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction, TxIn};
 use consts::{CHAIN_SIGNATURE_KEY_VERSION_V1, CHAIN_SIGNATURE_PATH_V1};
 use events::Event;
 use ext::{
@@ -13,7 +13,7 @@ use near_sdk::{
     log, near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
-use types::{RedeemVersion, SubmitWithdrawTxArgs};
+use types::{RedeemVersion, SubmitWithdrawTxArgs, TxId};
 use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_message_ecdsa};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
@@ -221,13 +221,19 @@ impl Contract {
         }
 
         let tx = deserialize_hex::<Transaction>(&tx_hex).expect(ERR_INVALID_TX_HEX);
+        let tx_id: TxId = tx.compute_txid().to_string().into();
 
         let mut account = self.get_account(&user_pubkey.clone().into());
-        let deposits = self.filter_deposit_inputs(&account, &tx.input);
-        require!(!deposits.is_empty(), ERR_NOT_WITHDRAW_TXN);
+        let deposit_inputs = self.filter_deposit_inputs(&account, &tx.input);
+        require!(!deposit_inputs.is_empty(), ERR_NOT_WITHDRAW_TXN);
 
-        for deposit in deposits {
-            account.complete_withdrawal(deposit, tx.compute_txid().to_string().into());
+        for deposit_input in deposit_inputs {
+            let deposit = account.get_active_deposit(
+                &deposit_input.previous_output.txid.to_string().into(),
+                deposit_input.previous_output.vout.into(),
+            );
+            let is_multisig = self.is_multisig_withdrawal(&deposit, deposit_input);
+            account.complete_withdrawal(deposit, &tx_id, is_multisig);
         }
         self.set_account(account);
 
@@ -238,18 +244,6 @@ impl Contract {
 impl Contract {
     pub(crate) fn withdrawal_message(&self, nonce: u64, amount: u64) -> String {
         format!("bithive.withdraw:{}:{}sats", nonce, amount)
-    }
-
-    fn filter_deposit_inputs(&self, account: &Account, inputs: &[bitcoin::TxIn]) -> Vec<Deposit> {
-        inputs
-            .iter()
-            .filter_map(|input| {
-                account.try_get_active_deposit(
-                    &input.previous_output.txid.to_string().into(),
-                    input.previous_output.vout.into(),
-                )
-            })
-            .collect()
     }
 
     pub(crate) fn verify_sign_withdrawal(
@@ -274,7 +268,13 @@ impl Contract {
         let deposit_input_sum = self
             .filter_deposit_inputs(account, &psbt.unsigned_tx.input)
             .iter()
-            .map(|deposit| deposit.value)
+            .map(|input| {
+                let deposit = account.get_active_deposit(
+                    &input.previous_output.txid.to_string().into(),
+                    input.previous_output.vout.into(),
+                );
+                deposit.value
+            })
             .sum::<u64>();
 
         // subtract reinvest amount if provided
@@ -291,5 +291,27 @@ impl Contract {
             actual_withdraw_amount <= account.queue_withdrawal_amount,
             ERR_BAD_WITHDRAW_AMOUNT
         );
+    }
+
+    fn filter_deposit_inputs<'a>(&'a self, account: &Account, inputs: &'a [TxIn]) -> Vec<&TxIn> {
+        inputs
+            .iter()
+            .filter(|input| {
+                account.is_deposit_active(
+                    &input.previous_output.txid.to_string().into(),
+                    input.previous_output.vout.into(),
+                )
+            })
+            .collect()
+    }
+
+    fn is_multisig_withdrawal(&self, deposit: &Deposit, tx_in: &TxIn) -> bool {
+        match deposit.redeem_version {
+            RedeemVersion::V1 => {
+                let witness = tx_in.witness.to_vec();
+                // witness script should have 5 elements, and the second last one should be empty
+                witness.len() == 5 && witness[witness.len() - 2].len() == 0
+            }
+        }
     }
 }

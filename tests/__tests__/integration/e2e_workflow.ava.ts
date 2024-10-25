@@ -80,13 +80,12 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   // fast forward
   await fastForward(contract, daysToMs(3));
 
-  const depositUnspent1 = (await regtestUtils.unspents(p2wsh.address!))[0];
+  const unspents = await regtestUtils.unspents(p2wsh.address!);
+  const depositUnspent1 = unspents[0];
   const depositUtx1 = await regtestUtils.fetch(depositUnspent1.txId);
-  const depositUnspent2 = (await regtestUtils.unspents(p2wsh.address!))[1];
+  const depositUnspent2 = unspents[1];
   const depositUtx2 = await regtestUtils.fetch(depositUnspent2.txId);
 
-  console.log("depositUtx1 = ", depositUtx1.txId);
-  console.log("depositUtx2 = ", depositUtx2.txId);
   // construct withdraw PSBT, which needs be sent to user and allstake to sign
   let psbt = new bitcoin.Psbt({ network });
   psbt = psbt

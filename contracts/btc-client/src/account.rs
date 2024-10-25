@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
@@ -188,19 +190,20 @@ impl Account {
         }
     }
 
-    pub fn complete_withdrawal(&mut self, mut deposit: Deposit, tx_id: TxId) {
+    pub fn complete_withdrawal(&mut self, mut deposit: Deposit, tx_id: &TxId, is_multisig: bool) {
         let deposit_tx_id = deposit.deposit_tx_id.clone();
         let deposit_vout = deposit.deposit_vout;
 
         deposit.complete_withdraw(tx_id.clone());
         self.total_deposit -= deposit.value;
 
-        // Always decrease the queue withdrawal amount.
-        // This might seem weird for solo withdrawals, but it's necessary to prevent
-        // bypassing the queue withdrawal limit by submitting re-investments before withdrawals
-        self.queue_withdrawal_amount = self.queue_withdrawal_amount.saturating_sub(deposit.value);
-        if self.queue_withdrawal_amount == 0 {
-            self.queue_withdrawal_start_ts = 0;
+        // for non-multisig withdrawal, we need to update the queue withdrawal amount
+        // the case for multisig withdrawal is handled during sign withdrawal
+        if !is_multisig {
+            self.queue_withdrawal_amount = min(self.total_deposit, self.queue_withdrawal_amount);
+            if self.queue_withdrawal_amount == 0 {
+                self.queue_withdrawal_start_ts = 0;
+            }
         }
 
         self.remove_active_deposit(&deposit_tx_id, deposit_vout);
@@ -208,7 +211,7 @@ impl Account {
 
         Event::Withdrawn {
             user_pubkey: &self.pubkey.clone().into(),
-            withdrawal_tx_id: &tx_id.into(),
+            withdrawal_tx_id: &tx_id.to_owned().into(),
             deposit_tx_id: &deposit_tx_id.into(),
             deposit_vout: deposit_vout.into(),
         }
