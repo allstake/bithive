@@ -101,13 +101,13 @@ impl Contract {
             input_to_sign.previous_output.vout.into(),
         );
 
-        if account.pending_withdraw_psbt.is_some() {
+        if account.pending_sign_psbt.is_some() {
             // if the user has previously requested to sign a withdraw tx, he cannot request to
             // sign another one until the previous one is completed or replaced by fee
             self.verify_sign_withdrawal_psbt(&account, &psbt);
         } else {
             // if not , verify the withdraw PSBT and save it for signing
-            self.verify_and_save_pending_withdraw_request(&mut account, &psbt, reinvest_embed_vout);
+            self.set_pending_sign_request(&mut account, &psbt, reinvest_embed_vout);
             self.set_account(account);
         }
 
@@ -229,7 +229,7 @@ impl Contract {
         format!("bithive.withdraw:{}:{}sats", nonce, amount)
     }
 
-    pub(crate) fn verify_and_save_pending_withdraw_request(
+    pub(crate) fn set_pending_sign_request(
         &mut self,
         account: &mut Account,
         psbt: &Psbt,
@@ -283,7 +283,7 @@ impl Contract {
                 DepositEmbedMsg::V1 { deposit_vout, .. } => deposit_vout,
             }
         });
-        account.pending_withdraw_psbt = Some(PendingWithdrawPsbt {
+        account.pending_sign_psbt = Some(PendingWithdrawPsbt {
             psbt: psbt.clone().into(),
             reinvest_deposit_vout: deposit_vout,
         });
@@ -294,8 +294,8 @@ impl Contract {
 
     /// The PSBT provided must be the same or RBF of the saved withdraw PSBT
     fn verify_sign_withdrawal_psbt(&self, account: &Account, request_psbt: &Psbt) {
-        let pending_withdraw_psbt = account.pending_withdraw_psbt.as_ref().unwrap();
-        let expected_psbt: bitcoin::Psbt = pending_withdraw_psbt.psbt.clone().into();
+        let pending_sign_psbt = account.pending_sign_psbt.as_ref().unwrap();
+        let expected_psbt: bitcoin::Psbt = pending_sign_psbt.psbt.clone().into();
 
         // each input must match the saved PSBT
         require!(
@@ -308,7 +308,7 @@ impl Contract {
         }
 
         // for outputs, we need to make sure the reinvest output is the same
-        if let Some(reinvest_deposit_vout) = pending_withdraw_psbt.reinvest_deposit_vout {
+        if let Some(reinvest_deposit_vout) = pending_sign_psbt.reinvest_deposit_vout {
             let expected_output = expected_psbt
                 .unsigned_tx
                 .output

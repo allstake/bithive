@@ -38,7 +38,7 @@ pub struct Account {
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
     /// PSBT of the withdraw txn that needs to be signed via chain signature
-    pub pending_withdraw_psbt: Option<PendingWithdrawPsbt>,
+    pub pending_sign_psbt: Option<PendingWithdrawPsbt>,
 }
 
 impl Account {
@@ -51,7 +51,7 @@ impl Account {
             queue_withdrawal_amount: 0,
             queue_withdrawal_start_ts: 0,
             nonce: 0,
-            pending_withdraw_psbt: None,
+            pending_sign_psbt: None,
         }
     }
 
@@ -158,7 +158,7 @@ impl Account {
         self.queue_withdrawal_amount += amount;
         self.queue_withdrawal_start_ts = current_timestamp_ms();
         self.nonce += 1;
-        self.pending_withdraw_psbt = None;
+        self.pending_sign_psbt = None;
 
         Event::QueueWithdrawal {
             user_pubkey: &self.pubkey.clone().into(),

@@ -89,8 +89,8 @@ test("sign withdraw should set pending withdraw psbt", async (t) => {
   await builder.signWithdraw(0);
 
   const account = await viewAccount(contract, builder.userPubkeyHex);
-  t.is(account.pending_withdraw_psbt!.psbt, builder.psbt!.toHex());
-  t.is(account.pending_withdraw_psbt!.reinvest_deposit_vout, 1);
+  t.is(account.pending_sign_psbt!.psbt, builder.psbt!.toHex());
+  t.is(account.pending_sign_psbt!.reinvest_deposit_vout, 1);
 });
 
 test("sign withdraw should reset queue withdraw amount", async (t) => {

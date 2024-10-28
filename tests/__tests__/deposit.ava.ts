@@ -1,3 +1,4 @@
+import * as bitcoin from "bitcoinjs-lib";
 import {
   getUserActiveDepositsLen,
   listUserActiveDeposits,
@@ -5,7 +6,6 @@ import {
   submitDepositTx,
   viewAccount,
 } from "./helpers/btc_client";
-import * as bitcoin from "bitcoinjs-lib";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, buildDepositEmbedMsg, someH256 } from "./helpers/utils";
@@ -45,7 +45,7 @@ test("submit valid deposit txn", async (t) => {
   t.is(account.queue_withdrawal_amount, 0);
   t.is(account.queue_withdrawal_start_ts, 0);
   t.is(account.nonce, 0);
-  t.is(account.pending_withdraw_psbt, null);
+  t.is(account.pending_sign_psbt, null);
 });
 
 test("submit invalid embed msg", async (t) => {

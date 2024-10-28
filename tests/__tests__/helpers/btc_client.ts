@@ -258,7 +258,7 @@ interface Account {
   queue_withdrawal_amount: number;
   queue_withdrawal_start_ts: number;
   nonce: number;
-  pending_withdraw_psbt: {
+  pending_sign_psbt: {
     psbt: string;
     reinvest_deposit_vout: number | null;
   } | null;
