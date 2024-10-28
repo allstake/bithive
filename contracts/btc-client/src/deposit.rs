@@ -169,7 +169,7 @@ impl Contract {
         self.set_account(account);
     }
 
-    fn verify_embed_output(&self, tx: &Transaction, embed_vout: u64) -> DepositEmbedMsg {
+    pub(crate) fn verify_embed_output(&self, tx: &Transaction, embed_vout: u64) -> DepositEmbedMsg {
         let embed_output = tx.output.get(embed_vout as usize).expect(ERR_BAD_EMBED_IDX);
         let msg = get_embed_message(embed_output);
         DepositEmbedMsg::decode_hex(&msg).unwrap()

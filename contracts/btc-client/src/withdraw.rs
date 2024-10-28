@@ -13,7 +13,7 @@ use near_sdk::{
     near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
-use types::{RedeemVersion, SubmitWithdrawTxArgs, TxId};
+use types::{DepositEmbedMsg, PendingWithdrawPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
 use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_message_ecdsa};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
@@ -24,6 +24,10 @@ const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdraw request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
 const ERR_BAD_WITHDRAW_AMOUNT: &str = "Withdraw amount is larger than queued amount";
+const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
+const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
+const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
+
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
 
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
@@ -97,28 +101,13 @@ impl Contract {
             input_to_sign.previous_output.vout.into(),
         );
 
-        if let Some(tx_id) = account.pending_withdraw_tx_id.clone() {
+        if account.pending_withdraw_psbt.is_some() {
             // if the user has previously requested to sign a withdraw tx, he cannot request to
-            // sign another one until the previous one is completed
-
-            require!(
-                tx_id.to_string() == psbt.unsigned_tx.compute_txid().to_string(),
-                format!(
-                    "A pending withdrawal tx {} already exists, it must be signed",
-                    tx_id.to_string()
-                )
-            );
+            // sign another one until the previous one is completed or replaced by fee
+            self.verify_sign_withdrawal_psbt(&account, &psbt);
         } else {
             // if not , verify the withdraw PSBT and save it for signing
-
-            self.verify_sign_withdrawal(&account, &psbt, reinvest_embed_vout);
-            // update pending withdraw tx id and count
-            account.set_pending_withdraw_tx(
-                psbt.unsigned_tx.compute_txid().to_string().into(),
-                self.filter_deposit_inputs(&account, &psbt.unsigned_tx.input)
-                    .len() as u16,
-            );
-            // TODO reset queue withdrawal amount ?
+            self.verify_and_save_pending_withdraw_request(&mut account, &psbt, reinvest_embed_vout);
             self.set_account(account);
         }
 
@@ -159,14 +148,8 @@ impl Contract {
         #[callback_result] result: Result<SignatureResponse, PromiseError>,
     ) -> SignatureResponse {
         if let Ok(sig) = result {
-            let mut account = self.get_account(&user_pubkey.clone().into());
-            let pending_withdraw_tx_id = account.pending_withdraw_tx_id.clone().unwrap();
-            account.on_sign_withdrawal();
-            self.set_account(account);
-
             Event::SignWithdrawal {
                 user_pubkey: &user_pubkey,
-                pending_withdraw_tx_id: &pending_withdraw_tx_id.to_string(),
             }
             .emit();
 
@@ -246,9 +229,9 @@ impl Contract {
         format!("bithive.withdraw:{}:{}sats", nonce, amount)
     }
 
-    pub(crate) fn verify_sign_withdrawal(
-        &self,
-        account: &Account,
+    pub(crate) fn verify_and_save_pending_withdraw_request(
+        &mut self,
+        account: &mut Account,
         psbt: &Psbt,
         reinvest_embed_vout: Option<u64>,
     ) {
@@ -279,8 +262,8 @@ impl Contract {
 
         // subtract reinvest amount if provided
         let reinvest_amount = reinvest_embed_vout
-            .map(|vout| {
-                let deposit = self.verify_deposit_txn(&psbt.unsigned_tx, vout);
+            .map(|embed_vout| {
+                let deposit = self.verify_deposit_txn(&psbt.unsigned_tx, embed_vout);
                 deposit.value
             })
             .unwrap_or(0);
@@ -291,6 +274,56 @@ impl Contract {
             actual_withdraw_amount <= account.queue_withdrawal_amount,
             ERR_BAD_WITHDRAW_AMOUNT
         );
+
+        // save the PSBT for signing
+        // extract the deposit vout from embed message, it will be later used to verify the withdraw txn
+        let deposit_vout = reinvest_embed_vout.map(|embed_vout| {
+            let embed_msg = self.verify_embed_output(&psbt.unsigned_tx, embed_vout);
+            match embed_msg {
+                DepositEmbedMsg::V1 { deposit_vout, .. } => deposit_vout,
+            }
+        });
+        account.pending_withdraw_psbt = Some(PendingWithdrawPsbt {
+            psbt: psbt.clone().into(),
+            reinvest_deposit_vout: deposit_vout,
+        });
+        // reset queue withdrawal amount
+        account.queue_withdrawal_amount = 0;
+        account.queue_withdrawal_start_ts = 0;
+    }
+
+    /// The PSBT provided must be the same or RBF of the saved withdraw PSBT
+    fn verify_sign_withdrawal_psbt(&self, account: &Account, request_psbt: &Psbt) {
+        let pending_withdraw_psbt = account.pending_withdraw_psbt.as_ref().unwrap();
+        let expected_psbt: bitcoin::Psbt = pending_withdraw_psbt.psbt.clone().into();
+
+        // each input must match the saved PSBT
+        require!(
+            request_psbt.unsigned_tx.input.len() == expected_psbt.unsigned_tx.input.len(),
+            ERR_PSBT_INPUT_LEN_MISMATCH
+        );
+        for (i, input) in request_psbt.unsigned_tx.input.iter().enumerate() {
+            let expected_input = expected_psbt.unsigned_tx.input.get(i).unwrap();
+            require!(input == expected_input, ERR_PSBT_INPUT_MISMATCH);
+        }
+
+        // for outputs, we need to make sure the reinvest output is the same
+        if let Some(reinvest_deposit_vout) = pending_withdraw_psbt.reinvest_deposit_vout {
+            let expected_output = expected_psbt
+                .unsigned_tx
+                .output
+                .get(reinvest_deposit_vout as usize)
+                .unwrap();
+            let request_output = request_psbt
+                .unsigned_tx
+                .output
+                .get(reinvest_deposit_vout as usize)
+                .unwrap();
+            require!(
+                request_output == expected_output,
+                ERR_PSBT_REINVEST_OUTPUT_MISMATCH
+            );
+        }
     }
 
     fn filter_deposit_inputs<'a>(&'a self, account: &Account, inputs: &'a [TxIn]) -> Vec<&TxIn> {

@@ -29,7 +29,6 @@ pub enum Event<'a> {
     },
     SignWithdrawal {
         user_pubkey: &'a String,
-        pending_withdraw_tx_id: &'a String,
     },
     Withdrawn {
         user_pubkey: &'a String,

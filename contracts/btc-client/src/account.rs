@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::{
     events::Event,
-    types::{output_id, BorshPsbt, OutputId, PubKey, RedeemVersion, StorageKey, TxId},
+    types::{output_id, OutputId, PendingWithdrawPsbt, PubKey, RedeemVersion, StorageKey, TxId},
     utils::current_timestamp_ms,
 };
 
@@ -37,11 +37,8 @@ pub struct Account {
     pub queue_withdrawal_start_ts: Timestamp,
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
-    /// ID of the withdraw txn that needs to be signed via chain signature
-    pub pending_withdraw_tx_id: Option<TxId>,
-    /// number of unsigned inputs in the above txn
-    pub pending_withdraw_unsigned_count: u16,
-    pub psbt: Option<BorshPsbt>,
+    /// PSBT of the withdraw txn that needs to be signed via chain signature
+    pub pending_withdraw_psbt: Option<PendingWithdrawPsbt>,
 }
 
 impl Account {
@@ -54,9 +51,7 @@ impl Account {
             queue_withdrawal_amount: 0,
             queue_withdrawal_start_ts: 0,
             nonce: 0,
-            pending_withdraw_tx_id: None,
-            pending_withdraw_unsigned_count: 0,
-            psbt: None,
+            pending_withdraw_psbt: None,
         }
     }
 
@@ -163,8 +158,7 @@ impl Account {
         self.queue_withdrawal_amount += amount;
         self.queue_withdrawal_start_ts = current_timestamp_ms();
         self.nonce += 1;
-        self.pending_withdraw_tx_id = None;
-        self.pending_withdraw_unsigned_count = 0;
+        self.pending_withdraw_psbt = None;
 
         Event::QueueWithdrawal {
             user_pubkey: &self.pubkey.clone().into(),
@@ -173,21 +167,6 @@ impl Account {
             withdraw_sig: msg_sig,
         }
         .emit();
-    }
-
-    pub fn set_pending_withdraw_tx(&mut self, tx_id: TxId, unsigned_count: u16) {
-        self.pending_withdraw_tx_id = Some(tx_id);
-        self.pending_withdraw_unsigned_count = unsigned_count;
-    }
-
-    pub fn on_sign_withdrawal(&mut self) {
-        self.pending_withdraw_unsigned_count -= 1;
-        // if all signatures are collected, clear all withdraw related data
-        if self.pending_withdraw_unsigned_count == 0 {
-            self.queue_withdrawal_amount = 0;
-            self.queue_withdrawal_start_ts = 0;
-            self.pending_withdraw_tx_id = None;
-        }
     }
 
     pub fn complete_withdrawal(&mut self, mut deposit: Deposit, tx_id: &TxId, is_multisig: bool) {

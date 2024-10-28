@@ -140,8 +140,15 @@ impl borsh::BorshSerialize for LowercaseString {
     }
 }
 
+#[derive(serde::Serialize, BorshSerialize, BorshDeserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PendingWithdrawPsbt {
+    pub psbt: BorshPsbt,
+    pub reinvest_deposit_vout: Option<u64>,
+}
+
 /// helper type to wrap PSBT so that it can be serialized by Borsh
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct BorshPsbt(bitcoin::Psbt);
 
 impl BorshSerialize for BorshPsbt {
@@ -161,6 +168,18 @@ impl BorshDeserialize for BorshPsbt {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let psbt_vec = Vec::<u8>::deserialize(buf)?;
         Ok(BorshPsbt(bitcoin::Psbt::deserialize(&psbt_vec).unwrap()))
+    }
+}
+
+impl From<BorshPsbt> for bitcoin::Psbt {
+    fn from(psbt: BorshPsbt) -> Self {
+        psbt.0
+    }
+}
+
+impl From<bitcoin::Psbt> for BorshPsbt {
+    fn from(psbt: bitcoin::Psbt) -> Self {
+        BorshPsbt(psbt)
     }
 }
 
