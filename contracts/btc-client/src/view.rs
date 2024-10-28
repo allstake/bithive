@@ -89,19 +89,19 @@ impl Contract {
 
     /// Return constants that will be used for withdrawing v1 deposits
     /// ### Arguments
-    /// * `deposit_tx_id` - deposit transaction id
-    /// * `deposit_vout` - deposit vout index
-    // pub fn get_v1_withdrawal_constants(
-    //     &self,
-    //     deposit_tx_id: String,
-    //     deposit_vout: u64,
-    // ) -> WithdrawalConstantsV1 {
-    //     let msg = self.withdrawal_message(&deposit_tx_id.into(), deposit_vout);
-    //     WithdrawalConstantsV1 {
-    //         queue_withdrawal_msg: msg,
-    //     }
-    // }
-    // TODO
+    /// * `user_pubkey` - user pubkey
+    /// * `amount` - amount to withdraw
+    pub fn get_v1_withdrawal_constants(
+        &self,
+        user_pubkey: String,
+        amount: u64,
+    ) -> WithdrawalConstantsV1 {
+        let account = self.get_account(&user_pubkey.into());
+        let msg = self.withdrawal_message(account.nonce, amount);
+        WithdrawalConstantsV1 {
+            queue_withdrawal_msg: msg,
+        }
+    }
 
     pub fn view_account(&self, user_pubkey: String) -> Account {
         self.get_account(&user_pubkey.into())
@@ -141,17 +141,10 @@ impl Contract {
             .collect()
     }
 
-    // pub fn get_deposit(
-    //     &self,
-    //     user_pubkey: String,
-    //     tx_id: String,
-    //     vout: u64,
-    // ) -> Option<DepositInfo> {
-    //     let account = self.get_account(&user_pubkey.into());
-    //     let deposit = account
-    //         .try_get_active_deposit(&tx_id.clone().into(), vout)
-    //         .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout));
-
-    // }
-    // TODO
+    pub fn get_deposit(&self, user_pubkey: String, tx_id: String, vout: u64) -> Option<Deposit> {
+        let account = self.get_account(&user_pubkey.into());
+        account
+            .try_get_active_deposit(&tx_id.clone().into(), vout)
+            .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout))
+    }
 }
