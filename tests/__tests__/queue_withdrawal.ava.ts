@@ -51,8 +51,7 @@ test("valid queue withdraw", async (t) => {
   t.is(account.queue_withdrawal_amount, 100);
   t.is(account.queue_withdrawal_start_ts, daysToMs(3));
   t.is(account.nonce, 1);
-  t.is(account.pending_withdraw_tx_id, null);
-  t.is(account.pending_withdraw_unsigned_count, 0);
+  t.is(account.pending_withdraw_psbt, null);
 });
 
 test("queue withdraw with wrong amount in signature", async (t) => {
@@ -122,4 +121,26 @@ test("queue withdraw again after deposit", async (t) => {
   const account = await viewAccount(contract, builder.userPubkeyHex);
   t.is(account.queue_withdrawal_amount, 1e8 + 100);
   t.is(account.queue_withdrawal_start_ts, daysToMs(4));
+});
+
+test("queue withdraw should clear pending withdraw psbt", async (t) => {
+  const { builder, contract } = await makeDeposit(t, 1e8);
+
+  const sig = builder.queueWithdrawSignature(100, 0);
+  await builder.queueWithdraw(100, sig);
+  await fastForward(contract, daysToMs(2));
+
+  builder.generateWithdrawPsbt(undefined, 1e8 - 100);
+  await builder.signWithdraw(0);
+
+  let account = await viewAccount(contract, builder.userPubkeyHex);
+  t.assert(account.pending_withdraw_psbt);
+  t.assert(account.pending_withdraw_psbt!.psbt);
+  t.assert(account.pending_withdraw_psbt!.reinvest_deposit_vout);
+
+  const sig2 = builder.queueWithdrawSignature(100, 1);
+  await builder.queueWithdraw(100, sig2);
+
+  account = await viewAccount(contract, builder.userPubkeyHex);
+  t.assert(account.pending_withdraw_psbt === null);
 });

@@ -258,8 +258,10 @@ interface Account {
   queue_withdrawal_amount: number;
   queue_withdrawal_start_ts: number;
   nonce: number;
-  pending_withdraw_tx_id: string | null;
-  pending_withdraw_unsigned_count: number;
+  pending_withdraw_psbt: {
+    psbt: string;
+    reinvest_deposit_vout: number | null;
+  } | null;
 }
 
 export async function viewAccount(

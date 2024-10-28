@@ -78,7 +78,7 @@ test("sign withdraw within waiting period", async (t) => {
   await assertFailure(t, builder.signWithdraw(0), "Not ready to withdraw now");
 });
 
-test("sign withdraw with one deposit should clear request after signed", async (t) => {
+test("sign withdraw should set pending withdraw psbt", async (t) => {
   const { builder, contract } = await makeDeposit(t, 1e8);
 
   const sig = builder.queueWithdrawSignature(100, 0);
@@ -89,38 +89,63 @@ test("sign withdraw with one deposit should clear request after signed", async (
   await builder.signWithdraw(0);
 
   const account = await viewAccount(contract, builder.userPubkeyHex);
-  t.is(account.pending_withdraw_tx_id, null);
-  t.is(account.pending_withdraw_unsigned_count, 0);
+  t.is(account.pending_withdraw_psbt!.psbt, builder.psbt!.toHex());
+  t.is(account.pending_withdraw_psbt!.reinvest_deposit_vout, 1);
 });
 
-test("sign withdraw with multiple deposits should clear request after fully signed", async (t) => {
-  const { builder: builder1, contract } = await makeDeposit(t, 1e8);
-  const { builder: builder2 } = await makeDeposit(t, 100);
+test("sign withdraw should reset queue withdraw amount", async (t) => {
+  const { builder, contract } = await makeDeposit(t, 1e8);
 
-  const sig = builder1.queueWithdrawSignature(100, 0);
-  await builder1.queueWithdraw(100, sig);
+  const sig = builder.queueWithdrawSignature(100, 0);
+  await builder.queueWithdraw(100, sig);
   await fastForward(contract, daysToMs(2));
 
+  builder.generateWithdrawPsbt(undefined, 1e8 - 100);
+  await builder.signWithdraw(0);
+
+  const account = await viewAccount(contract, builder.userPubkeyHex);
+  t.is(account.queue_withdrawal_amount, 0);
+  t.is(account.queue_withdrawal_start_ts, 0);
+});
+
+test("sign withdraw with multiple deposit inputs", async (t) => {
+  const { builder: builder1, contract } = await makeDeposit(t, 1e8);
+  const { builder: builder2 } = await makeDeposit(t, 2e8);
+
+  const sig = builder1.queueWithdrawSignature(3e8, 0);
+  await builder1.queueWithdraw(3e8, sig);
+  await fastForward(contract, daysToMs(2));
+
+  // withdraw psbt has two inputs to sign
   builder1.generateWithdrawPsbt(
     {
       hash: builder2.tx.getId(),
       index: 0,
     },
-    1e8,
+    0,
+    3e8,
   );
+
   await builder1.signWithdraw(0);
-
-  let account = await viewAccount(contract, builder1.userPubkeyHex);
-  t.is(
-    account.pending_withdraw_tx_id,
-    (builder1.psbt! as any).__CACHE.__TX.getId(),
-  );
-  t.is(account.pending_withdraw_unsigned_count, 1);
-
   await builder1.signWithdraw(1);
-  account = await viewAccount(contract, builder1.userPubkeyHex);
-  t.is(account.pending_withdraw_tx_id, null);
-  t.is(account.pending_withdraw_unsigned_count, 0);
+});
+
+test("sign withdraw RBF", async (t) => {
+  const { builder, contract } = await makeDeposit(t, 1e8);
+
+  const sig = builder.queueWithdrawSignature(100, 0);
+  await builder.queueWithdraw(100, sig);
+  await fastForward(contract, daysToMs(2));
+
+  let withdrawAmount = 100;
+  builder.generateWithdrawPsbt(undefined, 1e8 - 100, withdrawAmount);
+  await builder.signWithdraw(0);
+
+  // update withdraw psbt to override fee
+  withdrawAmount -= 90;
+  builder.generateWithdrawPsbt(undefined, 1e8 - 100, withdrawAmount); // actual withdraw amount is only 10 sats
+  // sign the new psbt
+  await builder.signWithdraw(0);
 });
 
 test("sign withdraw twice but with different PSBT", async (t) => {
@@ -141,7 +166,11 @@ test("sign withdraw twice but with different PSBT", async (t) => {
   await builder1.signWithdraw(0);
 
   builder2.generateWithdrawPsbt();
-  await assertFailure(t, builder2.signWithdraw(0), "A pending withdrawal tx");
+  await assertFailure(
+    t,
+    builder2.signWithdraw(0),
+    "PSBT input length mismatch",
+  );
 });
 
 test("sign withdraw without reinvestment", async (t) => {
@@ -153,10 +182,6 @@ test("sign withdraw without reinvestment", async (t) => {
 
   builder.generateWithdrawPsbt();
   await builder.signWithdraw(0);
-
-  const account = await viewAccount(contract, builder.userPubkeyHex);
-  t.is(account.pending_withdraw_tx_id, null);
-  t.is(account.pending_withdraw_unsigned_count, 0);
 });
 
 test("sign withdraw with invalid reinvestment type", async (t) => {

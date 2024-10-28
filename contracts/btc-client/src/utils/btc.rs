@@ -102,6 +102,18 @@ mod tests {
         );
     }
 
+    // #[test]
+    // fn test_okx() {
+    //     let plain_msg = "allstake.withdraw:fd33f5592968ebbbfb4933418adb83f0d31bdcd4d6c163004c91d6cdb35018cc:0";
+    //     let pubkey = "02de78fbe7e1a0ecdef3c21a1ab0f07856824c9bc39d1f07c82bdaa4488ca552b6";
+    //     let sig = "205f8594c9e65573338306bd5633e6f4a0cb663adb0f2eaca0586e46190e712ffb09f62e6882c518fb66d0b6dadc7c500c58861e145dcdea2953ca35c8b8ade082";
+    //     let msg = verify_signed_message_ecdsa(
+    //         plain_msg.as_bytes(),
+    //         &hex::decode(sig).unwrap(),
+    //         &hex::decode(pubkey).unwrap(),
+    //     );
+    // }
+
     #[test]
     fn test_verify_signed_message_unisat() {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
