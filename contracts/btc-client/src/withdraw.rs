@@ -10,7 +10,7 @@ use ext::{
 use near_sdk::{
     env::{self},
     json_types::U128,
-    log, near_bindgen, require, Gas, Promise, PromiseError,
+    near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
 use types::{RedeemVersion, SubmitWithdrawTxArgs, TxId};
@@ -310,7 +310,7 @@ impl Contract {
             RedeemVersion::V1 => {
                 let witness = tx_in.witness.to_vec();
                 // witness script should have 5 elements, and the second last one should be empty
-                witness.len() == 5 && witness[witness.len() - 2].len() == 0
+                witness.len() == 5 && witness[witness.len() - 2].is_empty()
             }
         }
     }
