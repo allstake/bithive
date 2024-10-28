@@ -13,7 +13,7 @@ use near_sdk::{
     near_bindgen, require, Gas, Promise, PromiseError,
 };
 use serde::{Deserialize, Serialize};
-use types::{DepositEmbedMsg, PendingWithdrawPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
+use types::{DepositEmbedMsg, PendingSignPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
 use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_message_ecdsa};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
@@ -104,7 +104,7 @@ impl Contract {
         if account.pending_sign_psbt.is_some() {
             // if the user has previously requested to sign a withdraw tx, he cannot request to
             // sign another one until the previous one is completed or replaced by fee
-            self.verify_sign_withdrawal_psbt(&account, &psbt);
+            verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
         } else {
             // if not , verify the withdraw PSBT and save it for signing
             self.set_pending_sign_request(&mut account, &psbt, reinvest_embed_vout);
@@ -207,7 +207,7 @@ impl Contract {
         let tx_id: TxId = tx.compute_txid().to_string().into();
 
         let mut account = self.get_account(&user_pubkey.clone().into());
-        let deposit_inputs = self.filter_deposit_inputs(&account, &tx.input);
+        let deposit_inputs = filter_deposit_inputs(&account, &tx.input);
         require!(!deposit_inputs.is_empty(), ERR_NOT_WITHDRAW_TXN);
 
         for deposit_input in deposit_inputs {
@@ -215,7 +215,7 @@ impl Contract {
                 &deposit_input.previous_output.txid.to_string().into(),
                 deposit_input.previous_output.vout.into(),
             );
-            let is_multisig = self.is_multisig_withdrawal(&deposit, deposit_input);
+            let is_multisig = is_multisig_withdrawal(&deposit, deposit_input);
             account.complete_withdrawal(deposit, &tx_id, is_multisig);
         }
         self.set_account(account);
@@ -248,8 +248,7 @@ impl Contract {
         );
 
         // sum all known deposit inputs
-        let deposit_input_sum = self
-            .filter_deposit_inputs(account, &psbt.unsigned_tx.input)
+        let deposit_input_sum = filter_deposit_inputs(account, &psbt.unsigned_tx.input)
             .iter()
             .map(|input| {
                 let deposit = account.get_active_deposit(
@@ -283,7 +282,7 @@ impl Contract {
                 DepositEmbedMsg::V1 { deposit_vout, .. } => deposit_vout,
             }
         });
-        account.pending_sign_psbt = Some(PendingWithdrawPsbt {
+        account.pending_sign_psbt = Some(PendingSignPsbt {
             psbt: psbt.clone().into(),
             reinvest_deposit_vout: deposit_vout,
         });
@@ -291,60 +290,151 @@ impl Contract {
         account.queue_withdrawal_amount = 0;
         account.queue_withdrawal_start_ts = 0;
     }
+}
 
-    /// The PSBT provided must be the same or RBF of the saved withdraw PSBT
-    fn verify_sign_withdrawal_psbt(&self, account: &Account, request_psbt: &Psbt) {
-        let pending_sign_psbt = account.pending_sign_psbt.as_ref().unwrap();
-        let expected_psbt: bitcoin::Psbt = pending_sign_psbt.psbt.clone().into();
+/// The PSBT provided must be the same or RBF of the saved withdraw PSBT
+fn verify_sign_withdrawal_psbt(pending_sign_psbt: &PendingSignPsbt, request_psbt: &Psbt) {
+    let expected_psbt: bitcoin::Psbt = pending_sign_psbt.psbt.clone().into();
 
-        // each input must match the saved PSBT
+    // each input must match the saved PSBT
+    require!(
+        request_psbt.unsigned_tx.input.len() == expected_psbt.unsigned_tx.input.len(),
+        ERR_PSBT_INPUT_LEN_MISMATCH
+    );
+    for (i, input) in request_psbt.unsigned_tx.input.iter().enumerate() {
+        let expected_input = expected_psbt.unsigned_tx.input.get(i).unwrap();
+        require!(input == expected_input, ERR_PSBT_INPUT_MISMATCH);
+    }
+
+    // for outputs, we need to make sure the reinvest output is the same
+    if let Some(reinvest_deposit_vout) = pending_sign_psbt.reinvest_deposit_vout {
+        let expected_output = expected_psbt
+            .unsigned_tx
+            .output
+            .get(reinvest_deposit_vout as usize)
+            .unwrap();
+        let request_output = request_psbt
+            .unsigned_tx
+            .output
+            .get(reinvest_deposit_vout as usize)
+            .unwrap();
         require!(
-            request_psbt.unsigned_tx.input.len() == expected_psbt.unsigned_tx.input.len(),
-            ERR_PSBT_INPUT_LEN_MISMATCH
+            request_output == expected_output,
+            ERR_PSBT_REINVEST_OUTPUT_MISMATCH
         );
-        for (i, input) in request_psbt.unsigned_tx.input.iter().enumerate() {
-            let expected_input = expected_psbt.unsigned_tx.input.get(i).unwrap();
-            require!(input == expected_input, ERR_PSBT_INPUT_MISMATCH);
-        }
+    }
+}
 
-        // for outputs, we need to make sure the reinvest output is the same
-        if let Some(reinvest_deposit_vout) = pending_sign_psbt.reinvest_deposit_vout {
-            let expected_output = expected_psbt
-                .unsigned_tx
-                .output
-                .get(reinvest_deposit_vout as usize)
-                .unwrap();
-            let request_output = request_psbt
-                .unsigned_tx
-                .output
-                .get(reinvest_deposit_vout as usize)
-                .unwrap();
-            require!(
-                request_output == expected_output,
-                ERR_PSBT_REINVEST_OUTPUT_MISMATCH
-            );
+fn filter_deposit_inputs<'a>(account: &Account, inputs: &'a [TxIn]) -> Vec<&'a TxIn> {
+    inputs
+        .iter()
+        .filter(|input| {
+            account.is_deposit_active(
+                &input.previous_output.txid.to_string().into(),
+                input.previous_output.vout.into(),
+            )
+        })
+        .collect()
+}
+
+fn is_multisig_withdrawal(deposit: &Deposit, tx_in: &TxIn) -> bool {
+    match deposit.redeem_version {
+        RedeemVersion::V1 => {
+            let witness = tx_in.witness.to_vec();
+            // witness script should have 5 elements, and the second last one should be empty
+            witness.len() == 5 && witness[witness.len() - 2].is_empty()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxOut, Txid, Witness};
+
+    use super::*;
+
+    fn test_psbt(inputs: Vec<TxIn>, outputs: Vec<TxOut>) -> Psbt {
+        let tx = Transaction {
+            version: bitcoin::transaction::Version::TWO,
+            lock_time: bitcoin::locktime::absolute::LockTime::ZERO,
+            input: inputs,
+            output: outputs,
+        };
+        Psbt::from_unsigned_tx(tx).unwrap()
+    }
+
+    fn test_input1() -> TxIn {
+        TxIn {
+            previous_output: OutPoint::new(
+                Txid::from_str("8aa6eff480e020ea5fd937d343b8caf63cae3e10ab5bfbddf19de550026b259e")
+                    .unwrap(),
+                0,
+            ),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
         }
     }
 
-    fn filter_deposit_inputs<'a>(&'a self, account: &Account, inputs: &'a [TxIn]) -> Vec<&TxIn> {
-        inputs
-            .iter()
-            .filter(|input| {
-                account.is_deposit_active(
-                    &input.previous_output.txid.to_string().into(),
-                    input.previous_output.vout.into(),
-                )
-            })
-            .collect()
+    fn test_input2() -> TxIn {
+        TxIn {
+            previous_output: OutPoint::new(
+                Txid::from_str("8aa6eff480e020ea5fd937d343b8caf63cae3e10ab5bfbddf19de550026b259e")
+                    .unwrap(),
+                1,
+            ),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }
     }
 
-    fn is_multisig_withdrawal(&self, deposit: &Deposit, tx_in: &TxIn) -> bool {
-        match deposit.redeem_version {
-            RedeemVersion::V1 => {
-                let witness = tx_in.witness.to_vec();
-                // witness script should have 5 elements, and the second last one should be empty
-                witness.len() == 5 && witness[witness.len() - 2].is_empty()
-            }
+    fn test_output1() -> TxOut {
+        TxOut {
+            value: Amount::from_sat(1000),
+            script_pubkey: ScriptBuf::new(),
         }
+    }
+
+    fn test_output2() -> TxOut {
+        TxOut {
+            value: Amount::from_sat(2000),
+            script_pubkey: ScriptBuf::new(),
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "PSBT input length mismatch")]
+    fn test_verify_sign_withdrawal_psbt_wrong_input_len() {
+        let pending_sign_psbt = PendingSignPsbt {
+            psbt: test_psbt(vec![test_input1(), test_input2()], vec![]).into(),
+            reinvest_deposit_vout: None,
+        };
+        let request_psbt = test_psbt(vec![test_input1()], vec![]);
+        verify_sign_withdrawal_psbt(&pending_sign_psbt, &request_psbt);
+    }
+
+    #[test]
+    #[should_panic(expected = "PSBT input mismatch")]
+    fn test_verify_sign_withdrawal_psbt_wrong_input() {
+        let pending_sign_psbt = PendingSignPsbt {
+            psbt: test_psbt(vec![test_input1()], vec![]).into(),
+            reinvest_deposit_vout: None,
+        };
+        let request_psbt = test_psbt(vec![test_input2()], vec![]);
+        verify_sign_withdrawal_psbt(&pending_sign_psbt, &request_psbt);
+    }
+
+    #[test]
+    #[should_panic(expected = "PSBT reinvest output mismatch")]
+    fn test_verify_sign_withdrawal_psbt_wrong_reinvest_output() {
+        let pending_sign_psbt = PendingSignPsbt {
+            psbt: test_psbt(vec![test_input1(), test_input2()], vec![test_output1()]).into(),
+            reinvest_deposit_vout: Some(0),
+        };
+        let request_psbt = test_psbt(vec![test_input1(), test_input2()], vec![test_output2()]);
+        verify_sign_withdrawal_psbt(&pending_sign_psbt, &request_psbt);
     }
 }

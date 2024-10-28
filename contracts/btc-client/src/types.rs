@@ -142,7 +142,7 @@ impl borsh::BorshSerialize for LowercaseString {
 
 #[derive(serde::Serialize, BorshSerialize, BorshDeserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct PendingWithdrawPsbt {
+pub struct PendingSignPsbt {
     pub psbt: BorshPsbt,
     pub reinvest_deposit_vout: Option<u64>,
 }

@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::{
     events::Event,
-    types::{output_id, OutputId, PendingWithdrawPsbt, PubKey, RedeemVersion, StorageKey, TxId},
+    types::{output_id, OutputId, PendingSignPsbt, PubKey, RedeemVersion, StorageKey, TxId},
     utils::current_timestamp_ms,
 };
 
@@ -38,7 +38,7 @@ pub struct Account {
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
     /// PSBT of the withdraw txn that needs to be signed via chain signature
-    pub pending_sign_psbt: Option<PendingWithdrawPsbt>,
+    pub pending_sign_psbt: Option<PendingSignPsbt>,
 }
 
 impl Account {
