@@ -19,14 +19,14 @@ export const config: Config = {
   accountIds: {
     signer: "allbtc.testnet",
     owner: "allbtc.testnet",
-    btcClient: "3.allbtc.testnet",
+    btcClient: "4.allbtc.testnet",
     chainSignature: "v1.signer-dev.testnet",
     btcLightClient: "btc-client.testnet",
   },
   params: {
-    nConfirmation: 1,
+    nConfirmation: 2,
     withdrawWaitingTimeMs: 5 * 60 * 1000, // 5 minutes
-    minDepositSatoshi: 100,
+    minDepositSatoshi: 0,
     earliestDepositBlockHeight: 0,
     soloWithdrawSeqHeights: [2],
   },

@@ -21,30 +21,39 @@ export const queueWithdraw: CommandModule<unknown, Args> = {
       type: "string",
       demandOption: true,
     },
-    txid: {
-      describe: "Deposit txid",
-      type: "string",
-      demandOption: true,
-    },
-    vout: {
-      describe: "Deposit vout",
+    amount: {
+      describe: "Amount to withdraw in satoshis",
       type: "number",
       demandOption: true,
     },
     sig: {
-      describe: "Signature",
+      describe: "Signature of the withdrawal message",
       type: "string",
-      demandOption: true,
+      demandOption: false,
     },
   },
-  async handler({ env, pubkey, txid, vout, sig }) {
+  async handler({ env, pubkey, amount, sig }) {
     const config = await getConfig(env);
     const { signer } = await initNear(env);
 
+    if (!sig) {
+      // print the withdrawal message that needs to be signed
+      const msg = await signer.viewFunction({
+        contractId: config.accountIds.btcClient,
+        methodName: "get_v1_withdrawal_constants",
+        args: {
+          user_pubkey: pubkey,
+          amount,
+        },
+      });
+      console.log("Withdrawal message to sign", msg.queue_withdrawal_msg);
+      console.log(msg.queue_withdrawal_msg);
+      return;
+    }
+
     const args = {
       user_pubkey: pubkey,
-      deposit_tx_id: txid,
-      deposit_vout: vout,
+      withdraw_amount: amount,
       msg_sig: sig,
       sig_type: "ECDSA",
     };
@@ -56,9 +65,6 @@ export const queueWithdraw: CommandModule<unknown, Args> = {
       gas: nearTGas(100),
     });
 
-    console.log(
-      "Queued withdraw",
-      `${args.deposit_tx_id}:${args.deposit_vout}`,
-    );
+    console.log("Queued withdraw");
   },
 };
