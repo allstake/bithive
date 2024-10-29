@@ -9,6 +9,7 @@ import {
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, buildDepositEmbedMsg, someH256 } from "./helpers/utils";
+import { Gas, NEAR } from "near-workspaces";
 
 const test = initUnit();
 
@@ -217,4 +218,35 @@ test("submit deposit txn with timelock", async (t) => {
 
   await builder.submit();
   t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 1);
+});
+
+test("submit deposit txn with insufficient NEAR deposit", async (t) => {
+  const { contract, alice } = t.context.accounts;
+  const builder = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    allstakePubkey: t.context.allstakePubkey,
+  });
+  const tx = builder.tx;
+
+  await assertFailure(
+    t,
+    alice.call(
+      contract,
+      "submit_deposit_tx",
+      {
+        args: {
+          tx_hex: tx.toHex(),
+          embed_vout: 1,
+          tx_block_hash: someH256,
+          tx_index: 1,
+          merkle_proof: [someH256],
+        },
+      },
+      {
+        gas: Gas.parse("200 Tgas"),
+        attachedDeposit: NEAR.parse("0.01"),
+      },
+    ),
+    "Not enough NEAR attached",
+  );
 });
