@@ -349,9 +349,7 @@ fn is_multisig_withdrawal(deposit: &Deposit, tx_in: &TxIn) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
-    use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxOut, Txid, Witness};
+    use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, Sequence, TxOut, Txid, Witness};
 
     use super::*;
 
@@ -367,11 +365,7 @@ mod tests {
 
     fn test_input1() -> TxIn {
         TxIn {
-            previous_output: OutPoint::new(
-                Txid::from_str("8aa6eff480e020ea5fd937d343b8caf63cae3e10ab5bfbddf19de550026b259e")
-                    .unwrap(),
-                0,
-            ),
+            previous_output: OutPoint::new(Txid::all_zeros(), 0),
             script_sig: ScriptBuf::new(),
             sequence: Sequence::MAX,
             witness: Witness::new(),
@@ -380,11 +374,7 @@ mod tests {
 
     fn test_input2() -> TxIn {
         TxIn {
-            previous_output: OutPoint::new(
-                Txid::from_str("8aa6eff480e020ea5fd937d343b8caf63cae3e10ab5bfbddf19de550026b259e")
-                    .unwrap(),
-                1,
-            ),
+            previous_output: OutPoint::new(Txid::all_zeros(), 1),
             script_sig: ScriptBuf::new(),
             sequence: Sequence::MAX,
             witness: Witness::new(),
