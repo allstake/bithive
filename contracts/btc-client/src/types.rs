@@ -187,15 +187,19 @@ impl From<bitcoin::Psbt> for BorshPsbt {
 mod tests {
     use super::*;
 
+    fn test_psbt() -> String {
+        "70736274ff01007e0200000002253b73f1450d6be67a16e46d05f62235f1728d737d9540f12b69f84f4cc5b5950100000000ffffffff2b9507dc02d7a805b8f825f2d4e21b2e8f8b2ae8c9efd7292dcc86e471495a240100000000ffffffff01801a0600000000001976a914f6064f024b21637d7fc244081d7839dbc452d2fe88ac000000000001012be093040000000000220020a8761ded7be3f15c37ef6a84344a94479519218506e18fdb5596c16cd0b61b23010524752103d695ad0a1f72cdd70ca873f84c50cbb428c8f3a61bf6078c2693f3025751903eac0001012be093040000000000220020a8761ded7be3f15c37ef6a84344a94479519218506e18fdb5596c16cd0b61b23010524752103d695ad0a1f72cdd70ca873f84c50cbb428c8f3a61bf6078c2693f3025751903eac0000".to_string()
+    }
+
     #[test]
     fn test_borsh_psbt() {
-        let psbt_hex = "70736274ff01007e0200000002253b73f1450d6be67a16e46d05f62235f1728d737d9540f12b69f84f4cc5b5950100000000ffffffff2b9507dc02d7a805b8f825f2d4e21b2e8f8b2ae8c9efd7292dcc86e471495a240100000000ffffffff01801a0600000000001976a914f6064f024b21637d7fc244081d7839dbc452d2fe88ac000000000001012be093040000000000220020a8761ded7be3f15c37ef6a84344a94479519218506e18fdb5596c16cd0b61b23010524752103d695ad0a1f72cdd70ca873f84c50cbb428c8f3a61bf6078c2693f3025751903eac0001012be093040000000000220020a8761ded7be3f15c37ef6a84344a94479519218506e18fdb5596c16cd0b61b23010524752103d695ad0a1f72cdd70ca873f84c50cbb428c8f3a61bf6078c2693f3025751903eac0000";
-        let psbt_bytes = hex::decode(psbt_hex).unwrap();
+        let psbt_hex = test_psbt();
+        let psbt_bytes = hex::decode(psbt_hex.clone()).unwrap();
         let psbt = bitcoin::Psbt::deserialize(&psbt_bytes).unwrap();
         let borsh_psbt = BorshPsbt(psbt);
 
         let serde_serialized = serde_json::to_string(&borsh_psbt).unwrap();
-        assert_eq!(serde_serialized, serde_json::to_string(psbt_hex).unwrap());
+        assert_eq!(serde_serialized, serde_json::to_string(&psbt_hex).unwrap());
 
         let borsh_serialized = borsh_psbt.try_to_vec().unwrap();
         assert_eq!(borsh_serialized[4..], psbt_bytes);
@@ -204,11 +208,13 @@ mod tests {
         assert_eq!(borsh_deserialized, borsh_psbt);
     }
 
+    fn test_pubkey() -> Vec<u8> {
+        hex::decode("02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5").unwrap()
+    }
+
     #[test]
     fn test_embed_msg_encode_decode() {
-        let pubkey =
-            hex::decode("02f6b15f899fac9c7dc60dcac795291c70e50c3a2ee1d5070dee0d8020781584e5")
-                .unwrap();
+        let pubkey = test_pubkey();
         let msg = DepositEmbedMsg::V1 {
             deposit_vout: 1,
             user_pubkey: pubkey.try_into().unwrap(),
