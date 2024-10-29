@@ -79,7 +79,12 @@ impl Contract {
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_DEPOSIT_VERIFY_CB)
-                    .on_verify_deposit_tx(args.tx_hex, args.embed_vout, deposit_vout),
+                    .on_verify_deposit_tx(
+                        args.tx_hex,
+                        args.embed_vout,
+                        deposit_vout,
+                        env::predecessor_account_id(),
+                    ),
             )
     }
 
@@ -90,6 +95,7 @@ impl Contract {
         tx_hex: String,
         embed_vout: u64,
         deposit_vout: u64,
+        caller_id: AccountId,
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> bool {
         let valid = result.unwrap_or(false);
@@ -97,7 +103,9 @@ impl Contract {
         let txid = tx.compute_txid();
         if !valid {
             self.unset_deposit_confirmed(&txid.to_string().into(), deposit_vout);
-            // TODO refund storage deposit
+            // refund storage deposit
+            Promise::new(caller_id).transfer(STORAGE_DEPOSIT_ACCOUNT);
+
             return false;
         }
 
