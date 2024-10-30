@@ -201,3 +201,39 @@ test("submit multisig withdraw", async (t) => {
     accountBefore.queue_withdrawal_start_ts,
   );
 });
+
+test("submit withdraw with an already withdrawn deposit input", async (t) => {
+  const { contract, alice } = t.context.accounts;
+  const allstakePubkey = t.context.allstakePubkey;
+
+  // make two deposits
+  const builder1 = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    allstakePubkey,
+    depositAmount: 1e8,
+  });
+  await builder1.submit();
+  const builder2 = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    allstakePubkey,
+    depositAmount: 2e8,
+  });
+  // deposit 2 is not submitted yet
+
+  // make a withdraw transaction to withdraw both
+  builder1.generateWithdrawPsbt({
+    hash: builder2.tx.getId(),
+    index: 0,
+  });
+  await builder1.submitWithdraw();
+
+  // submit the second deposit
+  await builder2.submit();
+
+  // try to submit the withdraw again
+  // only the second deposit should be withdrawn, the first one is already withdrawn
+  await builder1.submitWithdraw();
+
+  t.is(await getUserWithdrawnDepositsLen(contract, builder1.userPubkeyHex), 2);
+  t.is(await getUserActiveDepositsLen(contract, builder1.userPubkeyHex), 0);
+});
