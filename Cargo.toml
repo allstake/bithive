@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "contracts/bip322-contract",
     "contracts/btc-client",
     "contracts/mock-btc-lightclient",
     "contracts/mock-chain-signature",

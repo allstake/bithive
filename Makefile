@@ -12,6 +12,16 @@ btc-client-test: contracts/btc-client
 	@mkdir -p res
 	@cp target/wasm32-unknown-unknown/release/btc_client.wasm ./res/btc_client_test.wasm
 
+bip322: contracts/bip322-contract
+	$(call compile_release,bip322-contract)
+	@mkdir -p res
+	@cp target/wasm32-unknown-unknown/release/bip322_contract.wasm ./res/bip322_contract.wasm
+
+bip322-test: contracts/bip322-contract
+	$(call compile_test,bip322-contract)
+	@mkdir -p res
+	@cp target/wasm32-unknown-unknown/release/bip322_contract.wasm ./res/bip322_contract_test.wasm
+
 mock-btc-lightclient: contracts/mock-btc-lightclient
 	$(call compile_release,mock-btc-lightclient)
 	@mkdir -p res
@@ -29,7 +39,7 @@ lint:
 test: test-unit test-ava test-integration
 
 test-unit:
-	@cargo test --features=test -- --nocapture
+	@cargo test -- --nocapture
 
 TEST_FILE ?= **
 ifndef LOGS

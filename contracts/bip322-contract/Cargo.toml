@@ -1,0 +1,20 @@
+[package]
+name = "bip322-contract"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = { version = "4.1.1" }
+bip322-rs = "0.0.11"
+hex="0.4.3"
+
+[patch.crates-io]
+parity-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1/", version = "0.7.0" }
+
+[features]
+test = []
