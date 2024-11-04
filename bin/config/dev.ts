@@ -19,6 +19,7 @@ export const config: Config = {
   accountIds: {
     signer: "allbtc.testnet",
     owner: "allbtc.testnet",
+    bip322Verifier: "bip322.testnet",
     btcClient: "4.allbtc.testnet",
     chainSignature: "v1.signer-dev.testnet",
     btcLightClient: "btc-client.testnet",

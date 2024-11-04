@@ -19,6 +19,7 @@ export const init: CommandModule<unknown, Args> = {
 
     const args = {
       owner_id: config.accountIds.owner,
+      bip322_verifier_id: config.accountIds.bip322Verifier,
       btc_lightclient_id: config.accountIds.btcLightClient,
       chain_signature_id: config.accountIds.chainSignature,
       n_confirmation: config.params.nConfirmation,
