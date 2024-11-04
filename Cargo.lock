@@ -105,15 +105,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d965446196e3b7decd44aa7ee49e31d630118f90ef12f97900f262eb915c951d"
 
 [[package]]
-name = "bip322-contract"
-version = "0.1.0"
-dependencies = [
- "bip322-rs",
- "hex",
- "near-sdk",
-]
-
-[[package]]
 name = "bip322-rs"
 version = "0.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,6 +113,15 @@ dependencies = [
  "base64 0.22.1",
  "bitcoin",
  "snafu",
+]
+
+[[package]]
+name = "bip322-verifier"
+version = "0.1.0"
+dependencies = [
+ "bip322-rs",
+ "hex",
+ "near-sdk",
 ]
 
 [[package]]

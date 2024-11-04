@@ -4,13 +4,13 @@ use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction, TxIn};
 use consts::{CHAIN_SIGNATURE_KEY_VERSION_V1, CHAIN_SIGNATURE_PATH_V1};
 use events::Event;
 use ext::{
-    ext_btc_lightclient, ext_chain_signature, ProofArgs, SignRequest, SignatureResponse,
-    GAS_LIGHTCLIENT_VERIFY,
+    ext_bip322_verifier, ext_btc_lightclient, ext_chain_signature, ProofArgs, SignRequest,
+    SignatureResponse, GAS_LIGHTCLIENT_VERIFY,
 };
 use near_sdk::{
     env::{self},
     json_types::U128,
-    near_bindgen, require, Gas, Promise, PromiseError,
+    near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue,
 };
 use serde::{Deserialize, Serialize};
 use types::{DepositEmbedMsg, PendingSignPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
@@ -40,6 +40,9 @@ const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
 pub enum SigType {
     #[allow(clippy::upper_case_acronyms)]
     ECDSA,
+    Bip322Full {
+        address: String,
+    },
 }
 
 #[near_bindgen]
@@ -57,21 +60,59 @@ impl Contract {
         withdraw_amount: u64,
         msg_sig: String,
         sig_type: SigType,
-    ) {
+    ) -> PromiseOrValue<bool> {
         let mut account = self.get_account(&user_pubkey.clone().into());
 
         // verify msg signature
         let expected_withdraw_msg = self.withdrawal_message(account.nonce, withdraw_amount);
-        let msg = match sig_type {
-            SigType::ECDSA => verify_signed_message_ecdsa(
-                &expected_withdraw_msg.into_bytes(),
-                &hex::decode(&msg_sig).unwrap(),
-                &hex::decode(&user_pubkey).unwrap(),
-            ),
-        };
+        match sig_type {
+            SigType::ECDSA => {
+                let msg = verify_signed_message_ecdsa(
+                    &expected_withdraw_msg.into_bytes(),
+                    &hex::decode(&msg_sig).unwrap(),
+                    &hex::decode(&user_pubkey).unwrap(),
+                );
+                account.queue_withdrawal(withdraw_amount, msg, &msg_sig);
+                self.set_account(account);
+                PromiseOrValue::Value(true)
+            }
+            SigType::Bip322Full { address } => {
+                ext_bip322_verifier::ext(self.bip322_verifier_id.clone())
+                    .verify_bip322_full(
+                        user_pubkey.clone(),
+                        address,
+                        expected_withdraw_msg.clone(),
+                        msg_sig.clone(),
+                    )
+                    .then(Self::ext(env::current_account_id()).on_bip322_verify(
+                        user_pubkey,
+                        withdraw_amount,
+                        expected_withdraw_msg,
+                        msg_sig,
+                    ))
+                    .into()
+            }
+        }
+    }
 
-        account.queue_withdrawal(withdraw_amount, msg, &msg_sig);
+    #[private]
+    pub fn on_bip322_verify(
+        &mut self,
+        user_pubkey: String,
+        withdraw_amount: u64,
+        msg: String,
+        msg_sig: String,
+        #[callback_result] result: Result<bool, PromiseError>,
+    ) -> PromiseOrValue<bool> {
+        let valid = result.unwrap_or(false);
+        if !valid {
+            return PromiseOrValue::Value(false);
+        }
+
+        let mut account = self.get_account(&user_pubkey.clone().into());
+        account.queue_withdrawal(withdraw_amount, msg.into_bytes(), &msg_sig);
         self.set_account(account);
+        PromiseOrValue::Value(true)
     }
 
     /// Sign a BTC withdrawal PSBT via chain signature for multisig withdraw

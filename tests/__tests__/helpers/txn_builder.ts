@@ -121,6 +121,17 @@ export class TestTransactionBuilder {
     );
   }
 
+  async queueWithdrawBip322(amount: number, sigHex: string, address: string) {
+    return queueWithdrawal(
+      this.btcClient,
+      this.caller,
+      this.userPubkeyHex,
+      amount,
+      sigHex,
+      { Bip322Full: { address } },
+    );
+  }
+
   generateWithdrawPsbt(
     extraInput?: {
       hash: string;

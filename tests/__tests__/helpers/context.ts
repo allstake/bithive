@@ -156,6 +156,16 @@ async function createFixtures(root: NearAccount) {
     },
   });
 
+  const mockBip322Verifier = await deployAndInit({
+    root,
+    subContractId: "bip322-verifier",
+    code: "res/bip322_verifier_test.wasm",
+    init: {
+      methodName: "new",
+      args: {},
+    },
+  });
+
   const contract = await deployAndInit({
     root,
     subContractId: "btc-client",
@@ -166,6 +176,7 @@ async function createFixtures(root: NearAccount) {
         args: {
           owner_id: owner.accountId,
           btc_lightclient_id: mockLightclient.accountId,
+          bip322_verifier_id: mockBip322Verifier.accountId,
           chain_signature_id: mockChainSignature.accountId,
           n_confirmation: 6,
           withdraw_waiting_time_ms: daysToMs(2),

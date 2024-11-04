@@ -1,5 +1,5 @@
 [package]
-name = "bip322-contract"
+name = "bip322-verifier"
 version = "0.1.0"
 edition = "2021"
 

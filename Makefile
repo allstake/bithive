@@ -12,15 +12,15 @@ btc-client-test: contracts/btc-client
 	@mkdir -p res
 	@cp target/wasm32-unknown-unknown/release/btc_client.wasm ./res/btc_client_test.wasm
 
-bip322: contracts/bip322-contract
-	$(call compile_release,bip322-contract)
+bip322-verifier: contracts/bip322-verifier
+	$(call compile_release,bip322-verifier)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/bip322_contract.wasm ./res/bip322_contract.wasm
+	@cp target/wasm32-unknown-unknown/release/bip322_verifier.wasm ./res/bip322_verifier.wasm
 
-bip322-test: contracts/bip322-contract
-	$(call compile_test,bip322-contract)
+bip322-verifier-test: contracts/bip322-verifier
+	$(call compile_test,bip322-verifier)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/bip322_contract.wasm ./res/bip322_contract_test.wasm
+	@cp target/wasm32-unknown-unknown/release/bip322_verifier.wasm ./res/bip322_verifier_test.wasm
 
 mock-btc-lightclient: contracts/mock-btc-lightclient
 	$(call compile_release,mock-btc-lightclient)
@@ -48,11 +48,11 @@ else
 	export NEAR_PRINT_LOGS=1 
 endif
 
-test-ava: btc-client-test mock-btc-lightclient mock-chain-signature
+test-ava: btc-client-test mock-btc-lightclient mock-chain-signature bip322-verifier-test
 	npx ava -c 2 --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
 
 
-test-integration: btc-client-test mock-btc-lightclient mock-chain-signature
+test-integration: btc-client-test mock-btc-lightclient mock-chain-signature bip322-verifier-test
 	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
 UNAME_S := $(shell uname -s)

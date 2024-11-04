@@ -1,7 +1,10 @@
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import { fastForward, viewAccount } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, daysToMs } from "./helpers/utils";
+import * as ecc from "tiny-secp256k1";
+import * as bitcoin from "bitcoinjs-lib";
 
 const test = initUnit();
 
@@ -143,4 +146,19 @@ test("queue withdraw should clear pending withdraw psbt", async (t) => {
 
   account = await viewAccount(contract, builder.userPubkeyHex);
   t.assert(account.pending_sign_psbt === null);
+});
+
+test.only("queue withdraw with bip322 signature", async (t) => {
+  bitcoin.initEccLib(ecc);
+  const { builder } = await makeDeposit(t);
+  const address = bitcoin.payments.p2tr({
+    internalPubkey: toXOnly(builder.userPubkey),
+    network: bitcoin.networks.bitcoin,
+  }).address!;
+
+  const sigOk = "00"; // dummy signature, just to test the function
+  t.assert(await builder.queueWithdrawBip322(100, sigOk, address));
+
+  const sigBad = "01"; // dummy signature, just to test the function
+  t.assert(!(await builder.queueWithdrawBip322(100, sigBad, address)));
 });

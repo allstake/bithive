@@ -27,13 +27,21 @@ export async function submitDepositTx(
   );
 }
 
+type SigType =
+  | "ECDSA"
+  | {
+      Bip322Full: {
+        address: string;
+      };
+    };
+
 export async function queueWithdrawal(
   btcClient: NearAccount,
   caller: NearAccount,
   user_pubkey: string,
   withdraw_amount: number,
   msg_sig: string,
-  sig_type: "ECDSA",
+  sig_type: SigType,
 ) {
   return caller.call(btcClient, "queue_withdrawal", {
     user_pubkey,
