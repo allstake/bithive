@@ -47,3 +47,24 @@ export const init: CommandModule<unknown, Args> = {
     process.exit(0);
   },
 };
+
+export const initBip322: CommandModule<unknown, Args> = {
+  command: "init-bip322",
+  describe: "Initialize BIP322 verifier contract",
+  builder: {
+    env: envBuilder,
+  },
+  async handler({ env }) {
+    const config = await getConfig(env);
+    const { signer } = await initNear(env, config.accountIds.bip322Verifier);
+
+    await signer.functionCall({
+      contractId: config.accountIds.bip322Verifier,
+      methodName: "new",
+      args: {},
+    });
+    console.log("Initialized BIP322 verifier contract");
+
+    process.exit(0);
+  },
+};
