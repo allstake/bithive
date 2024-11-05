@@ -43,12 +43,19 @@ export async function queueWithdrawal(
   msg_sig: string,
   sig_type: SigType,
 ) {
-  return caller.call(btcClient, "queue_withdrawal", {
-    user_pubkey,
-    withdraw_amount,
-    msg_sig,
-    sig_type,
-  });
+  return caller.call(
+    btcClient,
+    "queue_withdrawal",
+    {
+      user_pubkey,
+      withdraw_amount,
+      msg_sig,
+      sig_type,
+    },
+    {
+      gas: Gas.parse("60 Tgas"),
+    },
+  );
 }
 
 export async function signWithdrawal(

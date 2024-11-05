@@ -148,7 +148,7 @@ test("queue withdraw should clear pending withdraw psbt", async (t) => {
   t.assert(account.pending_sign_psbt === null);
 });
 
-test.only("queue withdraw with bip322 signature", async (t) => {
+test("queue withdraw with bip322 signature", async (t) => {
   bitcoin.initEccLib(ecc);
   const { builder } = await makeDeposit(t);
   const address = bitcoin.payments.p2tr({

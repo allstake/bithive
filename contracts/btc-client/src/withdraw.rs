@@ -19,6 +19,8 @@ use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_me
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
 const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
+const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
+const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdraw request made";
@@ -78,18 +80,23 @@ impl Contract {
             }
             SigType::Bip322Full { address } => {
                 ext_bip322_verifier::ext(self.bip322_verifier_id.clone())
+                    .with_static_gas(GAS_BIP322_VERIFY)
                     .verify_bip322_full(
                         user_pubkey.clone(),
                         address,
                         expected_withdraw_msg.clone(),
                         msg_sig.clone(),
                     )
-                    .then(Self::ext(env::current_account_id()).on_bip322_verify(
-                        user_pubkey,
-                        withdraw_amount,
-                        expected_withdraw_msg,
-                        msg_sig,
-                    ))
+                    .then(
+                        Self::ext(env::current_account_id())
+                            .with_static_gas(GAS_BIP322_VERIFY_CB)
+                            .on_bip322_verify(
+                                user_pubkey,
+                                withdraw_amount,
+                                expected_withdraw_msg,
+                                msg_sig,
+                            ),
+                    )
                     .into()
             }
         }
