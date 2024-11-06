@@ -2,9 +2,10 @@ use std::cmp::min;
 
 use crate::*;
 use account::{Deposit, DepositStatus};
+use bitcoin::{consensus::encode::deserialize_hex, Transaction};
 use consts::CHAIN_SIGNATURE_PATH_V1;
 use serde::{Deserialize, Serialize};
-use types::DepositEmbedMsg;
+use types::{output_id, DepositEmbedMsg};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -146,5 +147,20 @@ impl Contract {
         account
             .try_get_active_deposit(&tx_id.clone().into(), vout)
             .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout))
+    }
+
+    /// Dry run deposit txn to verify if it can be accepted or not
+    /// ### Arguments
+    /// * `tx_hex` - hex encoded transaction
+    /// * `embed_vout` - vout index of the embed output
+    pub fn dry_run_deposit(&self, tx_hex: String, embed_vout: u64) {
+        let tx = deserialize_hex::<Transaction>(&tx_hex).unwrap();
+        let output_id = output_id(&tx.compute_txid().to_string().into(), embed_vout);
+
+        require!(
+            !self.confirmed_deposit_txns.contains(&output_id),
+            "deposit txn verification failed"
+        );
+        self.verify_deposit_txn(&tx, embed_vout);
     }
 }
