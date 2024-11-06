@@ -20,7 +20,7 @@ export const config: Config = {
     signer: "allbtc.testnet",
     owner: "allbtc.testnet",
     bip322Verifier: "bip322.testnet",
-    btcClient: "testnet4.allbtc.testnet",
+    btcClient: "testnet4-2.allbtc.testnet",
     chainSignature: "v1.signer-dev.testnet",
     btcLightClient: "btclc.testnet",
   },
