@@ -2,10 +2,11 @@ use std::cmp::min;
 
 use crate::*;
 use account::{Deposit, DepositStatus};
-use bitcoin::{consensus::encode::deserialize_hex, Transaction};
+use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
 use consts::CHAIN_SIGNATURE_PATH_V1;
 use serde::{Deserialize, Serialize};
 use types::{output_id, DepositEmbedMsg};
+use withdraw::{verify_pending_sign_partial_sig, verify_sign_withdrawal_psbt, withdrawal_message};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -98,7 +99,7 @@ impl Contract {
         amount: u64,
     ) -> WithdrawalConstantsV1 {
         let account = self.get_account(&user_pubkey.into());
-        let msg = self.withdrawal_message(account.nonce, amount);
+        let msg = withdrawal_message(account.nonce, amount);
         WithdrawalConstantsV1 {
             queue_withdrawal_msg: msg,
         }
@@ -162,5 +163,37 @@ impl Contract {
             "deposit txn verification failed"
         );
         self.verify_deposit_txn(&tx, embed_vout);
+    }
+
+    /// Dry run sign withdrawal txn to verify if it can be accepted or not
+    /// ### Arguments
+    /// * `psbt_hex` - hex encoded PSBT
+    /// * `user_pubkey` - user pubkey
+    /// * `vin_to_sign` - input index to sign
+    /// * `reinvest_embed_vout` - vout index of the reinvest embed output
+    pub fn dry_run_sign_withdrawal(
+        &self,
+        psbt_hex: String,
+        user_pubkey: String,
+        vin_to_sign: u64,
+        reinvest_embed_vout: Option<u64>,
+    ) {
+        let psbt_bytes = hex::decode(psbt_hex).unwrap();
+        let psbt = Psbt::deserialize(&psbt_bytes).unwrap();
+
+        let account = self.get_account(&user_pubkey.clone().into());
+
+        let input_to_sign = psbt.unsigned_tx.input.get(vin_to_sign as usize).unwrap();
+        account.get_active_deposit(
+            &input_to_sign.previous_output.txid.to_string().into(),
+            input_to_sign.previous_output.vout.into(),
+        );
+
+        if account.pending_sign_psbt.is_some() {
+            verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
+        } else {
+            verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
+            self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
+        }
     }
 }
