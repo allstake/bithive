@@ -13,6 +13,7 @@ mod events;
 mod ext;
 mod kdf;
 mod types;
+mod upgrade;
 mod utils;
 mod view;
 mod withdraw;

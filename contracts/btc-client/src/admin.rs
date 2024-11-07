@@ -60,7 +60,7 @@ impl Contract {
 }
 
 impl Contract {
-    fn assert_owner(&self) {
+    pub(crate) fn assert_owner(&self) {
         assert_one_yocto();
         require!(env::predecessor_account_id() == self.owner_id, "Not owner");
     }
