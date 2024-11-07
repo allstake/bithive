@@ -2,6 +2,9 @@ RUSTFLAGS = "-C link-arg=-s"
 
 all: lint btc-client
 
+clean:
+	rm -rf res
+
 btc-client: contracts/btc-client
 	$(call compile_release,btc-client)
 	@mkdir -p res
