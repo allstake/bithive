@@ -96,7 +96,7 @@ pub fn output_id(tx_id: &TxId, vout: u64) -> LowercaseString {
 }
 
 /// helper type which enforces lowercase strings
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, PartialEq, Debug)]
 pub struct LowercaseString(String);
 
 impl LowercaseString {

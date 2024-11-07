@@ -36,6 +36,7 @@ const ERR_INVALID_PARTIAL_SIG: &str = "Invalid partial signature for withdraw PS
 const ERR_BAD_WITHDRAW_AMOUNT: &str = "Withdraw amount is larger than queued amount";
 const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
 const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
+const ERR_PSBT_REINVEST_PUBKEY_MISMATCH: &str = "PSBT reinvest pubkey mismatch";
 const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
 // submit withdraw errors
@@ -328,6 +329,10 @@ impl Contract {
         let reinvest_amount = reinvest_embed_vout
             .map(|embed_vout| {
                 let deposit = self.verify_deposit_txn(&psbt.unsigned_tx, embed_vout);
+                require!(
+                    deposit.user_pubkey == account.pubkey,
+                    ERR_PSBT_REINVEST_PUBKEY_MISMATCH
+                );
                 deposit.value
             })
             .unwrap_or(0);
