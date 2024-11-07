@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use crate::*;
 use account::Deposit;
-use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction, TxIn};
+use bitcoin::{consensus::encode::deserialize_hex, Psbt, PublicKey, Transaction, TxIn};
 use consts::{CHAIN_SIGNATURE_KEY_VERSION_V1, CHAIN_SIGNATURE_PATH_V1};
 use events::Event;
 use ext::{
@@ -14,7 +16,10 @@ use near_sdk::{
 };
 use serde::{Deserialize, Serialize};
 use types::{DepositEmbedMsg, PendingSignPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
-use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_message_ecdsa};
+use utils::{
+    assert_gas, current_timestamp_ms, get_hash_to_sign, verify_secp256k1_signature,
+    verify_signed_message_ecdsa,
+};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
@@ -22,16 +27,18 @@ const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
+// sign withdraw errors
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdraw request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
+const ERR_MISSING_PARTIAL_SIG: &str = "Missing partial sig for given input";
+const ERR_INVALID_PARTIAL_SIG: &str = "Invalid partial signature for withdraw PSBT";
 const ERR_BAD_WITHDRAW_AMOUNT: &str = "Withdraw amount is larger than queued amount";
 const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
 const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
 const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
-
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
-
+// submit withdraw errors
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
 
@@ -124,7 +131,7 @@ impl Contract {
 
     /// Sign a BTC withdrawal PSBT via chain signature for multisig withdraw
     /// ### Arguments
-    /// * `psbt_hex` - hex encoded PSBT to sign
+    /// * `psbt_hex` - hex encoded PSBT to sign, must be partially signed by the user first
     /// * `user_pubkey` - user public key
     /// * `vin_to_sign` - vin to sign, must be an active deposit UTXO
     /// * `reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
@@ -155,6 +162,7 @@ impl Contract {
             verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
         } else {
             // if not , verify the withdraw PSBT and save it for signing
+            self.verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             self.set_pending_sign_request(&mut account, &psbt, reinvest_embed_vout);
             self.set_account(account);
         }
@@ -275,6 +283,28 @@ impl Contract {
 impl Contract {
     pub(crate) fn withdrawal_message(&self, nonce: u64, amount: u64) -> String {
         format!("bithive.withdraw:{}:{}sats", nonce, amount)
+    }
+
+    /// Verify if the PSBT has a valid partial signature for the given input
+    /// This is to make sure the PSBT is submitted by the user himself
+    fn verify_pending_sign_partial_sig(&self, psbt: &Psbt, vin_to_sign: u64, user_pubkey: &str) {
+        let input = psbt.inputs.get(vin_to_sign as usize).unwrap();
+        let hash_to_sign = get_hash_to_sign(psbt, vin_to_sign);
+
+        let pubkey = PublicKey::from_str(user_pubkey).unwrap();
+        let user_sig = input
+            .partial_sigs
+            .get(&pubkey)
+            .expect(ERR_MISSING_PARTIAL_SIG)
+            .signature
+            .serialize_compact();
+
+        // try with v = 0 and v = 1
+        verify_secp256k1_signature(&pubkey.inner.serialize(), &hash_to_sign, &user_sig, 0u8)
+            .or_else(|_| {
+                verify_secp256k1_signature(&pubkey.inner.serialize(), &hash_to_sign, &user_sig, 1u8)
+            })
+            .expect(ERR_INVALID_PARTIAL_SIG);
     }
 
     pub(crate) fn set_pending_sign_request(
