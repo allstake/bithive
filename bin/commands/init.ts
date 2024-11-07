@@ -19,6 +19,7 @@ export const init: CommandModule<unknown, Args> = {
 
     const args = {
       owner_id: config.accountIds.owner,
+      bip322_verifier_id: config.accountIds.bip322Verifier,
       btc_lightclient_id: config.accountIds.btcLightClient,
       chain_signature_id: config.accountIds.chainSignature,
       n_confirmation: config.params.nConfirmation,
@@ -42,6 +43,27 @@ export const init: CommandModule<unknown, Args> = {
       gas: nearTGas(100),
     });
     console.log("Called sync_chain_signature_root_pubkey method");
+
+    process.exit(0);
+  },
+};
+
+export const initBip322: CommandModule<unknown, Args> = {
+  command: "init-bip322",
+  describe: "Initialize BIP322 verifier contract",
+  builder: {
+    env: envBuilder,
+  },
+  async handler({ env }) {
+    const config = await getConfig(env);
+    const { signer } = await initNear(env, config.accountIds.bip322Verifier);
+
+    await signer.functionCall({
+      contractId: config.accountIds.bip322Verifier,
+      methodName: "new",
+      args: {},
+    });
+    console.log("Initialized BIP322 verifier contract");
 
     process.exit(0);
   },
