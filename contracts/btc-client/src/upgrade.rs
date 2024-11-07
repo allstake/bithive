@@ -1,7 +1,6 @@
-use crate::{Contract, ContractExt};
+use crate::{view::ContractSummary, Contract, ContractExt};
 use near_sdk::{
-    assert_one_yocto, env, near_bindgen, AccountId, Gas, GasWeight, Promise, PromiseOrValue,
-    ONE_YOCTO,
+    assert_one_yocto, env, near_bindgen, Gas, GasWeight, Promise, PromiseOrValue, ONE_YOCTO,
 };
 
 #[near_bindgen]
@@ -15,7 +14,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn upgrade(&mut self) -> PromiseOrValue<AccountId> {
+    pub fn upgrade(&mut self) -> PromiseOrValue<ContractSummary> {
         self.assert_owner();
         let code = env::input().expect("Code not found");
         Promise::new(env::current_account_id())
