@@ -17,7 +17,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn set_bip322_verifier_id(&mut self, new_contract_id: AccountId) {
+    pub fn set_bip322_verifier_id(&mut self, new_contract_id: Option<AccountId>) {
         self.assert_owner();
         self.bip322_verifier_id = new_contract_id;
     }

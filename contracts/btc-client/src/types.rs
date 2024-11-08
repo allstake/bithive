@@ -18,7 +18,7 @@ pub enum StorageKey {
 pub struct InitArgs {
     pub owner_id: AccountId,
     pub btc_lightclient_id: AccountId,
-    pub bip322_verifier_id: AccountId,
+    pub bip322_verifier_id: Option<AccountId>,
     pub chain_signature_id: AccountId,
     pub n_confirmation: u64,
     pub withdraw_waiting_time_ms: u64,

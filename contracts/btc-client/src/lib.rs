@@ -32,7 +32,7 @@ pub struct Contract {
     /// btc light client contract ID
     btc_lightclient_id: AccountId,
     /// bip322 verifier contract ID
-    bip322_verifier_id: AccountId,
+    bip322_verifier_id: Option<AccountId>,
     /// chain signature contract ID
     chain_signature_id: AccountId,
     /// chain signature root public key
@@ -137,7 +137,7 @@ mod tests {
         let mut contract = Contract::init(InitArgs {
             owner_id: AccountId::new_unchecked("owner".to_string()),
             btc_lightclient_id: AccountId::new_unchecked("lc".to_string()),
-            bip322_verifier_id: AccountId::new_unchecked("bv".to_string()),
+            bip322_verifier_id: Some(AccountId::new_unchecked("bv".to_string())),
             chain_signature_id: AccountId::new_unchecked("cs".to_string()),
             n_confirmation: 6,
             withdraw_waiting_time_ms: 0,
