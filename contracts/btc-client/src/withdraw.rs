@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use crate::*;
 use account::Deposit;
-use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction, TxIn};
+use bitcoin::{consensus::encode::deserialize_hex, Psbt, PublicKey, Transaction, TxIn};
 use consts::{CHAIN_SIGNATURE_KEY_VERSION_V1, CHAIN_SIGNATURE_PATH_V1};
 use events::Event;
 use ext::{
@@ -14,7 +16,10 @@ use near_sdk::{
 };
 use serde::{Deserialize, Serialize};
 use types::{DepositEmbedMsg, PendingSignPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
-use utils::{assert_gas, current_timestamp_ms, get_hash_to_sign, verify_signed_message_ecdsa};
+use utils::{
+    assert_gas, current_timestamp_ms, get_hash_to_sign, verify_secp256k1_signature,
+    verify_signed_message_ecdsa,
+};
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
@@ -22,16 +27,21 @@ const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
+// queue withdraw errors
+const ERR_BIP322_NOT_ENABLED: &str = "BIP322 is not enabled";
+// sign withdraw errors
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdraw request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
+const ERR_MISSING_PARTIAL_SIG: &str = "Missing partial sig for given input";
+const ERR_INVALID_PARTIAL_SIG: &str = "Invalid partial signature for withdraw PSBT";
 const ERR_BAD_WITHDRAW_AMOUNT: &str = "Withdraw amount is larger than queued amount";
 const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
 const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
+const ERR_PSBT_REINVEST_PUBKEY_MISMATCH: &str = "PSBT reinvest pubkey mismatch";
 const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
-
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
-
+// submit withdraw errors
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
 
@@ -66,7 +76,7 @@ impl Contract {
         let mut account = self.get_account(&user_pubkey.clone().into());
 
         // verify msg signature
-        let expected_withdraw_msg = self.withdrawal_message(account.nonce, withdraw_amount);
+        let expected_withdraw_msg = withdrawal_message(account.nonce, withdraw_amount);
         match sig_type {
             SigType::ECDSA => {
                 let msg = verify_signed_message_ecdsa(
@@ -79,7 +89,8 @@ impl Contract {
                 PromiseOrValue::Value(true)
             }
             SigType::Bip322Full { address } => {
-                ext_bip322_verifier::ext(self.bip322_verifier_id.clone())
+                require!(self.bip322_verifier_id.is_some(), ERR_BIP322_NOT_ENABLED);
+                ext_bip322_verifier::ext(self.bip322_verifier_id.clone().unwrap())
                     .with_static_gas(GAS_BIP322_VERIFY)
                     .verify_bip322_full(
                         user_pubkey.clone(),
@@ -124,7 +135,7 @@ impl Contract {
 
     /// Sign a BTC withdrawal PSBT via chain signature for multisig withdraw
     /// ### Arguments
-    /// * `psbt_hex` - hex encoded PSBT to sign
+    /// * `psbt_hex` - hex encoded PSBT to sign, must be partially signed by the user first
     /// * `user_pubkey` - user public key
     /// * `vin_to_sign` - vin to sign, must be an active deposit UTXO
     /// * `reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
@@ -155,7 +166,19 @@ impl Contract {
             verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
         } else {
             // if not , verify the withdraw PSBT and save it for signing
-            self.set_pending_sign_request(&mut account, &psbt, reinvest_embed_vout);
+            verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
+            let reinvest_deposit_vout =
+                self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
+
+            // update account state
+            account.pending_sign_psbt = Some(PendingSignPsbt {
+                psbt: psbt.clone().into(),
+                reinvest_deposit_vout,
+            });
+            // reset queue withdrawal amount
+            account.queue_withdrawal_amount = 0;
+            account.queue_withdrawal_start_ts = 0;
+
             self.set_account(account);
         }
 
@@ -273,16 +296,14 @@ impl Contract {
 }
 
 impl Contract {
-    pub(crate) fn withdrawal_message(&self, nonce: u64, amount: u64) -> String {
-        format!("bithive.withdraw:{}:{}sats", nonce, amount)
-    }
-
-    pub(crate) fn set_pending_sign_request(
-        &mut self,
-        account: &mut Account,
+    /// Verify if the withdrawal amount in the PSBT is valid
+    /// Returns the reinvest deposit vout if any
+    pub(crate) fn verify_pending_sign_request_amount(
+        &self,
+        account: &Account,
         psbt: &Psbt,
         reinvest_embed_vout: Option<u64>,
-    ) {
+    ) -> Option<u64> {
         require!(
             account.queue_withdrawal_amount > 0 && account.queue_withdrawal_start_ts > 0,
             ERR_NO_WITHDRAW_REQUESTED
@@ -311,6 +332,10 @@ impl Contract {
         let reinvest_amount = reinvest_embed_vout
             .map(|embed_vout| {
                 let deposit = self.verify_deposit_txn(&psbt.unsigned_tx, embed_vout);
+                require!(
+                    deposit.user_pubkey == account.pubkey,
+                    ERR_PSBT_REINVEST_PUBKEY_MISMATCH
+                );
                 deposit.value
             })
             .unwrap_or(0);
@@ -322,26 +347,47 @@ impl Contract {
             ERR_BAD_WITHDRAW_AMOUNT
         );
 
-        // save the PSBT for signing
-        // extract the deposit vout from embed message, it will be later used to verify the withdraw txn
-        let deposit_vout = reinvest_embed_vout.map(|embed_vout| {
+        // return the reinvest deposit vout if any
+        reinvest_embed_vout.map(|embed_vout| {
             let embed_msg = self.verify_embed_output(&psbt.unsigned_tx, embed_vout);
             match embed_msg {
                 DepositEmbedMsg::V1 { deposit_vout, .. } => deposit_vout,
             }
-        });
-        account.pending_sign_psbt = Some(PendingSignPsbt {
-            psbt: psbt.clone().into(),
-            reinvest_deposit_vout: deposit_vout,
-        });
-        // reset queue withdrawal amount
-        account.queue_withdrawal_amount = 0;
-        account.queue_withdrawal_start_ts = 0;
+        })
     }
 }
 
+pub(crate) fn withdrawal_message(nonce: u64, amount: u64) -> String {
+    format!("bithive.withdraw:{}:{}sats", nonce, amount)
+}
+
+/// Verify if the PSBT has a valid partial signature for the given input
+/// This is to make sure the PSBT is submitted by the user himself
+pub(crate) fn verify_pending_sign_partial_sig(psbt: &Psbt, vin_to_sign: u64, user_pubkey: &str) {
+    let input = psbt.inputs.get(vin_to_sign as usize).unwrap();
+    let hash_to_sign = get_hash_to_sign(psbt, vin_to_sign);
+
+    let pubkey = PublicKey::from_str(user_pubkey).unwrap();
+    let user_sig = input
+        .partial_sigs
+        .get(&pubkey)
+        .expect(ERR_MISSING_PARTIAL_SIG)
+        .signature
+        .serialize_compact();
+
+    // try with v = 0 and v = 1
+    verify_secp256k1_signature(&pubkey.inner.serialize(), &hash_to_sign, &user_sig, 0u8)
+        .or_else(|_| {
+            verify_secp256k1_signature(&pubkey.inner.serialize(), &hash_to_sign, &user_sig, 1u8)
+        })
+        .expect(ERR_INVALID_PARTIAL_SIG);
+}
+
 /// The PSBT provided must be the same or RBF of the saved withdraw PSBT
-fn verify_sign_withdrawal_psbt(pending_sign_psbt: &PendingSignPsbt, request_psbt: &Psbt) {
+pub(crate) fn verify_sign_withdrawal_psbt(
+    pending_sign_psbt: &PendingSignPsbt,
+    request_psbt: &Psbt,
+) {
     let expected_psbt: bitcoin::Psbt = pending_sign_psbt.psbt.clone().into();
 
     // each input must match the saved PSBT

@@ -18,7 +18,7 @@ pub enum StorageKey {
 pub struct InitArgs {
     pub owner_id: AccountId,
     pub btc_lightclient_id: AccountId,
-    pub bip322_verifier_id: AccountId,
+    pub bip322_verifier_id: Option<AccountId>,
     pub chain_signature_id: AccountId,
     pub n_confirmation: u64,
     pub withdraw_waiting_time_ms: u64,
@@ -96,7 +96,7 @@ pub fn output_id(tx_id: &TxId, vout: u64) -> LowercaseString {
 }
 
 /// helper type which enforces lowercase strings
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, PartialEq, Debug)]
 pub struct LowercaseString(String);
 
 impl LowercaseString {

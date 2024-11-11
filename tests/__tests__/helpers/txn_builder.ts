@@ -139,6 +139,7 @@ export class TestTransactionBuilder {
     },
     reinvestAmount = 0,
     withdrawAmount = 100,
+    signInputs = true,
   ): bitcoin.Psbt {
     const userP2WPKHAddress = bitcoin.payments.p2wpkh({
       pubkey: this.userPubkey,
@@ -185,6 +186,18 @@ export class TestTransactionBuilder {
       this.reinvest = true;
     }
 
+    if (signInputs) {
+      this.partialSignWithdrawPsbt(0);
+    }
+
+    return this.psbt;
+  }
+
+  partialSignWithdrawPsbt(vin: number) {
+    if (!this.psbt) {
+      throw new Error("Generate PSBT first");
+    }
+    this.psbt = this.psbt.signInput(vin, this.userKeyPair);
     return this.psbt;
   }
 

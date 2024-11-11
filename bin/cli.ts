@@ -12,6 +12,7 @@ import { submitDeposit } from "./commands/submit_deposit";
 import { queueWithdraw } from "./commands/queue_withdraw";
 import { submitWithdraw } from "./commands/submit_withdraw";
 import { signWithdraw } from "./commands/sign_withdraw";
+import { upgrade } from "./commands/upgrade";
 
 yargs(hideBin(process.argv))
   .strict()
@@ -25,4 +26,5 @@ yargs(hideBin(process.argv))
   .command(signWithdraw)
   .command(init)
   .command(initBip322)
+  .command(upgrade)
   .parse();
