@@ -3,6 +3,7 @@ import { fastForward, signWithdrawal, viewAccount } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, buildDepositEmbedMsg, daysToMs } from "./helpers/utils";
+import { depositScriptV1 } from "./helpers/btc";
 
 const test = initUnit();
 
@@ -274,5 +275,53 @@ test("sign withdraw with invalid partial signature", async (t) => {
     t,
     builder.signWithdraw(0),
     "Invalid partial signature for withdraw PSBT",
+  );
+});
+
+test("sign withdraw with reinvestment of a different pubkey", async (t) => {
+  const { builder, contract } = await makeDeposit(t, 1e8);
+
+  const sig = builder.queueWithdrawSignature(100, 0);
+  await builder.queueWithdraw(100, sig);
+  await fastForward(contract, daysToMs(2));
+
+  const psbt = builder.generateWithdrawPsbt(undefined, 0, 100, false);
+
+  // add a reinvest output for bob
+  const bobP2wsh = bitcoin.payments.p2wsh({
+    redeem: {
+      output: depositScriptV1(
+        t.context.bobKeyPair.publicKey,
+        t.context.allstakePubkey,
+        5,
+      ),
+    },
+  });
+  const embedReinvestMsg = buildDepositEmbedMsg(
+    1,
+    t.context.bobKeyPair.publicKey.toString("hex"),
+    5,
+  );
+  const embed = bitcoin.payments.embed({
+    data: [embedReinvestMsg],
+  });
+
+  psbt.addOutput({
+    address: bobP2wsh.address!,
+    value: 1e8 - 100,
+  });
+  psbt.addOutput({
+    script: embed.output!,
+    value: 0,
+  });
+
+  builder.psbt = psbt;
+  builder.reinvest = true;
+  builder.partialSignWithdrawPsbt(0);
+
+  await assertFailure(
+    t,
+    builder.signWithdraw(0),
+    "PSBT reinvest pubkey mismatch",
   );
 });
