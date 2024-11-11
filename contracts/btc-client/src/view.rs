@@ -13,6 +13,7 @@ use withdraw::{verify_pending_sign_partial_sig, verify_sign_withdrawal_psbt, wit
 pub struct ContractSummary {
     owner_id: AccountId,
     btc_lightclient_id: AccountId,
+    bip322_verifier_id: Option<AccountId>,
     chain_signature_id: AccountId,
     chain_signature_root_pubkey: Option<near_sdk::PublicKey>,
     n_confirmation: u64,
@@ -54,6 +55,7 @@ impl Contract {
         ContractSummary {
             owner_id: self.owner_id.clone(),
             btc_lightclient_id: self.btc_lightclient_id.clone(),
+            bip322_verifier_id: self.bip322_verifier_id.clone(),
             chain_signature_id: self.chain_signature_id.clone(),
             chain_signature_root_pubkey: self.chain_signature_root_pubkey.clone(),
             n_confirmation: self.n_confirmation,

@@ -12,6 +12,7 @@ mod deposit;
 mod events;
 mod ext;
 mod kdf;
+mod legacy;
 mod types;
 mod upgrade;
 mod utils;
