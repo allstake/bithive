@@ -105,10 +105,10 @@ export async function submitWithdrawalTx(
   );
 }
 
-export async function syncChainSignatureRootPubkey(btcClient: NearAccount) {
+export async function syncChainSignaturesRootPubkey(btcClient: NearAccount) {
   return btcClient.call(
     btcClient,
-    "sync_chain_signature_root_pubkey",
+    "sync_chain_signatures_root_pubkey",
     {},
     {
       gas: Gas.parse("60 Tgas"),
@@ -201,8 +201,8 @@ export async function setEarliestDepositBlockHeight(
 
 interface ContractSummary {
   owner_id: string;
-  btc_lightclient_id: string;
-  chain_signature_id: string;
+  btc_light_client_id: string;
+  chain_signatures_id: string;
   chain_signature_root_pubkey: string;
   n_confirmation: number;
   withdraw_waiting_time_ms: number;

@@ -17,14 +17,14 @@ pub enum StorageKey {
 #[serde(crate = "near_sdk::serde")]
 pub struct InitArgs {
     pub owner_id: AccountId,
-    pub btc_lightclient_id: AccountId,
+    pub btc_light_client_id: AccountId,
     pub bip322_verifier_id: Option<AccountId>,
-    pub chain_signature_id: AccountId,
+    pub chain_signatures_id: AccountId,
     pub n_confirmation: u64,
     pub withdraw_waiting_time_ms: u64,
     pub min_deposit_satoshi: u64,
     pub earliest_deposit_block_height: u32,
-    pub solo_withdraw_seq_heights: Vec<u16>,
+    pub solo_withdrawal_seq_heights: Vec<u16>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

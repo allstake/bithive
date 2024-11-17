@@ -14,7 +14,7 @@ export interface Config {
     owner: string;
     btcClient: string;
     bip322Verifier: string;
-    chainSignature: string;
+    chainSignatures: string;
     btcLightClient: string;
   };
   params: {

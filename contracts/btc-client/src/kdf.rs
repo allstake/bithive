@@ -36,6 +36,10 @@ impl ScalarExt for Scalar {
 
 type KdfPublicKey = <Secp256k1 as CurveArithmetic>::AffinePoint;
 
+// The below constants and helper functions comes from near/mpc project, which can help
+// derive public keys without extra function call to chain signatures contract:
+// https://github.com/near/mpc/blob/b69ce2fb23930fd8f1bfaa1a1f914f7da2f4711a/chain-signatures/crypto-shared/src/kdf.rs#L13
+// Constant prefix that ensures epsilon derivation values are used specifically for
 // near-mpc-recovery with key derivation protocol vX.Y.Z.
 const EPSILON_DERIVATION_PREFIX: &str = "near-mpc-recovery v0.1.0 epsilon derivation:";
 
@@ -56,7 +60,7 @@ impl Contract {
         let mut root_public_key_bytes = vec![0x04];
         root_public_key_bytes.extend_from_slice(
             &self
-                .chain_signature_root_pubkey
+                .chain_signatures_root_pubkey
                 .as_ref()
                 .expect("Missing chain_signatures_root_public_key")
                 .as_bytes()[1..],
@@ -95,7 +99,7 @@ mod tests {
         // current account id is `alice.near`
         let generated_btc_pk = contract.generate_btc_pubkey("/btc");
 
-        // direct call chain signature
+        // direct call chain signatures
         let expected_pk = near_sdk::PublicKey::from_str(
             "secp256k1:39pFLm2p3eph57BFEBVGXmwzH14B5nJVbC1qBw9vkbSsafU9e69VNDQvYn2diAcKtwYBoTwJ6ZL4DYKZckPGEz8n"
         ).unwrap();
@@ -111,7 +115,7 @@ mod tests {
         // current account id is `alice.near`
         let generated_btc_pk = contract.generate_btc_pubkey("/foo");
 
-        // direct call chain signature
+        // direct call chain signatures
         let expected_pk = near_sdk::PublicKey::from_str(
             "secp256k1:39pFLm2p3eph57BFEBVGXmwzH14B5nJVbC1qBw9vkbSsafU9e69VNDQvYn2diAcKtwYBoTwJ6ZL4DYKZckPGEz8n"
         ).unwrap();

@@ -9,7 +9,7 @@ import "dotenv/config";
 import {
   fastForward,
   setCurrentAccountId,
-  syncChainSignatureRootPubkey,
+  syncChainSignaturesRootPubkey,
   V1_PK_PATH,
 } from "./btc_client";
 
@@ -91,7 +91,7 @@ export function initIntegration() {
 
     // --
     // btc related
-    // hardcode every key so that the mocked chain signature can produce the correct result
+    // hardcode every key so that the mocked chain signatures can produce the correct result
     const aliceKeyPair = ECPair.makeRandom();
     console.log("alice    pubkey", aliceKeyPair.publicKey.toString("hex"));
 
@@ -138,7 +138,7 @@ async function createFixtures(root: NearAccount) {
 
   const mockLightclient = await deployAndInit({
     root,
-    subContractId: "lightclient",
+    subContractId: "light-client",
     code: "res/mock_btc_lightclient.wasm",
     init: {
       methodName: "init",
@@ -175,19 +175,19 @@ async function createFixtures(root: NearAccount) {
       args: {
         args: {
           owner_id: owner.accountId,
-          btc_lightclient_id: mockLightclient.accountId,
+          btc_light_client_id: mockLightclient.accountId,
           bip322_verifier_id: mockBip322Verifier.accountId,
-          chain_signature_id: mockChainSignature.accountId,
+          chain_signatures_id: mockChainSignature.accountId,
           n_confirmation: 6,
           withdraw_waiting_time_ms: daysToMs(2),
           min_deposit_satoshi: 100,
           earliest_deposit_block_height: 0,
-          solo_withdraw_seq_heights: [5],
+          solo_withdrawal_seq_heights: [5],
         },
       },
     },
   });
-  await syncChainSignatureRootPubkey(contract);
+  await syncChainSignaturesRootPubkey(contract);
 
   // make sure the timestamp is not 0 at first
   await fastForward(contract, daysToMs(3));

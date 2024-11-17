@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::*;
 use account::Deposit;
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, PublicKey, Transaction, TxIn};
-use consts::{CHAIN_SIGNATURE_KEY_VERSION_V1, CHAIN_SIGNATURE_PATH_V1};
+use consts::{CHAIN_SIGNATURES_KEY_VERSION_V1, CHAIN_SIGNATURES_PATH_V1};
 use events::Event;
 use ext::{
     ext_bip322_verifier, ext_btc_lightclient, ext_chain_signature, ProofArgs, SignRequest,
@@ -186,8 +186,8 @@ impl Contract {
         let payload = get_hash_to_sign(&psbt, vin_to_sign);
         let (path, key_version) = match deposit.redeem_version {
             RedeemVersion::V1 => (
-                CHAIN_SIGNATURE_PATH_V1.to_string(),
-                CHAIN_SIGNATURE_KEY_VERSION_V1,
+                CHAIN_SIGNATURES_PATH_V1.to_string(),
+                CHAIN_SIGNATURES_KEY_VERSION_V1,
             ),
         };
         let req = SignRequest {
@@ -195,7 +195,7 @@ impl Contract {
             path,
             key_version,
         };
-        ext_chain_signature::ext(self.chain_signature_id.clone())
+        ext_chain_signature::ext(self.chain_signatures_id.clone())
             .with_static_gas(GAS_CHAIN_SIG_SIGN)
             .with_attached_deposit(env::attached_deposit())
             .sign(req)
@@ -246,7 +246,7 @@ impl Contract {
         let txid = tx.compute_txid();
 
         // verify confirmation through btc light client
-        ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
+        ext_btc_lightclient::ext(self.btc_light_client_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
             .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),

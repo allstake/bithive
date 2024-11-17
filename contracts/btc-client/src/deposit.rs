@@ -10,7 +10,7 @@ use bitcoin::{
     script::Builder,
     PublicKey, ScriptBuf, Sequence, Transaction, TxOut,
 };
-use consts::CHAIN_SIGNATURE_PATH_V1;
+use consts::CHAIN_SIGNATURES_PATH_V1;
 use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
 use near_sdk::{near_bindgen, require, Balance, Gas, Promise, PromiseError, ONE_NEAR};
 use types::{output_id, DepositEmbedMsg, RedeemVersion, SubmitDepositTxArgs, TxId};
@@ -67,7 +67,7 @@ impl Contract {
         self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
 
         // verify confirmation through btc light client
-        ext_btc_lightclient::ext(self.btc_lightclient_id.clone())
+        ext_btc_lightclient::ext(self.btc_light_client_id.clone())
             .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
             .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
@@ -129,10 +129,10 @@ impl Contract {
         };
 
         require!(
-            self.solo_withdraw_seq_heights.contains(&sequence_height),
+            self.solo_withdrawal_seq_heights.contains(&sequence_height),
             format!(
                 "Invalid seq height. Available values are: {:?}",
-                self.solo_withdraw_seq_heights
+                self.solo_withdrawal_seq_heights
             )
         );
 
@@ -215,11 +215,11 @@ impl Contract {
         // first 2 bytes are OP_0 OP_PUSHBYTES_32, so we take from the 3rd byte (4th in hex)
         let p2wsh_script_hash = &output.script_pubkey.to_hex_string()[4..];
 
-        // derived pubkey from chain signature
+        // derived pubkey from chain signatures
         // if path is changed, a new deposit output version MUST be used
-        let allstake_pubkey = &self.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
+        let bithive_pubkey = &self.generate_btc_pubkey(CHAIN_SIGNATURES_PATH_V1);
 
-        let script = Self::deposit_script_v1(user_pubkey, allstake_pubkey, sequence);
+        let script = Self::deposit_script_v1(user_pubkey, bithive_pubkey, sequence);
         let expected_script_hash = env::sha256_array(script.as_bytes());
 
         // check if script hash == p2wsh
@@ -231,7 +231,7 @@ impl Contract {
 
     pub(crate) fn deposit_script_v1(
         user_pubkey: &PublicKey,
-        allstake_pubkey: &PublicKey,
+        bithive_pubkey: &PublicKey,
         sequence: Sequence,
     ) -> ScriptBuf {
         // OP_IF
@@ -243,7 +243,7 @@ impl Contract {
         // OP_ELSE
         //     OP_2
         //     {{user pubkey}}
-        //     {{allstake pubkey}}
+        //     {{bithive pubkey}}
         //     OP_2
         //     OP_CHECKMULTISIG
         // OP_ENDIF
@@ -257,7 +257,7 @@ impl Contract {
             .push_opcode(OP_ELSE)
             .push_opcode(OP_PUSHNUM_2)
             .push_key(user_pubkey)
-            .push_key(allstake_pubkey)
+            .push_key(bithive_pubkey)
             .push_opcode(OP_PUSHNUM_2)
             .push_opcode(OP_CHECKMULTISIG)
             .push_opcode(OP_ENDIF)
@@ -340,9 +340,8 @@ mod tests {
         tx.input.push(input);
 
         // Add the deposit output
-        let allstake_pubkey = contract.generate_btc_pubkey(CHAIN_SIGNATURE_PATH_V1);
-        let deposit_script =
-            Contract::deposit_script_v1(&user_pubkey(), &allstake_pubkey, sequence);
+        let bithive_pubkey = contract.generate_btc_pubkey(CHAIN_SIGNATURES_PATH_V1);
+        let deposit_script = Contract::deposit_script_v1(&user_pubkey(), &bithive_pubkey, sequence);
         let witness_script_hash = env::sha256_array(deposit_script.as_bytes());
 
         let p2wsh_script = Builder::new()

@@ -37,7 +37,7 @@ pub struct Account {
     pub queue_withdrawal_start_ts: Timestamp,
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
-    /// PSBT of the withdraw txn that needs to be signed via chain signature
+    /// PSBT of the withdraw txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
 }
 

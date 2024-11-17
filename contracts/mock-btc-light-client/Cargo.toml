@@ -1,5 +1,5 @@
 [package]
-name = "mock-btc-lightclient"
+name = "mock-btc-light-client"
 version = "1.0.0"
 edition = "2021"
 
