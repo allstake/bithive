@@ -1,5 +1,5 @@
 use account::{Account, VersionedAccount};
-use ext::ext_chain_signature;
+use ext::ext_chain_signatures;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet};
 use near_sdk::{env, near_bindgen, require, AccountId, Gas, PanicOnDefault, Promise, PromiseError};
@@ -84,7 +84,7 @@ impl Contract {
             self.chain_signatures_root_pubkey.is_none(),
             ERR_ROOT_PK_ALREADY_SYNCED
         );
-        ext_chain_signature::ext(self.chain_signatures_id.clone())
+        ext_chain_signatures::ext(self.chain_signatures_id.clone())
             .with_static_gas(GAS_GET_ROOT_PUBKEY)
             .public_key()
             .then(

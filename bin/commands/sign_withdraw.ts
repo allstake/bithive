@@ -140,7 +140,7 @@ export const signWithdraw: CommandModule<unknown, Args> = {
 
     // -- path 2: generate data required for signing
 
-    // a) the signature from chain signature
+    // a) the signature from chain signatures
     const allstakeRes = await signWithdrawal(env, psbt.toHex(), pubkey, vout);
     const sig = buildAllstakeSignature(
       allstakeRes.big_r.affine_point,

@@ -35,7 +35,7 @@ export const deployBtcLightClient: CommandModule<unknown, Args> = {
     const config = await getConfig(env);
     await deployContract(
       env,
-      "res/mock_btc_lightclient.wasm",
+      "res/mock_btc_light_client.wasm",
       config.accountIds.btcLightClient,
     );
     process.exit();

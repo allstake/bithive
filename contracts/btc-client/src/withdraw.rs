@@ -6,8 +6,8 @@ use bitcoin::{consensus::encode::deserialize_hex, Psbt, PublicKey, Transaction, 
 use consts::{CHAIN_SIGNATURES_KEY_VERSION_V1, CHAIN_SIGNATURES_PATH_V1};
 use events::Event;
 use ext::{
-    ext_bip322_verifier, ext_btc_lightclient, ext_chain_signature, ProofArgs, SignRequest,
-    SignatureResponse, GAS_LIGHTCLIENT_VERIFY,
+    ext_bip322_verifier, ext_btc_light_client, ext_chain_signatures, ProofArgs, SignRequest,
+    SignatureResponse, GAS_LIGHT_CLIENT_VERIFY,
 };
 use near_sdk::{
     env::{self},
@@ -40,7 +40,7 @@ const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
 const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
 const ERR_PSBT_REINVEST_PUBKEY_MISMATCH: &str = "PSBT reinvest pubkey mismatch";
 const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
-const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signature";
+const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signatures";
 // submit withdraw errors
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
@@ -64,7 +64,7 @@ impl Contract {
     /// ### Arguments
     /// * `user_pubkey` - hex encoded user pub key
     /// * `withdraw_amount` - amount to withdraw
-    /// * `msg_sig` - hex encoded signature of queue withdraw message that shoud match `user_pubkey`
+    /// * `msg_sig` - hex encoded signature of queue withdraw message that should match `user_pubkey`
     /// * `sig_type` - signature type
     pub fn queue_withdrawal(
         &mut self,
@@ -133,7 +133,7 @@ impl Contract {
         PromiseOrValue::Value(true)
     }
 
-    /// Sign a BTC withdrawal PSBT via chain signature for multisig withdraw
+    /// Sign a BTC withdrawal PSBT via chain signatures for multisig withdraw
     /// ### Arguments
     /// * `psbt_hex` - hex encoded PSBT to sign, must be partially signed by the user first
     /// * `user_pubkey` - user public key
@@ -182,7 +182,7 @@ impl Contract {
             self.set_account(account);
         }
 
-        // request signature from chain signature
+        // request signature from chain signatures
         let payload = get_hash_to_sign(&psbt, vin_to_sign);
         let (path, key_version) = match deposit.redeem_version {
             RedeemVersion::V1 => (
@@ -195,7 +195,7 @@ impl Contract {
             path,
             key_version,
         };
-        ext_chain_signature::ext(self.chain_signatures_id.clone())
+        ext_chain_signatures::ext(self.chain_signatures_id.clone())
             .with_static_gas(GAS_CHAIN_SIG_SIGN)
             .with_attached_deposit(env::attached_deposit())
             .sign(req)
@@ -240,14 +240,14 @@ impl Contract {
     /// * `args.tx_index` - transaction index in the block
     /// * `args.merkle_proof` - merkle proof of transaction in the block
     pub fn submit_withdrawal_tx(&mut self, args: SubmitWithdrawTxArgs) -> Promise {
-        assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
+        assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
 
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
         // verify confirmation through btc light client
-        ext_btc_lightclient::ext(self.btc_light_client_id.clone())
-            .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
+        ext_btc_light_client::ext(self.btc_light_client_id.clone())
+            .with_static_gas(GAS_LIGHT_CLIENT_VERIFY)
             .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
                 args.tx_block_hash,

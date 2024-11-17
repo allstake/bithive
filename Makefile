@@ -28,7 +28,7 @@ bip322-verifier-test: contracts/bip322-verifier
 mock-btc-light-client: contracts/mock-btc-light-client
 	$(call compile_release,mock-btc-light-client)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/mock_btc_lightclient.wasm ./res/mock_btc_lightclient.wasm
+	@cp target/wasm32-unknown-unknown/release/mock_btc_light_client.wasm ./res/mock_btc_light_client.wasm
 
 mock-chain-signatures: contracts/mock-chain-signatures
 	$(call compile_release,mock-chain-signatures)

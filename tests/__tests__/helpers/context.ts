@@ -139,7 +139,7 @@ async function createFixtures(root: NearAccount) {
   const mockLightclient = await deployAndInit({
     root,
     subContractId: "light-client",
-    code: "res/mock_btc_lightclient.wasm",
+    code: "res/mock_btc_light_client.wasm",
     init: {
       methodName: "init",
       args: {},

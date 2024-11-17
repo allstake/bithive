@@ -11,7 +11,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn set_btc_lightclient_id(&mut self, new_contract_id: AccountId) {
+    pub fn set_btc_light_client_id(&mut self, new_contract_id: AccountId) {
         self.assert_owner();
         self.btc_light_client_id = new_contract_id;
     }
@@ -23,7 +23,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn set_chain_signature_id(&mut self, new_contract_id: AccountId) {
+    pub fn set_chain_signatures_id(&mut self, new_contract_id: AccountId) {
         self.assert_owner();
         self.chain_signatures_id = new_contract_id;
     }

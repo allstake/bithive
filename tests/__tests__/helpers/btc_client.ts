@@ -140,7 +140,7 @@ export async function setBtcLightclientId(
 ) {
   return caller.call(
     btcClient,
-    "set_btc_lightclient_id",
+    "set_btc_light_client_id",
     {
       new_contract_id: contract.accountId,
     },

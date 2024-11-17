@@ -19,7 +19,7 @@ Prepare:
 Redeem scripts, along with const values used by them, are strictly versioned. Once a specific version of the redeem script goes alive it should **NEVER** be changed.    
 In order to use a new deposit redeem script (the script itself or its consts), please follow these steps:
 1. Define a new deposit message `DEPOSIT_MSG_HEX_Vx` and put the hex encoded string in `consts.rs`
-2. Specify chain signature path `CHAIN_SIGNATURE_PATH_Vx` and key version `CHAIN_SIGNATURE_KEY_VERSION_Vx` in `consts.rs`
+2. Specify chain signatures path `CHAIN_SIGNATURES_PATH_Vx` and key version `CHAIN_SIGNATURES_KEY_VERSION_Vx` in `consts.rs`
 3. Add a new entry for `RedeemVersion` in `types.rs`
 4. Define a function that could verify if a deposit txn is of the newly-created version in `deposit.rs`, like `verify_deposit_output_v1`
 5. Update the `redeem_version` match in `submit_deposit_tx` with the new verify function above

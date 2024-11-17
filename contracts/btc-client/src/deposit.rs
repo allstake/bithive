@@ -11,7 +11,7 @@ use bitcoin::{
     PublicKey, ScriptBuf, Sequence, Transaction, TxOut,
 };
 use consts::CHAIN_SIGNATURES_PATH_V1;
-use ext::{ext_btc_lightclient, ProofArgs, GAS_LIGHTCLIENT_VERIFY};
+use ext::{ext_btc_light_client, ProofArgs, GAS_LIGHT_CLIENT_VERIFY};
 use near_sdk::{near_bindgen, require, Balance, Gas, Promise, PromiseError, ONE_NEAR};
 use types::{output_id, DepositEmbedMsg, RedeemVersion, SubmitDepositTxArgs, TxId};
 use utils::{assert_gas, get_embed_message};
@@ -47,7 +47,7 @@ impl Contract {
     /// * `args.merkle_proof` - merkle proof of transaction in the block
     #[payable]
     pub fn submit_deposit_tx(&mut self, args: SubmitDepositTxArgs) -> Promise {
-        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHTCLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
 
         // assert storage fee.
         // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
@@ -67,8 +67,8 @@ impl Contract {
         self.set_deposit_confirmed(&txid.to_string().into(), deposit_vout);
 
         // verify confirmation through btc light client
-        ext_btc_lightclient::ext(self.btc_light_client_id.clone())
-            .with_static_gas(GAS_LIGHTCLIENT_VERIFY)
+        ext_btc_light_client::ext(self.btc_light_client_id.clone())
+            .with_static_gas(GAS_LIGHT_CLIENT_VERIFY)
             .verify_transaction_inclusion(ProofArgs::new(
                 txid.to_string(),
                 args.tx_block_hash,
