@@ -23,7 +23,7 @@ export async function getSummary(env: string): Promise<{
 }
 
 export async function getV1Consts(env: string): Promise<{
-  allstake_pubkey: string;
+  bithive_pubkey: string;
 }> {
   const config = await getConfig(env);
   const { signer } = await initNear(env);

@@ -8,7 +8,7 @@ export function getWitnessUtxo(out: any): any {
 
 export function depositScriptV1(
   userPubkey: Buffer,
-  allstakePubkey: Buffer,
+  bithivePubkey: Buffer,
   sequence: number,
 ): Buffer {
   return bitcoin.script.fromASM(
@@ -22,7 +22,7 @@ export function depositScriptV1(
     OP_ELSE
         OP_2
         ${userPubkey.toString("hex")}
-        ${allstakePubkey.toString("hex")}
+        ${bithivePubkey.toString("hex")}
         OP_2
         OP_CHECKMULTISIG
     OP_ENDIF
@@ -45,7 +45,7 @@ function reconstructSignature(big_r: string, big_s: string) {
   return rawSignature;
 }
 
-export function buildAllstakeSignature(bigR: string, s: string) {
+export function buildBitHiveSignature(bigR: string, s: string) {
   return bitcoin.script.signature.encode(
     reconstructSignature(bigR, s),
     bitcoin.Transaction.SIGHASH_ALL,
@@ -54,12 +54,12 @@ export function buildAllstakeSignature(bigR: string, s: string) {
 
 export function multisigWithdrawScript(
   userSig: Buffer,
-  allstakeSig: Buffer,
+  bithiveSig: Buffer,
 ): Buffer {
   return bitcoin.script.compile([
     bitcoin.opcodes.OP_0,
     userSig,
-    allstakeSig,
+    bithiveSig,
     bitcoin.opcodes.OP_FALSE,
   ]);
 }

@@ -165,7 +165,7 @@ impl Contract {
             // sign another one until the previous one is completed or replaced by fee
             verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
         } else {
-            // if not , verify the withdraw PSBT and save it for signing
+            // if not, verify the withdraw PSBT and save it for signing
             verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             let reinvest_deposit_vout =
                 self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);

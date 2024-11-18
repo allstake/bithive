@@ -1,4 +1,4 @@
-# Allstake BTC Client Contracts
+# BitHive Contracts
 
 ## Build
 **NOTE**: If you are building on an ARM mac, run `brew install llvm` first!
