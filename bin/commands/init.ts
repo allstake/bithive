@@ -23,7 +23,7 @@ export const init: CommandModule<unknown, Args> = {
       btc_light_client_id: config.accountIds.btcLightClient,
       chain_signatures_id: config.accountIds.chainSignatures,
       n_confirmation: config.params.nConfirmation,
-      withdraw_waiting_time_ms: config.params.withdrawWaitingTimeMs,
+      withdrawal_waiting_time_ms: config.params.withdrawalWaitingTimeMs,
       min_deposit_satoshi: config.params.minDepositSatoshi,
       earliest_deposit_block_height: config.params.earliestDepositBlockHeight,
       solo_withdrawal_seq_heights: config.params.soloWithdrawSeqHeights,

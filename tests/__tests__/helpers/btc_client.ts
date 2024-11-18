@@ -174,7 +174,7 @@ export async function setWithdrawWaitingTime(
 ) {
   return caller.call(
     btcClient,
-    "set_withdraw_waiting_time",
+    "set_withdrawal_waiting_time",
     {
       ms,
     },
@@ -205,7 +205,7 @@ interface ContractSummary {
   chain_signatures_id: string;
   chain_signature_root_pubkey: string;
   n_confirmation: number;
-  withdraw_waiting_time_ms: number;
+  withdrawal_waiting_time_ms: number;
 }
 
 export async function getSummary(

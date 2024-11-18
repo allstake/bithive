@@ -25,8 +25,8 @@ pub struct ContractV1 {
     pub chain_signatures_root_pubkey: Option<near_sdk::PublicKey>,
     /// number of confirmations in BTC
     pub n_confirmation: u64,
-    /// for multisig withdraw, how long the withdraw request needs to be queued
-    pub withdraw_waiting_time_ms: u64,
+    /// for multisig withdrawal, how long the withdrawal request needs to be queued
+    pub withdrawal_waiting_time_ms: u64,
     /// minimum deposit amount in satoshi
     pub min_deposit_satoshi: u64,
     /// earliest block height acceptable for deposit

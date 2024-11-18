@@ -17,10 +17,10 @@ pub struct ContractSummary {
     chain_signatures_id: AccountId,
     chain_signature_root_pubkey: Option<near_sdk::PublicKey>,
     n_confirmation: u64,
-    withdraw_waiting_time_ms: u64,
+    withdrawal_waiting_time_ms: u64,
     min_deposit_satoshi: u64,
     earliest_deposit_block_height: u32,
-    solo_withdraw_sequence_heights: Vec<u16>,
+    solo_withdrawal_sequence_heights: Vec<u16>,
 }
 
 /// Constants for version 1 of the deposit script
@@ -37,7 +37,7 @@ pub struct DepositConstantsV1 {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct WithdrawalConstantsV1 {
-    /// raw message that needs to be signed by the user for queueing withdraw
+    /// raw message that needs to be signed by the user for queueing withdrawal
     queue_withdrawal_msg: String,
 }
 
@@ -59,10 +59,10 @@ impl Contract {
             chain_signatures_id: self.chain_signatures_id.clone(),
             chain_signature_root_pubkey: self.chain_signatures_root_pubkey.clone(),
             n_confirmation: self.n_confirmation,
-            withdraw_waiting_time_ms: self.withdraw_waiting_time_ms,
+            withdrawal_waiting_time_ms: self.withdrawal_waiting_time_ms,
             min_deposit_satoshi: self.min_deposit_satoshi,
             earliest_deposit_block_height: self.earliest_deposit_block_height,
-            solo_withdraw_sequence_heights: self.solo_withdrawal_seq_heights.clone(),
+            solo_withdrawal_sequence_heights: self.solo_withdrawal_seq_heights.clone(),
         }
     }
 

@@ -42,8 +42,8 @@ pub struct Contract {
     chain_signatures_root_pubkey: Option<near_sdk::PublicKey>,
     /// number of confirmations in BTC
     n_confirmation: u64,
-    /// for multisig withdraw, how long the withdraw request needs to be queued
-    withdraw_waiting_time_ms: u64,
+    /// for multisig withdrawal, how long the withdrawal request needs to be queued
+    withdrawal_waiting_time_ms: u64,
     /// minimum deposit amount in satoshi
     min_deposit_satoshi: u64,
     /// earliest block height acceptable for deposit
@@ -68,7 +68,7 @@ impl Contract {
             chain_signatures_id: args.chain_signatures_id,
             chain_signatures_root_pubkey: None,
             n_confirmation: args.n_confirmation,
-            withdraw_waiting_time_ms: args.withdraw_waiting_time_ms,
+            withdrawal_waiting_time_ms: args.withdrawal_waiting_time_ms,
             min_deposit_satoshi: args.min_deposit_satoshi,
             earliest_deposit_block_height: args.earliest_deposit_block_height,
             solo_withdrawal_seq_heights: args.solo_withdrawal_seq_heights,
@@ -141,7 +141,7 @@ mod tests {
             bip322_verifier_id: Some(AccountId::new_unchecked("bv".to_string())),
             chain_signatures_id: AccountId::new_unchecked("cs".to_string()),
             n_confirmation: 6,
-            withdraw_waiting_time_ms: 0,
+            withdrawal_waiting_time_ms: 0,
             min_deposit_satoshi: 0,
             earliest_deposit_block_height: 0,
             solo_withdrawal_seq_heights: vec![5],

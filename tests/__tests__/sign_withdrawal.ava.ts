@@ -54,7 +54,7 @@ test("sign withdraw with invalid PSBT", async (t) => {
 test("sign withdraw without queueing first", async (t) => {
   const { builder } = await makeDeposit(t);
   builder.generateWithdrawPsbt();
-  await assertFailure(t, builder.signWithdraw(0), "No withdraw request made");
+  await assertFailure(t, builder.signWithdraw(0), "No withdrawal request made");
 });
 
 test("sign withdraw with invalid deposit vin", async (t) => {

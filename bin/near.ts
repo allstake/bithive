@@ -11,7 +11,7 @@ export async function initNear(env: string, signerId?: string) {
 }
 
 export async function getSummary(env: string): Promise<{
-  solo_withdraw_sequence_heights: number[];
+  solo_withdrawal_sequence_heights: number[];
 }> {
   const config = await getConfig(env);
   const { signer } = await initNear(env);

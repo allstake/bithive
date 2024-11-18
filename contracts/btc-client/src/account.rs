@@ -37,7 +37,7 @@ pub struct Account {
     pub queue_withdrawal_start_ts: Timestamp,
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
-    /// PSBT of the withdraw txn that needs to be signed via chain signatures
+    /// PSBT of the withdrawal txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
 }
 
@@ -163,8 +163,8 @@ impl Account {
         Event::QueueWithdrawal {
             user_pubkey: &self.pubkey.clone().into(),
             amount: amount.into(),
-            withdraw_msg: &hex::encode(msg),
-            withdraw_sig: msg_sig,
+            withdrawal_msg: &hex::encode(msg),
+            withdrawal_sig: msg_sig,
         }
         .emit();
     }
@@ -231,7 +231,7 @@ pub struct Deposit {
     pub user_pubkey: PubKey,
     /// deposit status
     pub status: DepositStatus,
-    /// redeem version allows us to use the correct params to sign withdraw txn
+    /// redeem version allows us to use the correct params to sign withdrawal txn
     pub redeem_version: RedeemVersion,
     /// deposit transaction ID
     pub deposit_tx_id: TxId,
@@ -241,9 +241,9 @@ pub struct Deposit {
     pub value: u64,
     /// encoded sequence number of the deposit
     pub sequence: u32,
-    /// complete withdraw time in ms
+    /// complete withdrawal time in ms
     pub complete_withdrawal_ts: Timestamp,
-    /// withdraw txn ID
+    /// withdrawal txn ID
     pub withdrawal_tx_id: Option<TxId>,
 }
 

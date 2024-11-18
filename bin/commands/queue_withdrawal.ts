@@ -11,7 +11,7 @@ interface Args {
   sig: string;
 }
 
-export const queueWithdraw: CommandModule<unknown, Args> = {
+export const queueWithdrawal: CommandModule<unknown, Args> = {
   command: "queue",
   describe: "Submit a BTC queue withdraw request",
   builder: {
@@ -65,6 +65,6 @@ export const queueWithdraw: CommandModule<unknown, Args> = {
       gas: nearTGas(100),
     });
 
-    console.log("Queued withdraw");
+    console.log("Queued withdrawal");
   },
 };

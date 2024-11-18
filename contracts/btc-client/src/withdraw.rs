@@ -27,11 +27,11 @@ const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
-// queue withdraw errors
+// queue withdrawal errors
 const ERR_BIP322_NOT_ENABLED: &str = "BIP322 is not enabled";
-// sign withdraw errors
+// sign withdrawal errors
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
-const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdraw request made";
+const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdrawal request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
 const ERR_MISSING_PARTIAL_SIG: &str = "Missing partial sig for given input";
 const ERR_INVALID_PARTIAL_SIG: &str = "Invalid partial signature for withdraw PSBT";
@@ -312,7 +312,7 @@ impl Contract {
         // make sure queue waiting time has passed
         require!(
             current_timestamp_ms()
-                >= account.queue_withdrawal_start_ts + self.withdraw_waiting_time_ms,
+                >= account.queue_withdrawal_start_ts + self.withdrawal_waiting_time_ms,
             ERR_WITHDRAW_NOT_READY
         );
 

@@ -179,7 +179,7 @@ async function createFixtures(root: NearAccount) {
           bip322_verifier_id: mockBip322Verifier.accountId,
           chain_signatures_id: mockChainSignature.accountId,
           n_confirmation: 6,
-          withdraw_waiting_time_ms: daysToMs(2),
+          withdrawal_waiting_time_ms: daysToMs(2),
           min_deposit_satoshi: 100,
           earliest_deposit_block_height: 0,
           solo_withdrawal_seq_heights: [5],
