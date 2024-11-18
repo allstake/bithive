@@ -37,7 +37,7 @@ test("submit valid deposit txn", async (t) => {
   t.is(activeDeposits[0].deposit_vout, 0);
   t.is(activeDeposits[0].value, builder.depositAmount);
   t.is(activeDeposits[0].sequence, builder.sequence);
-  t.is(activeDeposits[0].complete_withdraw_ts, 0);
+  t.is(activeDeposits[0].complete_withdrawal_ts, 0);
   t.is(activeDeposits[0].withdrawal_tx_id, null);
 
   const account = await viewAccount(contract, builder.userPubkeyHex);

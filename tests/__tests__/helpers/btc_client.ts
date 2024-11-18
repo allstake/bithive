@@ -243,7 +243,7 @@ interface Deposit {
   deposit_vout: number;
   value: number;
   sequence: number;
-  complete_withdraw_ts: number;
+  complete_withdrawal_ts: number;
   withdrawal_tx_id: string | null;
 }
 
