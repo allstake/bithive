@@ -33,7 +33,7 @@ mock-btc-light-client: contracts/mock-btc-light-client
 mock-chain-signatures: contracts/mock-chain-signatures
 	$(call compile_release,mock-chain-signatures)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/mock_chain_signature.wasm ./res/mock_chain_signature.wasm
+	@cp target/wasm32-unknown-unknown/release/mock_chain_signatures.wasm ./res/mock_chain_signatures.wasm
 
 lint:
 	@cargo fmt --all

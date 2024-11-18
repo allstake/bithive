@@ -1,7 +1,7 @@
 import {
   changeOwner,
   getSummary,
-  setBtcLightclientId,
+  setBtcLightClientId,
   setNConfirmation,
   setWithdrawWaitingTime,
 } from "./helpers/btc_client";
@@ -16,7 +16,7 @@ test("non-privileged account cannot call owner methods", async (t) => {
 
   await assertFailure(
     t,
-    setBtcLightclientId(contract, alice, alice),
+    setBtcLightClientId(contract, alice, alice),
     "Not owner",
   );
 

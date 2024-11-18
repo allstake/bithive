@@ -133,7 +133,7 @@ export async function changeOwner(
   );
 }
 
-export async function setBtcLightclientId(
+export async function setBtcLightClientId(
   btcClient: NearAccount,
   caller: NearAccount,
   contract: NearAccount,

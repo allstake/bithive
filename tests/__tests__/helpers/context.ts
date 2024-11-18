@@ -149,7 +149,7 @@ async function createFixtures(root: NearAccount) {
   const mockChainSignature = await deployAndInit({
     root,
     subContractId: "chain-sig",
-    code: "res/mock_chain_signature.wasm",
+    code: "res/mock_chain_signatures.wasm",
     init: {
       methodName: "init",
       args: {},
