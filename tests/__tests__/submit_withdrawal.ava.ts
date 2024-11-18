@@ -115,7 +115,7 @@ test("submit solo withdraw", async (t) => {
   t.is(deposits[0].deposit_tx_id, builder1.tx.getId());
   t.is(deposits[0].deposit_vout, 0);
   t.is(deposits[0].value, builder1.depositAmount);
-  t.assert(deposits[0].complete_withdraw_ts > 0);
+  t.assert(deposits[0].complete_withdrawal_ts > 0);
   t.is(deposits[0].withdrawal_tx_id, builder1.withdrawTx!.getId());
 
   // account queue amount should be updated
@@ -187,7 +187,7 @@ test("submit multisig withdraw", async (t) => {
   t.is(deposits[0].deposit_tx_id, builder1.tx.getId());
   t.is(deposits[0].deposit_vout, 0);
   t.is(deposits[0].value, builder1.depositAmount);
-  t.assert(deposits[0].complete_withdraw_ts > 0);
+  t.assert(deposits[0].complete_withdrawal_ts > 0);
   t.is(deposits[0].withdrawal_tx_id, withdrawTx.getId());
 
   // queue amount should not be affected
