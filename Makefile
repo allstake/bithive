@@ -57,14 +57,10 @@ test-ava: btc-client-test mock-btc-light-client mock-chain-signatures bip322-ver
 test-integration: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
 	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin) # Mac
+ifeq ($(shell uname -s),Darwin) # Mac
 	ifeq ($(shell uname -m),arm64) # Apple Silicon
 		export AR=/opt/homebrew/opt/llvm/bin/llvm-ar
 		export CC=/opt/homebrew/opt/llvm/bin/clang
-	else # Apple Intel, x86_64
-		export AR=/usr/local/opt/llvm/bin/llvm-ar
-		export CC=/usr/local/opt/llvm/bin/clang
 	endif
 endif
 
