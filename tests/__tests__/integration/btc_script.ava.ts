@@ -193,7 +193,7 @@ async function testCase(
 }
 
 test("btc script test", async (t) => {
-  // after waiting period, solo withdraw
+  // after waiting period, solo withdrawal
   await testCase(t, {
     mineBlocksBeforeBroadcast: 4,
     waitBlocks: 5,
@@ -202,7 +202,7 @@ test("btc script test", async (t) => {
     expectStakeFailure: false,
     expectWithdrawFailure: false,
   });
-  // after waiting period, multisig withdraw
+  // after waiting period, multisig withdrawal
   await testCase(t, {
     mineBlocksBeforeBroadcast: 4,
     waitBlocks: 5,
@@ -211,7 +211,7 @@ test("btc script test", async (t) => {
     expectStakeFailure: false,
     expectWithdrawFailure: false,
   });
-  // within waiting period, solo withdraw
+  // within waiting period, solo withdrawal
   await testCase(t, {
     mineBlocksBeforeBroadcast: 4,
     waitBlocks: 5,
@@ -220,7 +220,7 @@ test("btc script test", async (t) => {
     expectStakeFailure: false,
     expectWithdrawFailure: true,
   });
-  // within waiting period, multisig withdraw
+  // within waiting period, multisig withdrawal
   await testCase(t, {
     mineBlocksBeforeBroadcast: 4,
     waitBlocks: 5,

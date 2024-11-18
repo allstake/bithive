@@ -13,7 +13,7 @@ interface Args {
 
 export const queueWithdrawal: CommandModule<unknown, Args> = {
   command: "queue",
-  describe: "Submit a BTC queue withdraw request",
+  describe: "Submit a BTC queue withdrawal request",
   builder: {
     env: envBuilder,
     pubkey: {

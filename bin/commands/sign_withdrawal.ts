@@ -133,7 +133,7 @@ export const signWithdrawal: CommandModule<unknown, Args> = {
       });
       withdrawalTxn.setWitness(0, witness.witness!);
 
-      console.log("\n>>> Withdraw transaction to broadcast:");
+      console.log("\n>>> Withdrawal transaction to broadcast:");
       console.log(withdrawalTxn.toHex());
       console.log(
         `\nYou can broadcast it via ${config.bitcoin.network === "testnet" ? "https://mempool.space/testnet/tx/push" : "https://mempool.space/tx/push"}`,

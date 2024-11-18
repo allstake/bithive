@@ -34,14 +34,14 @@ const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdrawal request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
 const ERR_MISSING_PARTIAL_SIG: &str = "Missing partial sig for given input";
-const ERR_INVALID_PARTIAL_SIG: &str = "Invalid partial signature for withdraw PSBT";
-const ERR_BAD_WITHDRAW_AMOUNT: &str = "Withdraw amount is larger than queued amount";
+const ERR_INVALID_PARTIAL_SIG: &str = "Invalid partial signature for withdrawal PSBT";
+const ERR_BAD_WITHDRAWAL_AMOUNT: &str = "Withdrawal amount is larger than queued amount";
 const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
 const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
 const ERR_PSBT_REINVEST_PUBKEY_MISMATCH: &str = "PSBT reinvest pubkey mismatch";
 const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
 const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signatures";
-// submit withdraw errors
+// submit withdrawal errors
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
 
@@ -64,7 +64,7 @@ impl Contract {
     /// ### Arguments
     /// * `user_pubkey` - hex encoded user pub key
     /// * `withdraw_amount` - amount to withdraw
-    /// * `msg_sig` - hex encoded signature of queue withdraw message that should match `user_pubkey`
+    /// * `msg_sig` - hex encoded signature of queue withdrawal message that should match `user_pubkey`
     /// * `sig_type` - signature type
     pub fn queue_withdrawal(
         &mut self,
@@ -133,7 +133,7 @@ impl Contract {
         PromiseOrValue::Value(true)
     }
 
-    /// Sign a BTC withdrawal PSBT via chain signatures for multisig withdraw
+    /// Sign a BTC withdrawal PSBT via chain signatures for multisig withdrawal
     /// ### Arguments
     /// * `psbt_hex` - hex encoded PSBT to sign, must be partially signed by the user first
     /// * `user_pubkey` - user public key
@@ -161,11 +161,11 @@ impl Contract {
         );
 
         if account.pending_sign_psbt.is_some() {
-            // if the user has previously requested to sign a withdraw tx, he cannot request to
+            // if the user has previously requested to sign a withdraalw tx, he cannot request to
             // sign another one until the previous one is completed or replaced by fee
             verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
         } else {
-            // if not, verify the withdraw PSBT and save it for signing
+            // if not, verify the withdrawal PSBT and save it for signing
             verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             let reinvest_deposit_vout =
                 self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
@@ -341,10 +341,10 @@ impl Contract {
             .unwrap_or(0);
         let actual_withdraw_amount = deposit_input_sum - reinvest_amount;
 
-        // make sure the actual amount is less than the requested withdraw amount
+        // make sure the actual amount is less than the requested withdrawal amount
         require!(
             actual_withdraw_amount <= account.queue_withdrawal_amount,
-            ERR_BAD_WITHDRAW_AMOUNT
+            ERR_BAD_WITHDRAWAL_AMOUNT
         );
 
         // return the reinvest deposit vout if any
@@ -383,7 +383,7 @@ pub(crate) fn verify_pending_sign_partial_sig(psbt: &Psbt, vin_to_sign: u64, use
         .expect(ERR_INVALID_PARTIAL_SIG);
 }
 
-/// The PSBT provided must be the same or RBF of the saved withdraw PSBT
+/// The PSBT provided must be the same or RBF of the saved withdrawal PSBT
 pub(crate) fn verify_sign_withdrawal_psbt(
     pending_sign_psbt: &PendingSignPsbt,
     request_psbt: &Psbt,

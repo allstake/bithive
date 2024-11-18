@@ -74,7 +74,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   );
 
   /// -- 2. Withdraw both deposits at once
-  // user request queue withdraw
+  // user request queue withdrawal
   await makeQueueWithdrawal(contract, alice, withdrawAmount, aliceKp);
 
   // fast forward
@@ -86,7 +86,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   const depositUnspent2 = unspents[1];
   const depositUtx2 = await regtestUtils.fetch(depositUnspent2.txId);
 
-  // construct withdraw PSBT, which needs be sent to user and bithive to sign
+  // construct withdrawal PSBT, which needs be sent to user and bithive to sign
   let psbt = new bitcoin.Psbt({ network });
   psbt = psbt
     .addInput({
@@ -119,7 +119,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
       script: depositEmbed.output!,
       value: 0,
     });
-  // withdraw output
+  // withdrawal output
   psbt = psbt.addOutput({
     address: userP2wpkhPayment.address!,
     value: withdrawAmount - gasFee,
@@ -197,7 +197,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     value: withdrawAmount - gasFee,
   });
 
-  // finally, submit withdraw tx for both withdrawals to bithive
+  // finally, submit withdrawal tx for both withdrawals to bithive
   await submitWithdrawalTx(contract, alice, {
     tx_hex: withdrawTx.toHex(),
     user_pubkey: aliceKp.publicKey.toString("hex"),
@@ -206,7 +206,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     merkle_proof: [someH256, someH256],
   });
 
-  console.log("Sign withdraw e2e workflow done!");
+  console.log("Sign withdrawal e2e workflow done!");
 });
 
 async function prepareAllstakeSignature(
@@ -427,7 +427,7 @@ async function makeSignWithdrawal(
   // fetch real signature from testnet and upload to mock chain sig contract
   await prepareAllstakeSignature(mockChainSignature, hashToSign);
 
-  // call btc client contract to sign withdraw PSBT
+  // call btc client contract to sign withdrawal PSBT
   const sig = await signWithdrawal(
     contract,
     caller,

@@ -12,7 +12,7 @@ import { assertFailure, daysToMs, someH256 } from "./helpers/utils";
 
 const test = initUnit();
 
-test("submit withdraw invalid txn hex", async (t) => {
+test("submit withdrawal invalid txn hex", async (t) => {
   const { contract, alice } = t.context.accounts;
   const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
@@ -36,7 +36,7 @@ test("submit withdraw invalid txn hex", async (t) => {
   );
 });
 
-test("submit withdraw invalid deposit", async (t) => {
+test("submit withdrawal invalid deposit", async (t) => {
   const { contract, alice } = t.context.accounts;
   const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
@@ -52,7 +52,7 @@ test("submit withdraw invalid deposit", async (t) => {
   );
 });
 
-test("submit withdraw txn not confirmed", async (t) => {
+test("submit withdrawal txn not confirmed", async (t) => {
   const { contract, alice } = t.context.accounts;
   const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
@@ -76,7 +76,7 @@ test("submit withdraw txn not confirmed", async (t) => {
   t.is(await getUserActiveDepositsLen(contract, builder.userPubkeyHex), 1);
 });
 
-test("submit solo withdraw", async (t) => {
+test("submit solo withdrawal", async (t) => {
   const { contract, alice } = t.context.accounts;
 
   // create two deposits
@@ -94,7 +94,7 @@ test("submit solo withdraw", async (t) => {
   });
   await builder2.submit();
 
-  // queue withdraw 3e8
+  // queue withdrawal 3e8
   const sig = builder1.queueWithdrawSignature(3e8, 0);
   await builder1.queueWithdraw(3e8, sig);
   const accountBefore = await viewAccount(contract, builder1.userPubkeyHex);
@@ -127,7 +127,7 @@ test("submit solo withdraw", async (t) => {
   );
 });
 
-test("submit multisig withdraw", async (t) => {
+test("submit multisig withdrawal", async (t) => {
   const { contract, alice } = t.context.accounts;
   const bithivePubkey = t.context.bithivePubkey;
 
@@ -145,16 +145,16 @@ test("submit multisig withdraw", async (t) => {
   });
   await builder2.submit();
 
-  // queue withdraw 1e7 first
+  // queue withdrawal 1e7 first
   const sig1 = builder1.queueWithdrawSignature(1e7, 0);
   await builder1.queueWithdraw(1e7, sig1);
 
   await fastForward(contract, daysToMs(2) + 1);
   builder1.generateWithdrawPsbt(undefined, 9e7);
-  // queue withdraw amount 1e7 is cleared here
+  // queue withdrawal amount 1e7 is cleared here
   await builder1.signWithdraw(0);
 
-  // queue withdraw another 2e7 before submitting the first withdrawal txn
+  // queue withdrawal another 2e7 before submitting the first withdrawal txn
   const sig2 = builder1.queueWithdrawSignature(2e7, 1);
   await builder2.queueWithdraw(2e7, sig2);
   const accountBefore = await viewAccount(contract, builder1.userPubkeyHex);
@@ -202,7 +202,7 @@ test("submit multisig withdraw", async (t) => {
   );
 });
 
-test("submit withdraw with an already withdrawn deposit input", async (t) => {
+test("submit withdrawal with an already withdrawn deposit input", async (t) => {
   const { contract, alice } = t.context.accounts;
   const bithivePubkey = t.context.bithivePubkey;
 
@@ -220,7 +220,7 @@ test("submit withdraw with an already withdrawn deposit input", async (t) => {
   });
   // deposit 2 is not submitted yet
 
-  // make a withdraw transaction to withdraw both
+  // make a withdrawal transaction to withdraw both
   builder1.generateWithdrawPsbt({
     hash: builder2.tx.getId(),
     index: 0,
@@ -230,7 +230,7 @@ test("submit withdraw with an already withdrawn deposit input", async (t) => {
   // submit the second deposit
   await builder2.submit();
 
-  // try to submit the withdraw again
+  // try to submit the withdrawal again
   // only the second deposit should be withdrawn, the first one is already withdrawn
   await builder1.submitWithdraw();
 
