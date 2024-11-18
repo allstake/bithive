@@ -161,7 +161,7 @@ impl Contract {
         );
 
         if account.pending_sign_psbt.is_some() {
-            // if the user has previously requested to sign a withdraalw tx, he cannot request to
+            // if the user has previously requested to sign a withdrawal tx, he cannot request to
             // sign another one until the previous one is completed or replaced by fee
             verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
         } else {
