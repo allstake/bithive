@@ -1,7 +1,7 @@
 import { Gas, NEAR, NearAccount } from "near-workspaces";
 import { ChainSignatureResponse } from "./utils";
 
-export const V1_PK_PATH = "/btc/manage/v1"; // this should be equal to the one defined in contract
+export const V1_PK_PATH = "/bithive/v1"; // this should be equal to the one defined in contract
 
 interface SubmitDepositArg {
   tx_hex: string;

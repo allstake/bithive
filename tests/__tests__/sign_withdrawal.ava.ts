@@ -10,10 +10,10 @@ const test = initUnit();
 async function makeDeposit(t: any, amount = 1e8) {
   const { contract, alice } = t.context.accounts;
   const userPubkey = t.context.aliceKeyPair.publicKey;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     depositAmount: amount,
   });
   await builder.submit();
@@ -292,7 +292,7 @@ test("sign withdraw with reinvestment of a different pubkey", async (t) => {
     redeem: {
       output: depositScriptV1(
         t.context.bobKeyPair.publicKey,
-        t.context.allstakePubkey,
+        t.context.bithivePubkey,
         5,
       ),
     },

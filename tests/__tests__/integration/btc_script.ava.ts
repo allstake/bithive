@@ -33,7 +33,7 @@ async function testCase(
   },
 ) {
   const user = ECPair.makeRandom();
-  const allstake = ECPair.makeRandom();
+  const bithive = ECPair.makeRandom();
 
   const fundAmount = 3e5;
   const stakeAmount = 2e5;
@@ -60,13 +60,13 @@ async function testCase(
   const sequence = bip68.encode({ blocks: opts.waitBlocks });
   const p2wsh = bitcoin.payments.p2wsh({
     redeem: {
-      output: depositScriptV1(user.publicKey, allstake.publicKey, sequence),
+      output: depositScriptV1(user.publicKey, bithive.publicKey, sequence),
     },
     network,
   });
 
   const stakeEmbed = bitcoin.payments.embed({
-    data: [Buffer.from("allstake.deposit.v1")],
+    data: [Buffer.from("bithive.deposit.v1")],
   });
   const stakePsbt = new bitcoin.Psbt({ network })
     .addInput({
@@ -107,9 +107,9 @@ async function testCase(
     vout: 0,
   };
   const stakeUtx = await regtestUtils.fetch(stakeUnspent.txId);
-  const withdrawMsg = Buffer.from("allstake.withdraw");
+  const withdrawMsg = Buffer.from("bithive.withdraw");
 
-  // construct PSBT, which needs be sent to user and allstake to sign
+  // construct PSBT, which needs be sent to user and bithive to sign
   let psbt = new bitcoin.Psbt({ network });
   if (opts.soloWithdraw) {
     psbt = psbt.addInput({
@@ -137,14 +137,14 @@ async function testCase(
       value: 0,
     });
 
-  // user and allstake both signs
+  // user and bithive both signs
   const userSignedPsbt = psbt.clone().signInput(0, user);
   const userPartialSig = userSignedPsbt.data.inputs[0].partialSig!;
   const userSig = userPartialSig[0].signature;
 
-  const allstakeSignedPsbt = psbt.clone().signInput(0, allstake);
-  const allstakePartialSig = allstakeSignedPsbt.data.inputs[0].partialSig!;
-  const allstakeSig = allstakePartialSig[0].signature;
+  const bithiveSignedPsbt = psbt.clone().signInput(0, bithive);
+  const bithivePartialSig = bithiveSignedPsbt.data.inputs[0].partialSig!;
+  const bithiveSig = bithivePartialSig[0].signature;
 
   // combine both signatures and build transaction
   const withdrawTx = new bitcoin.Transaction();
@@ -174,7 +174,7 @@ async function testCase(
       output: p2wsh.redeem!.output!,
       input: opts.soloWithdraw
         ? soloWithdrawScript(userSig)
-        : multisigWithdrawScript(userSig, allstakeSig),
+        : multisigWithdrawScript(userSig, bithiveSig),
     },
   }).witness!;
   withdrawTx.setWitness(0, redeemWitness);

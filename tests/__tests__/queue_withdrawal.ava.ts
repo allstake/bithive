@@ -10,12 +10,12 @@ const test = initUnit();
 
 async function makeDeposit(t: any, inputTxIndex = 0) {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
 
   // real user pubkey from unisat
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     inputTxIndex,
   });
   await builder.submit();
@@ -32,7 +32,7 @@ test("queue withdraw with invalid signature", async (t) => {
   const { builder: aliceBuilder, contract, alice } = await makeDeposit(t);
   const bobBuilder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: bobKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
 
   // generate signagure from bob

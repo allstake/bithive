@@ -18,7 +18,7 @@ test("submit valid deposit txn", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
   await builder.submit();
 
@@ -54,7 +54,7 @@ test("submit invalid embed msg", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
   const tx = builder.tx;
   // manually add an invalid embed output
@@ -82,7 +82,7 @@ test("submit invalid sequence height", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     seq: 2,
   });
 
@@ -94,7 +94,7 @@ test("submit invalid deposit txn", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.bobKeyPair, // wrong
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
   const tx = builder.tx;
   // add an other embed output which refers to a different user pubkey
@@ -125,7 +125,7 @@ test("submit deposit txn not confirmed", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
 
   await submitDepositTx(contract, alice, {
@@ -143,7 +143,7 @@ test("submit duplicated deposit txn", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
   await builder.submit();
 
@@ -156,7 +156,7 @@ test("submit deposit txn with too small deposit amount", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     depositAmount: 10,
   });
 
@@ -176,7 +176,7 @@ test("submit deposit txn with wrong timelock config", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     enableTimelock: true, // this sets locktime to 100
   });
 
@@ -194,7 +194,7 @@ test("submit deposit txn without timelock", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     enableTimelock: false, // wrong
   });
 
@@ -212,7 +212,7 @@ test("submit deposit txn with timelock", async (t) => {
 
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     enableTimelock: true,
   });
 
@@ -224,7 +224,7 @@ test("submit deposit txn with insufficient NEAR deposit", async (t) => {
   const { contract, alice } = t.context.accounts;
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
   const tx = builder.tx;
 

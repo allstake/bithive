@@ -14,10 +14,10 @@ const test = initUnit();
 
 test("submit withdraw invalid txn hex", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
   });
   await builder.submit();
   builder.generateWithdrawPsbt();
@@ -38,10 +38,10 @@ test("submit withdraw invalid txn hex", async (t) => {
 
 test("submit withdraw invalid deposit", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
   });
   builder.generateWithdrawPsbt();
 
@@ -54,10 +54,10 @@ test("submit withdraw invalid deposit", async (t) => {
 
 test("submit withdraw txn not confirmed", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
   });
   await builder.submit();
 
@@ -82,14 +82,14 @@ test("submit solo withdraw", async (t) => {
   // create two deposits
   const builder1 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     depositAmount: 1e8,
   });
   await builder1.submit();
 
   const builder2 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
     depositAmount: 2e8,
   });
   await builder2.submit();
@@ -129,18 +129,18 @@ test("submit solo withdraw", async (t) => {
 
 test("submit multisig withdraw", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
 
   // make two deposits
   const builder1 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     depositAmount: 1e8,
   });
   await builder1.submit();
   const builder2 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     depositAmount: 2e8,
   });
   await builder2.submit();
@@ -204,18 +204,18 @@ test("submit multisig withdraw", async (t) => {
 
 test("submit withdraw with an already withdrawn deposit input", async (t) => {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
 
   // make two deposits
   const builder1 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     depositAmount: 1e8,
   });
   await builder1.submit();
   const builder2 = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     depositAmount: 2e8,
   });
   // deposit 2 is not submitted yet
