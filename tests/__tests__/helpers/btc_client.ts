@@ -1,7 +1,7 @@
 import { Gas, NEAR, NearAccount } from "near-workspaces";
 import { ChainSignatureResponse } from "./utils";
 
-export const V1_PK_PATH = "/btc/manage/v1"; // this should be equal to the one defined in contract
+export const V1_PK_PATH = "/bithive/v1"; // this should be equal to the one defined in contract
 
 interface SubmitDepositArg {
   tx_hex: string;
@@ -27,22 +27,35 @@ export async function submitDepositTx(
   );
 }
 
+type SigType =
+  | "ECDSA"
+  | {
+      Bip322Full: {
+        address: string;
+      };
+    };
+
 export async function queueWithdrawal(
   btcClient: NearAccount,
   caller: NearAccount,
   user_pubkey: string,
-  deposit_tx_id: string,
-  deposit_vout: number,
+  withdraw_amount: number,
   msg_sig: string,
-  sig_type: string,
+  sig_type: SigType,
 ) {
-  return caller.call(btcClient, "queue_withdrawal", {
-    user_pubkey,
-    deposit_tx_id,
-    deposit_vout,
-    msg_sig,
-    sig_type,
-  });
+  return caller.call(
+    btcClient,
+    "queue_withdrawal",
+    {
+      user_pubkey,
+      withdraw_amount,
+      msg_sig,
+      sig_type,
+    },
+    {
+      gas: Gas.parse("60 Tgas"),
+    },
+  );
 }
 
 export async function signWithdrawal(
@@ -50,7 +63,8 @@ export async function signWithdrawal(
   caller: NearAccount,
   psbtHex: string,
   userPubkey: string,
-  depositVin: number,
+  vinToSign: number,
+  reinvestEmbedVout?: number,
 ): Promise<ChainSignatureResponse> {
   return caller.call(
     btcClient.accountId,
@@ -58,7 +72,8 @@ export async function signWithdrawal(
     {
       psbt_hex: psbtHex,
       user_pubkey: userPubkey,
-      deposit_vin: depositVin,
+      vin_to_sign: vinToSign,
+      reinvest_embed_vout: reinvestEmbedVout,
     },
     {
       attachedDeposit: NEAR.parse("0.5"),
@@ -70,23 +85,19 @@ export async function signWithdrawal(
 export async function submitWithdrawalTx(
   btcClient: NearAccount,
   caller: NearAccount,
-  tx_hex: string,
-  user_pubkey: string,
-  deposit_vin: number,
-  tx_block_hash: string,
-  tx_index: number,
-  merkle_proof: string[],
+  args: {
+    tx_hex: string;
+    user_pubkey: string;
+    tx_block_hash: string;
+    tx_index: number;
+    merkle_proof: string[];
+  },
 ) {
   return caller.call(
     btcClient,
     "submit_withdrawal_tx",
     {
-      tx_hex,
-      user_pubkey,
-      deposit_vin,
-      tx_block_hash,
-      tx_index,
-      merkle_proof,
+      args,
     },
     {
       gas: Gas.parse("200 Tgas"),
@@ -94,10 +105,10 @@ export async function submitWithdrawalTx(
   );
 }
 
-export async function syncChainSignatureRootPubkey(btcClient: NearAccount) {
+export async function syncChainSignaturesRootPubkey(btcClient: NearAccount) {
   return btcClient.call(
     btcClient,
-    "sync_chain_signature_root_pubkey",
+    "sync_chain_signatures_root_pubkey",
     {},
     {
       gas: Gas.parse("60 Tgas"),
@@ -122,14 +133,14 @@ export async function changeOwner(
   );
 }
 
-export async function setBtcLightclientId(
+export async function setBtcLightClientId(
   btcClient: NearAccount,
   caller: NearAccount,
   contract: NearAccount,
 ) {
   return caller.call(
     btcClient,
-    "set_btc_lightclient_id",
+    "set_btc_light_client_id",
     {
       new_contract_id: contract.accountId,
     },
@@ -163,7 +174,7 @@ export async function setWithdrawWaitingTime(
 ) {
   return caller.call(
     btcClient,
-    "set_withdraw_waiting_time",
+    "set_withdrawal_waiting_time",
     {
       ms,
     },
@@ -190,11 +201,11 @@ export async function setEarliestDepositBlockHeight(
 
 interface ContractSummary {
   owner_id: string;
-  btc_lightclient_id: string;
-  chain_signature_id: string;
+  btc_light_client_id: string;
+  chain_signatures_id: string;
   chain_signature_root_pubkey: string;
   n_confirmation: number;
-  withdraw_waiting_time_ms: number;
+  withdrawal_waiting_time_ms: number;
 }
 
 export async function getSummary(
@@ -221,21 +232,18 @@ function buildGetUserLenFunction(name: string) {
 
 export const getUserActiveDepositsLen =
   buildGetUserLenFunction("active_deposits");
-export const getUserQueueWithdrawalDepositsLen = buildGetUserLenFunction(
-  "queue_withdrawal_deposits",
-);
 export const getUserWithdrawnDepositsLen =
   buildGetUserLenFunction("withdrawn_deposits");
 
 interface Deposit {
+  user_pubkey: string;
+  status: "Active" | "Withdrawn";
   redeem_version: string;
   deposit_tx_id: string;
   deposit_vout: number;
   value: number;
-  queue_withdraw_ts: number;
-  queue_withdraw_message: string | null;
-  queue_withdraw_sig: string | null;
-  complete_withdraw_ts: number;
+  sequence: number;
+  complete_withdrawal_ts: number;
   withdrawal_tx_id: string | null;
 }
 
@@ -256,8 +264,24 @@ function buildListUserDepositFunction(name: string) {
 
 export const listUserActiveDeposits =
   buildListUserDepositFunction("active_deposits");
-export const listUserQueueWithdrawalDeposits = buildListUserDepositFunction(
-  "queue_withdrawal_deposits",
-);
 export const listUserWithdrawnDeposits =
   buildListUserDepositFunction("withdrawn_deposits");
+
+interface Account {
+  pubkey: string;
+  total_deposit: number;
+  queue_withdrawal_amount: number;
+  queue_withdrawal_start_ts: number;
+  nonce: number;
+  pending_sign_psbt: {
+    psbt: string;
+    reinvest_deposit_vout: number | null;
+  } | null;
+}
+
+export async function viewAccount(
+  btcClient: NearAccount,
+  userPubkey: string,
+): Promise<Account> {
+  return btcClient.view("view_account", { user_pubkey: userPubkey });
+}

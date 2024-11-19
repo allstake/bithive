@@ -11,7 +11,7 @@ export async function initNear(env: string, signerId?: string) {
 }
 
 export async function getSummary(env: string): Promise<{
-  solo_withdraw_sequence_heights: number[];
+  solo_withdrawal_sequence_heights: number[];
 }> {
   const config = await getConfig(env);
   const { signer } = await initNear(env);
@@ -23,7 +23,7 @@ export async function getSummary(env: string): Promise<{
 }
 
 export async function getV1Consts(env: string): Promise<{
-  allstake_pubkey: string;
+  bithive_pubkey: string;
 }> {
   const config = await getConfig(env);
   const { signer } = await initNear(env);

@@ -1,5 +1,5 @@
 use account::{Account, VersionedAccount};
-use ext::ext_chain_signature;
+use ext::ext_chain_signatures;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, LookupSet};
 use near_sdk::{env, near_bindgen, require, AccountId, Gas, PanicOnDefault, Promise, PromiseError};
@@ -12,7 +12,9 @@ mod deposit;
 mod events;
 mod ext;
 mod kdf;
+mod legacy;
 mod types;
+mod upgrade;
 mod utils;
 mod view;
 mod withdraw;
@@ -29,23 +31,25 @@ pub struct Contract {
     /// contract owner ID
     owner_id: AccountId,
     /// btc light client contract ID
-    btc_lightclient_id: AccountId,
-    /// chain signature contract ID
-    chain_signature_id: AccountId,
-    /// chain signature root public key
+    btc_light_client_id: AccountId,
+    /// bip322 verifier contract ID
+    bip322_verifier_id: Option<AccountId>,
+    /// chain signatures contract ID
+    chain_signatures_id: AccountId,
+    /// chain signatures root public key
     /// once set in contract initialization, this should not be changed
     /// otherwise we won't be able to sign previous txns
-    chain_signature_root_pubkey: Option<near_sdk::PublicKey>,
+    chain_signatures_root_pubkey: Option<near_sdk::PublicKey>,
     /// number of confirmations in BTC
     n_confirmation: u64,
-    /// for multisig withdraw, how long the withdraw request needs to be queued
-    withdraw_waiting_time_ms: u64,
+    /// for multisig withdrawal, how long the withdrawal request needs to be queued
+    withdrawal_waiting_time_ms: u64,
     /// minimum deposit amount in satoshi
     min_deposit_satoshi: u64,
     /// earliest block height acceptable for deposit
     earliest_deposit_block_height: u32,
-    /// list of available solo withdraw sequence heights, used by redeem script
-    solo_withdraw_seq_heights: Vec<u16>,
+    /// list of available solo withdrawal sequence heights, used by redeem script
+    solo_withdrawal_seq_heights: Vec<u16>,
     /// set of all confirmed deposit txns
     confirmed_deposit_txns: LookupSet<OutputId>,
     /// user accounts: pubkey -> account
@@ -59,27 +63,28 @@ impl Contract {
     pub fn init(args: InitArgs) -> Self {
         Self {
             owner_id: args.owner_id,
-            btc_lightclient_id: args.btc_lightclient_id,
-            chain_signature_id: args.chain_signature_id,
-            chain_signature_root_pubkey: None,
+            btc_light_client_id: args.btc_light_client_id,
+            bip322_verifier_id: args.bip322_verifier_id,
+            chain_signatures_id: args.chain_signatures_id,
+            chain_signatures_root_pubkey: None,
             n_confirmation: args.n_confirmation,
-            withdraw_waiting_time_ms: args.withdraw_waiting_time_ms,
+            withdrawal_waiting_time_ms: args.withdrawal_waiting_time_ms,
             min_deposit_satoshi: args.min_deposit_satoshi,
             earliest_deposit_block_height: args.earliest_deposit_block_height,
-            solo_withdraw_seq_heights: args.solo_withdraw_seq_heights,
+            solo_withdrawal_seq_heights: args.solo_withdrawal_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: LookupMap::new(StorageKey::Accounts),
         }
     }
 
-    /// sync root public key from chain signature
+    /// sync root public key from chain signatures
     /// this should be called right after the init function is called
-    pub fn sync_chain_signature_root_pubkey(&self) -> Promise {
+    pub fn sync_chain_signatures_root_pubkey(&self) -> Promise {
         require!(
-            self.chain_signature_root_pubkey.is_none(),
+            self.chain_signatures_root_pubkey.is_none(),
             ERR_ROOT_PK_ALREADY_SYNCED
         );
-        ext_chain_signature::ext(self.chain_signature_id.clone())
+        ext_chain_signatures::ext(self.chain_signatures_id.clone())
             .with_static_gas(GAS_GET_ROOT_PUBKEY)
             .public_key()
             .then(
@@ -104,10 +109,10 @@ impl Contract {
     /// this could be called by tests but not exposed on-chain
     pub(crate) fn set_chain_signature_root_pubkey(&mut self, pk: near_sdk::PublicKey) {
         require!(
-            self.chain_signature_root_pubkey.is_none(),
+            self.chain_signatures_root_pubkey.is_none(),
             ERR_ROOT_PK_ALREADY_SYNCED
         );
-        self.chain_signature_root_pubkey = Some(pk);
+        self.chain_signatures_root_pubkey = Some(pk);
     }
 
     fn get_account(&self, pubkey: &PubKey) -> Account {
@@ -118,7 +123,8 @@ impl Contract {
     }
 
     fn set_account(&mut self, account: Account) {
-        self.accounts.insert(&account.pubkey(), &account.into());
+        self.accounts
+            .insert(&account.pubkey.clone(), &account.into());
     }
 }
 
@@ -131,13 +137,14 @@ mod tests {
     pub(crate) fn test_contract_instance() -> Contract {
         let mut contract = Contract::init(InitArgs {
             owner_id: AccountId::new_unchecked("owner".to_string()),
-            btc_lightclient_id: AccountId::new_unchecked("lc".to_string()),
-            chain_signature_id: AccountId::new_unchecked("cs".to_string()),
+            btc_light_client_id: AccountId::new_unchecked("lc".to_string()),
+            bip322_verifier_id: Some(AccountId::new_unchecked("bv".to_string())),
+            chain_signatures_id: AccountId::new_unchecked("cs".to_string()),
             n_confirmation: 6,
-            withdraw_waiting_time_ms: 0,
+            withdrawal_waiting_time_ms: 0,
             min_deposit_satoshi: 0,
             earliest_deposit_block_height: 0,
-            solo_withdraw_seq_heights: vec![5],
+            solo_withdrawal_seq_heights: vec![5],
         });
 
         // from v1.signer-prod.testnet

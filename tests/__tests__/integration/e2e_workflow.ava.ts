@@ -1,14 +1,17 @@
 import { message } from "@okxweb3/coin-bitcoin";
 import * as bitcoin from "bitcoinjs-lib";
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+import { isP2TR } from "bitcoinjs-lib/src/psbt/psbtutils";
+import { ECPairInterface } from "ecpair";
 import { NearAccount } from "near-workspaces";
+import { RegtestUtils } from "regtest-client";
+import * as ecc from "tiny-secp256k1";
 import {
   depositScriptV1,
   getWitnessUtxo,
-  idToHash,
   multisigWithdrawScript,
   partialSignPsbt,
   reconstructSignature,
-  toOutputScript,
 } from "../helpers/btc";
 import {
   fastForward,
@@ -22,11 +25,6 @@ import { setSignature } from "../helpers/chain_signature";
 import { initIntegration } from "../helpers/context";
 import { requestSigFromTestnet } from "../helpers/near_client";
 import { buildDepositEmbedMsg, daysToMs, someH256 } from "../helpers/utils";
-import { RegtestUtils } from "regtest-client";
-import { ECPairInterface } from "ecpair";
-import * as ecc from "tiny-secp256k1";
-import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
-import { isP2TR } from "bitcoinjs-lib/src/psbt/psbtutils";
 
 const bip68 = require("bip68"); // eslint-disable-line
 bitcoin.initEccLib(ecc);
@@ -52,7 +50,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   });
 
   // -- 1. deposit
-  const { depositTx: depositTx1, p2wsh } = await makeDeposit(
+  const { p2wsh } = await makeDeposit(
     contract,
     alice,
     regtestUtils,
@@ -60,10 +58,10 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     depositAmount1,
     waitBlocks,
     aliceKp,
-    t.context.allstakePubkey,
+    t.context.bithivePubkey,
     network,
   );
-  const { depositTx: depositTx2 } = await makeDeposit(
+  await makeDeposit(
     contract,
     alice,
     regtestUtils,
@@ -71,24 +69,24 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     depositAmount2,
     waitBlocks,
     aliceKp,
-    t.context.allstakePubkey,
+    t.context.bithivePubkey,
     network,
   );
 
   /// -- 2. Withdraw both deposits at once
-  // user request queue withdraw
-  await makeQueueWithdrawal(contract, alice, depositTx1.getId(), aliceKp);
-  await makeQueueWithdrawal(contract, alice, depositTx2.getId(), aliceKp);
+  // user request queue withdrawal
+  await makeQueueWithdrawal(contract, alice, withdrawAmount, aliceKp);
 
   // fast forward
   await fastForward(contract, daysToMs(3));
 
-  const depositUnspent1 = (await regtestUtils.unspents(p2wsh.address!))[0];
+  const unspents = await regtestUtils.unspents(p2wsh.address!);
+  const depositUnspent1 = unspents[0];
   const depositUtx1 = await regtestUtils.fetch(depositUnspent1.txId);
-  const depositUnspent2 = (await regtestUtils.unspents(p2wsh.address!))[1];
+  const depositUnspent2 = unspents[1];
   const depositUtx2 = await regtestUtils.fetch(depositUnspent2.txId);
 
-  // construct PSBT, which needs be sent to user and allstake to sign
+  // construct withdrawal PSBT, which needs be sent to user and bithive to sign
   let psbt = new bitcoin.Psbt({ network });
   psbt = psbt
     .addInput({
@@ -103,10 +101,30 @@ test("Deposit and withdraw workflow e2e", async (t) => {
       witnessUtxo: getWitnessUtxo(depositUtx2.outs[depositUnspent2.vout]),
       witnessScript: p2wsh.redeem!.output!,
     });
+
+  const gasFee = 500;
+  // reinvestment output
+  const { p2wsh: reinvestOutput, depositEmbed } = buildDepositOutputs(
+    aliceKp.publicKey,
+    t.context.bithivePubkey,
+    waitBlocks,
+    network,
+  );
+  psbt = psbt
+    .addOutput({
+      address: reinvestOutput.address!,
+      value: depositAmount1 + depositAmount2 - withdrawAmount,
+    })
+    .addOutput({
+      script: depositEmbed.output!,
+      value: 0,
+    });
+  // withdrawal output
   psbt = psbt.addOutput({
     address: userP2wpkhPayment.address!,
-    value: withdrawAmount,
+    value: withdrawAmount - gasFee,
   });
+
   const psbtUnsignedTx: bitcoin.Transaction = (psbt as any).__CACHE.__TX;
   const psbtUnsignedTxId = psbtUnsignedTx.getId();
 
@@ -120,21 +138,23 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   const userPartialSig2 = partialSignedPsbt2.data.inputs[1].partialSig!;
   const userSig2 = userPartialSig2[0].signature;
 
-  // then, allstake signs psbt
-  const allstakeSig1 = await makeSignWithdrawal(
+  // then, bithive signs psbt
+  const bithiveSig1 = await makeSignWithdrawal(
     contract,
     alice,
     mockChainSignature,
-    psbt,
+    partialSignedPsbt1,
     0,
+    1,
     aliceKp.publicKey.toString("hex"),
     hashToSign1,
   );
-  const allstakeSig2 = await makeSignWithdrawal(
+  const bithiveSig2 = await makeSignWithdrawal(
     contract,
     alice,
     mockChainSignature,
-    psbt,
+    partialSignedPsbt2,
+    1,
     1,
     aliceKp.publicKey.toString("hex"),
     hashToSign2,
@@ -143,15 +163,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   // construct txn to broadcast
 
   // combine both signatures and build transaction
-  const withdrawTx = new bitcoin.Transaction();
-  withdrawTx.version = 2;
-  withdrawTx.addInput(idToHash(depositUnspent1.txId), depositUnspent1.vout);
-  withdrawTx.addInput(idToHash(depositUnspent2.txId), depositUnspent2.vout);
-  // withdraw to user's address
-  withdrawTx.addOutput(
-    toOutputScript(userP2wpkhPayment.address!, network),
-    withdrawAmount,
-  );
+  const withdrawTx: bitcoin.Transaction = psbtUnsignedTx;
 
   // set witness for both inputs
   const redeemWitness1 = bitcoin.payments.p2wsh({
@@ -159,7 +171,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     redeem: {
       network,
       output: p2wsh.redeem!.output!,
-      input: multisigWithdrawScript(userSig1, allstakeSig1),
+      input: multisigWithdrawScript(userSig1, bithiveSig1),
     },
   }).witness!;
   withdrawTx.setWitness(0, redeemWitness1);
@@ -168,7 +180,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     redeem: {
       network,
       output: p2wsh.redeem!.output!,
-      input: multisigWithdrawScript(userSig2, allstakeSig2),
+      input: multisigWithdrawScript(userSig2, bithiveSig2),
     },
   }).witness!;
   withdrawTx.setWitness(1, redeemWitness2);
@@ -181,33 +193,20 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   await regtestUtils.verify({
     txId: withdrawTx.getId(),
     address: userP2wpkhPayment.address!,
-    vout: 0,
-    value: withdrawAmount,
+    vout: 2,
+    value: withdrawAmount - gasFee,
   });
 
-  // finally, submit withdraw tx for both withdrawals to allstake
-  await submitWithdrawalTx(
-    contract,
-    alice,
-    withdrawTx.toHex(),
-    aliceKp.publicKey.toString("hex"),
-    0,
-    someH256,
-    66,
-    [someH256, someH256],
-  );
-  await submitWithdrawalTx(
-    contract,
-    alice,
-    withdrawTx.toHex(),
-    aliceKp.publicKey.toString("hex"),
-    1,
-    someH256,
-    66,
-    [someH256, someH256],
-  );
+  // finally, submit withdrawal tx for both withdrawals to bithive
+  await submitWithdrawalTx(contract, alice, {
+    tx_hex: withdrawTx.toHex(),
+    user_pubkey: aliceKp.publicKey.toString("hex"),
+    tx_block_hash: someH256,
+    tx_index: 66,
+    merkle_proof: [someH256, someH256],
+  });
 
-  console.log("Sign withdraw e2e workflow done!");
+  console.log("Sign withdrawal e2e workflow done!");
 });
 
 async function prepareAllstakeSignature(
@@ -272,7 +271,7 @@ async function makeDeposit(
   depositAmount: number,
   waitBlocks: number,
   userKeyPair: ECPairInterface,
-  allstakePubkey: Buffer,
+  bithivePubkey: Buffer,
   network: bitcoin.Network,
 ) {
   // fund user's wallet first
@@ -307,23 +306,12 @@ async function makeDeposit(
   }
 
   // outputs
-  const sequence = bip68.encode({ blocks: waitBlocks });
-  const p2wsh = bitcoin.payments.p2wsh({
-    redeem: {
-      output: depositScriptV1(userKeyPair.publicKey, allstakePubkey, sequence),
-    },
-    network,
-  });
-
-  const embedDepositMsg = buildDepositEmbedMsg(
-    0,
-    userKeyPair.publicKey.toString("hex"),
+  const { p2wsh, depositEmbed } = buildDepositOutputs(
+    userKeyPair.publicKey,
+    bithivePubkey,
     waitBlocks,
+    network,
   );
-  const depositEmbed = bitcoin.payments.embed({
-    data: [embedDepositMsg],
-  });
-
   depositPsbt
     .addOutput({
       address: p2wsh.address!,
@@ -377,22 +365,49 @@ async function makeDeposit(
   };
 }
 
+function buildDepositOutputs(
+  publicKey: Buffer,
+  bithivePubkey: Buffer,
+  waitBlocks: number,
+  network: bitcoin.Network,
+) {
+  const sequence = bip68.encode({ blocks: waitBlocks });
+  const p2wsh = bitcoin.payments.p2wsh({
+    redeem: {
+      output: depositScriptV1(publicKey, bithivePubkey, sequence),
+    },
+    network,
+  });
+
+  const embedDepositMsg = buildDepositEmbedMsg(
+    0,
+    publicKey.toString("hex"),
+    waitBlocks,
+  );
+  const depositEmbed = bitcoin.payments.embed({
+    data: [embedDepositMsg],
+  });
+
+  return {
+    p2wsh,
+    depositEmbed,
+  };
+}
+
 async function makeQueueWithdrawal(
   contract: NearAccount,
   caller: NearAccount,
-  depositTxId: string,
+  withdrawAmount: number,
   userKeyPair: ECPairInterface,
 ) {
-  const depositVout = 0;
-  const withdrawMsgPlain = `allstake.withdraw:${depositTxId}:${depositVout}`;
+  const withdrawMsgPlain = `bithive.withdraw:0:${withdrawAmount}sats`;
   const sigBase64 = message.sign(userKeyPair.toWIF(), withdrawMsgPlain);
   const sigHex = Buffer.from(sigBase64, "base64").toString("hex");
   await queueWithdrawal(
     contract,
     caller,
     userKeyPair.publicKey.toString("hex"),
-    depositTxId,
-    depositVout,
+    withdrawAmount,
     sigHex,
     "ECDSA",
   );
@@ -405,19 +420,21 @@ async function makeSignWithdrawal(
   mockChainSignature: NearAccount,
   psbt: bitcoin.Psbt,
   depositVin: number,
+  reinvestVout: number,
   userPubkey: string,
   hashToSign: Buffer,
 ) {
   // fetch real signature from testnet and upload to mock chain sig contract
   await prepareAllstakeSignature(mockChainSignature, hashToSign);
 
-  // call btc client contract to sign withdraw PSBT
+  // call btc client contract to sign withdrawal PSBT
   const sig = await signWithdrawal(
     contract,
     caller,
     psbt.toHex(),
     userPubkey,
     depositVin,
+    reinvestVout,
   );
 
   return bitcoin.script.signature.encode(

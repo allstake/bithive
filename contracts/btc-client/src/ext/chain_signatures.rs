@@ -29,9 +29,9 @@ pub struct SignatureResponse {
     pub recovery_id: u8,
 }
 
-#[ext_contract(ext_chain_signature)]
+#[ext_contract(ext_chain_signatures)]
 #[allow(dead_code)]
-pub trait ChainSignature {
+pub trait ChainSignatures {
     fn sign(&mut self, request: SignRequest) -> Promise;
 
     /// returns the root public key

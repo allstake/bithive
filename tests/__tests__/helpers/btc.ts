@@ -12,7 +12,7 @@ const rootPublicKey =
 
 export function depositScriptV1(
   userPubkey: Buffer,
-  allstakePubkey: Buffer,
+  bithivePubkey: Buffer,
   sequence: number,
 ): Buffer {
   return bitcoin.script.fromASM(
@@ -26,7 +26,7 @@ export function depositScriptV1(
     OP_ELSE
         OP_2
         ${userPubkey.toString("hex")}
-        ${allstakePubkey.toString("hex")}
+        ${bithivePubkey.toString("hex")}
         OP_2
         OP_CHECKMULTISIG
     OP_ENDIF
@@ -42,12 +42,12 @@ export function soloWithdrawScript(userSig: Buffer): Buffer {
 
 export function multisigWithdrawScript(
   userSig: Buffer,
-  allstakeSig: Buffer,
+  bithiveSig: Buffer,
 ): Buffer {
   return bitcoin.script.compile([
     bitcoin.opcodes.OP_0,
     userSig,
-    allstakeSig,
+    bithiveSig,
     bitcoin.opcodes.OP_FALSE,
   ]);
 }

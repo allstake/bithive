@@ -19,13 +19,14 @@ export const init: CommandModule<unknown, Args> = {
 
     const args = {
       owner_id: config.accountIds.owner,
-      btc_lightclient_id: config.accountIds.btcLightClient,
-      chain_signature_id: config.accountIds.chainSignature,
+      bip322_verifier_id: config.accountIds.bip322Verifier,
+      btc_light_client_id: config.accountIds.btcLightClient,
+      chain_signatures_id: config.accountIds.chainSignatures,
       n_confirmation: config.params.nConfirmation,
-      withdraw_waiting_time_ms: config.params.withdrawWaitingTimeMs,
+      withdrawal_waiting_time_ms: config.params.withdrawalWaitingTimeMs,
       min_deposit_satoshi: config.params.minDepositSatoshi,
       earliest_deposit_block_height: config.params.earliestDepositBlockHeight,
-      solo_withdraw_seq_heights: config.params.soloWithdrawSeqHeights,
+      solo_withdrawal_seq_heights: config.params.soloWithdrawSeqHeights,
     };
 
     await signer.functionCall({
@@ -42,6 +43,27 @@ export const init: CommandModule<unknown, Args> = {
       gas: nearTGas(100),
     });
     console.log("Called sync_chain_signature_root_pubkey method");
+
+    process.exit(0);
+  },
+};
+
+export const initBip322: CommandModule<unknown, Args> = {
+  command: "init-bip322",
+  describe: "Initialize BIP322 verifier contract",
+  builder: {
+    env: envBuilder,
+  },
+  async handler({ env }) {
+    const config = await getConfig(env);
+    const { signer } = await initNear(env, config.accountIds.bip322Verifier);
+
+    await signer.functionCall({
+      contractId: config.accountIds.bip322Verifier,
+      methodName: "new",
+      args: {},
+    });
+    console.log("Initialized BIP322 verifier contract");
 
     process.exit(0);
   },

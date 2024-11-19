@@ -13,12 +13,13 @@ export interface Config {
     signer: string;
     owner: string;
     btcClient: string;
-    chainSignature: string;
+    bip322Verifier: string;
+    chainSignatures: string;
     btcLightClient: string;
   };
   params: {
     nConfirmation: number;
-    withdrawWaitingTimeMs: number;
+    withdrawalWaitingTimeMs: number;
     minDepositSatoshi: number;
     earliestDepositBlockHeight: number;
     soloWithdrawSeqHeights: number[];

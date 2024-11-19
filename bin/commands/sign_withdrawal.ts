@@ -4,12 +4,16 @@ import { getTransaction } from "../blocksteam";
 import { getConfig } from "../config";
 import { envBuilder } from "../helper";
 import {
-  buildAllstakeSignature,
+  buildBitHiveSignature,
   depositScriptV1,
   getWitnessUtxo,
   multisigWithdrawScript,
 } from "../btc";
-import { getSummary, getV1Consts, signWithdrawal } from "../near";
+import {
+  getSummary,
+  getV1Consts,
+  signWithdrawal as signWithdrawalOnNear,
+} from "../near";
 
 interface Args {
   env: string;
@@ -18,13 +22,13 @@ interface Args {
   pubkey: string;
   receiver: string;
   amount: number;
-  allstakeSig: string;
+  bithiveSig: string;
   userSignedPsbt: string;
 }
 
-export const signWithdraw: CommandModule<unknown, Args> = {
+export const signWithdrawal: CommandModule<unknown, Args> = {
   command: "sign",
-  describe: "Build a BTC withdraw request to sign",
+  describe: "Build a BTC withdrawal request to sign",
   builder: {
     env: envBuilder,
     txid: {
@@ -56,8 +60,8 @@ export const signWithdraw: CommandModule<unknown, Args> = {
       describe: "User signed PSBT in hex",
       type: "string",
     },
-    allstakeSig: {
-      describe: "Allstake signature",
+    bithiveSig: {
+      describe: "BitHive signature",
       type: "string",
     },
   },
@@ -69,7 +73,7 @@ export const signWithdraw: CommandModule<unknown, Args> = {
     receiver,
     amount,
     userSignedPsbt,
-    allstakeSig,
+    bithiveSig,
   }) {
     const config = await getConfig(env);
     const txHex = await getTransaction(txid, config.bitcoin.network);
@@ -79,7 +83,7 @@ export const signWithdraw: CommandModule<unknown, Args> = {
     const summary = await getSummary(env);
     const v1Consts = await getV1Consts(env);
 
-    // construct withdraw psbt
+    // construct withdrawal psbt
     const network =
       config.bitcoin.network === "testnet"
         ? bitcoin.networks.testnet
@@ -88,8 +92,8 @@ export const signWithdraw: CommandModule<unknown, Args> = {
       redeem: {
         output: depositScriptV1(
           Buffer.from(pubkey, "hex"),
-          Buffer.from(v1Consts.allstake_pubkey, "hex"),
-          summary.solo_withdraw_sequence_heights[0],
+          Buffer.from(v1Consts.bithive_pubkey, "hex"),
+          summary.solo_withdrawal_sequence_heights[0],
         ),
       },
       network,
@@ -110,12 +114,12 @@ export const signWithdraw: CommandModule<unknown, Args> = {
 
     // -- path 1: both signatures provided, build the transaction
 
-    if (userSignedPsbt && allstakeSig) {
+    if (userSignedPsbt && bithiveSig) {
       // extract user signature from signed PSBT
       const partialSignedPsbt = bitcoin.Psbt.fromHex(userSignedPsbt);
       const userSig = partialSignedPsbt.data.inputs[0].partialSig![0].signature;
 
-      const withdrawTxn: bitcoin.Transaction = (psbt as any).__CACHE.__TX;
+      const withdrawalTxn: bitcoin.Transaction = (psbt as any).__CACHE.__TX;
       const witness = bitcoin.payments.p2wsh({
         network,
         redeem: {
@@ -123,14 +127,14 @@ export const signWithdraw: CommandModule<unknown, Args> = {
           output: depositScript.redeem!.output!,
           input: multisigWithdrawScript(
             userSig,
-            Buffer.from(allstakeSig, "hex"),
+            Buffer.from(bithiveSig, "hex"),
           ),
         },
       });
-      withdrawTxn.setWitness(0, witness.witness!);
+      withdrawalTxn.setWitness(0, witness.witness!);
 
-      console.log("\n>>> Withdraw transaction to broadcast:");
-      console.log(withdrawTxn.toHex());
+      console.log("\n>>> Withdrawal transaction to broadcast:");
+      console.log(withdrawalTxn.toHex());
       console.log(
         `\nYou can broadcast it via ${config.bitcoin.network === "testnet" ? "https://mempool.space/testnet/tx/push" : "https://mempool.space/tx/push"}`,
       );
@@ -140,13 +144,18 @@ export const signWithdraw: CommandModule<unknown, Args> = {
 
     // -- path 2: generate data required for signing
 
-    // a) the signature from chain signature
-    const allstakeRes = await signWithdrawal(env, psbt.toHex(), pubkey, vout);
-    const sig = buildAllstakeSignature(
-      allstakeRes.big_r.affine_point,
-      allstakeRes.s.scalar,
+    // a) the signature from chain signatures
+    const bithiveRes = await signWithdrawalOnNear(
+      env,
+      psbt.toHex(),
+      pubkey,
+      vout,
     );
-    console.log("\n>>> Allstake signature:");
+    const sig = buildBitHiveSignature(
+      bithiveRes.big_r.affine_point,
+      bithiveRes.s.scalar,
+    );
+    console.log("\n>>> BitHive signature:");
     console.log(sig.toString("hex"));
 
     // b) psbt for signing via wallet
@@ -156,7 +165,7 @@ export const signWithdraw: CommandModule<unknown, Args> = {
 
     console.log("\nPlease provide the PSBT hex to Unisat wallet for signing.");
     console.log(
-      "\nAfter signing, provide the signed PSBT hex along with the allstake signature above to this command (`--userSignedPsbt` and `--allstakeSig`) to build the transaction.",
+      "\nAfter signing, provide the signed PSBT hex along with the bithive signature above to this command (`--userSignedPsbt` and `--bithiveSig`) to build the transaction.",
     );
   },
 };

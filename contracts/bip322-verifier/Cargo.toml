@@ -1,6 +1,6 @@
 [package]
-name = "mock-chain-signature"
-version = "1.0.0"
+name = "bip322-verifier"
+version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,7 +9,9 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-near-sdk = "4.1.1"
-near-contract-standards = "4.1.1"
+near-sdk = { version = "4.1.1" }
+bip322-rs = "0.0.11"
 hex="0.4.3"
-serde_json="1"
+
+[features]
+test = []

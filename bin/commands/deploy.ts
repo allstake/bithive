@@ -35,8 +35,25 @@ export const deployBtcLightClient: CommandModule<unknown, Args> = {
     const config = await getConfig(env);
     await deployContract(
       env,
-      "res/mock_btc_lightclient.wasm",
+      "res/mock_btc_light_client.wasm",
       config.accountIds.btcLightClient,
+    );
+    process.exit();
+  },
+};
+
+export const deployBip322Verifier: CommandModule<unknown, Args> = {
+  command: "deploy-bip322",
+  describe: "Deploy BIP322 verifier contract",
+  builder: {
+    env: envBuilder,
+  },
+  async handler({ env }) {
+    const config = await getConfig(env);
+    await deployContract(
+      env,
+      "res/bip322_verifier.wasm",
+      config.accountIds.bip322Verifier,
     );
     process.exit();
   },

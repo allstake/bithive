@@ -55,15 +55,24 @@ pub fn verify_signed_message_ecdsa(plain_msg: &[u8], sig: &[u8], pubkey: &[u8]) 
     let flag = sig[0] - 27;
     let v = flag & 3;
 
-    verify_secp256k1_signature(pubkey, msg_hash.as_ref(), actual_sig, v);
+    verify_secp256k1_signature(pubkey, msg_hash.as_ref(), actual_sig, v).unwrap();
 
     msg_to_hash
 }
 
-fn verify_secp256k1_signature(public_key: &[u8], message: &[u8], signature: &[u8], v: u8) {
+pub fn verify_secp256k1_signature(
+    public_key: &[u8],
+    message: &[u8],
+    signature: &[u8],
+    v: u8,
+) -> Result<(), String> {
     let recovered_uncompressed_pk = env::ecrecover(message, signature, v, true).unwrap();
     let compressed_pk = compress_pub_key(&recovered_uncompressed_pk);
-    require!(compressed_pk == *public_key, ERR_INVALID_SIGNATURE);
+    if compressed_pk == *public_key {
+        Ok(())
+    } else {
+        Err(ERR_INVALID_SIGNATURE.to_string())
+    }
 }
 
 pub fn compress_pub_key(uncompressed_pub_key_bytes: &[u8; 64]) -> Vec<u8> {

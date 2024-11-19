@@ -3,7 +3,7 @@ use near_sdk::log;
 use near_sdk::serde::Serialize;
 use near_sdk::serde_json::json;
 
-pub const EVENT_STANDARD: &str = "allstake.btc";
+pub const EVENT_STANDARD: &str = "bithive";
 pub const EVENT_STANDARD_VERSION: &str = "1.0.0";
 
 #[derive(Serialize)]
@@ -23,15 +23,14 @@ pub enum Event<'a> {
     },
     QueueWithdrawal {
         user_pubkey: &'a String,
-        deposit_tx_id: &'a String,
-        deposit_vout: U64,
+        amount: U64,
+        withdrawal_msg: &'a String,
+        withdrawal_sig: &'a String,
     },
     SignWithdrawal {
         user_pubkey: &'a String,
-        deposit_tx_id: &'a String,
-        deposit_vout: U64,
     },
-    CompleteWithdrawal {
+    Withdrawn {
         user_pubkey: &'a String,
         withdrawal_tx_id: &'a String,
         deposit_tx_id: &'a String,
