@@ -39,7 +39,7 @@ export class TestTransactionBuilder {
     caller: NearAccount,
     args: {
       userKeyPair: ECPairInterface;
-      allstakePubkey: Buffer;
+      bithivePubkey: Buffer;
       inputTxIndex?: number;
       seq?: number;
       depositAmount?: number;
@@ -59,7 +59,7 @@ export class TestTransactionBuilder {
       redeem: {
         output: depositScriptV1(
           this.userPubkey,
-          args.allstakePubkey,
+          args.bithivePubkey,
           this.sequence,
         ),
       },

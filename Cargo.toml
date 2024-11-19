@@ -2,8 +2,8 @@
 members = [
     "contracts/bip322-verifier",
     "contracts/btc-client",
-    "contracts/mock-btc-lightclient",
-    "contracts/mock-chain-signature",
+    "contracts/mock-btc-light-client",
+    "contracts/mock-chain-signatures",
 ]
 resolver = "2"
 

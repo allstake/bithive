@@ -1,5 +1,5 @@
 [package]
-name = "mock-chain-signature"
+name = "mock-chain-signatures"
 version = "1.0.0"
 edition = "2021"
 

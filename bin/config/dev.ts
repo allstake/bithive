@@ -21,12 +21,12 @@ export const config: Config = {
     owner: "allbtc.testnet",
     bip322Verifier: "bip322.testnet",
     btcClient: "testnet3.allbtc.testnet",
-    chainSignature: "v1.signer-dev.testnet",
+    chainSignatures: "v1.signer-dev.testnet",
     btcLightClient: "btc-client.testnet",
   },
   params: {
     nConfirmation: 2,
-    withdrawWaitingTimeMs: 5 * 60 * 1000, // 5 minutes
+    withdrawalWaitingTimeMs: 5 * 60 * 1000, // 5 minutes
     minDepositSatoshi: 0,
     earliestDepositBlockHeight: 0,
     soloWithdrawSeqHeights: [2],

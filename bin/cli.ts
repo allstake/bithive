@@ -9,9 +9,9 @@ import {
 } from "./commands/deploy";
 import { init, initBip322 } from "./commands/init";
 import { submitDeposit } from "./commands/submit_deposit";
-import { queueWithdraw } from "./commands/queue_withdraw";
-import { submitWithdraw } from "./commands/submit_withdraw";
-import { signWithdraw } from "./commands/sign_withdraw";
+import { queueWithdrawal } from "./commands/queue_withdrawal";
+import { submitWithdrawal } from "./commands/submit_withdrawal";
+import { signWithdrawal } from "./commands/sign_withdrawal";
 import { upgrade } from "./commands/upgrade";
 
 yargs(hideBin(process.argv))
@@ -21,9 +21,9 @@ yargs(hideBin(process.argv))
   .command(deployBtcLightClient)
   .command(deployBip322Verifier)
   .command(submitDeposit)
-  .command(queueWithdraw)
-  .command(submitWithdraw)
-  .command(signWithdraw)
+  .command(queueWithdrawal)
+  .command(submitWithdrawal)
+  .command(signWithdrawal)
   .command(init)
   .command(initBip322)
   .command(upgrade)

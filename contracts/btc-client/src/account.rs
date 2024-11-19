@@ -25,19 +25,19 @@ pub struct Account {
     pub pubkey: PubKey,
     /// total deposit amount in full BTC decimals
     pub total_deposit: u64,
-    /// set of deposits that are not known to be withdrawed
+    /// set of deposits that are not known to be withdrawn
     #[serde(skip_serializing)]
     active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are confirmed to have been withdrawn
     #[serde(skip_serializing)]
     withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
-    /// amount of deposits queued for withdrawl in full BTC decimals
+    /// amount of deposits queued for withdrawal in full BTC decimals
     pub queue_withdrawal_amount: u64,
     /// timestamp when the queue withdrawal started in ms
     pub queue_withdrawal_start_ts: Timestamp,
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
-    /// PSBT of the withdraw txn that needs to be signed via chain signature
+    /// PSBT of the withdrawal txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
 }
 
@@ -163,8 +163,8 @@ impl Account {
         Event::QueueWithdrawal {
             user_pubkey: &self.pubkey.clone().into(),
             amount: amount.into(),
-            withdraw_msg: &hex::encode(msg),
-            withdraw_sig: msg_sig,
+            withdrawal_msg: &hex::encode(msg),
+            withdrawal_sig: msg_sig,
         }
         .emit();
     }
@@ -173,7 +173,7 @@ impl Account {
         let deposit_tx_id = deposit.deposit_tx_id.clone();
         let deposit_vout = deposit.deposit_vout;
 
-        deposit.complete_withdraw(tx_id.clone());
+        deposit.complete_withdrawal(tx_id.clone());
         self.total_deposit -= deposit.value;
 
         // for non-multisig withdrawal, we need to update the queue withdrawal amount
@@ -231,7 +231,7 @@ pub struct Deposit {
     pub user_pubkey: PubKey,
     /// deposit status
     pub status: DepositStatus,
-    /// redeem version allows us to use the correct params to sign withdraw txn
+    /// redeem version allows us to use the correct params to sign withdrawal txn
     pub redeem_version: RedeemVersion,
     /// deposit transaction ID
     pub deposit_tx_id: TxId,
@@ -241,9 +241,9 @@ pub struct Deposit {
     pub value: u64,
     /// encoded sequence number of the deposit
     pub sequence: u32,
-    /// complete withdraw time in ms
-    pub complete_withdraw_ts: Timestamp,
-    /// withdraw txn ID
+    /// complete withdrawal time in ms
+    pub complete_withdrawal_ts: Timestamp,
+    /// withdrawal txn ID
     pub withdrawal_tx_id: Option<TxId>,
 }
 
@@ -264,7 +264,7 @@ impl Deposit {
             deposit_vout: vout,
             value,
             sequence,
-            complete_withdraw_ts: 0,
+            complete_withdrawal_ts: 0,
             withdrawal_tx_id: None,
         }
     }
@@ -273,8 +273,8 @@ impl Deposit {
         output_id(&self.deposit_tx_id, self.deposit_vout)
     }
 
-    pub fn complete_withdraw(&mut self, withdrawal_tx_id: TxId) {
-        self.complete_withdraw_ts = current_timestamp_ms();
+    pub fn complete_withdrawal(&mut self, withdrawal_tx_id: TxId) {
+        self.complete_withdrawal_ts = current_timestamp_ms();
         self.withdrawal_tx_id = Some(withdrawal_tx_id);
         self.status = DepositStatus::Withdrawn;
     }

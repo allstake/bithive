@@ -25,15 +25,15 @@ bip322-verifier-test: contracts/bip322-verifier
 	@mkdir -p res
 	@cp target/wasm32-unknown-unknown/release/bip322_verifier.wasm ./res/bip322_verifier_test.wasm
 
-mock-btc-lightclient: contracts/mock-btc-lightclient
-	$(call compile_release,mock-btc-lightclient)
+mock-btc-light-client: contracts/mock-btc-light-client
+	$(call compile_release,mock-btc-light-client)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/mock_btc_lightclient.wasm ./res/mock_btc_lightclient.wasm
+	@cp target/wasm32-unknown-unknown/release/mock_btc_light_client.wasm ./res/mock_btc_light_client.wasm
 
-mock-chain-signature: contracts/mock-chain-signature
-	$(call compile_release,mock-chain-signature)
+mock-chain-signatures: contracts/mock-chain-signatures
+	$(call compile_release,mock-chain-signatures)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/mock_chain_signature.wasm ./res/mock_chain_signature.wasm
+	@cp target/wasm32-unknown-unknown/release/mock_chain_signatures.wasm ./res/mock_chain_signatures.wasm
 
 lint:
 	@cargo fmt --all
@@ -51,15 +51,14 @@ else
 	export NEAR_PRINT_LOGS=1 
 endif
 
-test-ava: btc-client-test mock-btc-lightclient mock-chain-signature bip322-verifier-test
+test-ava: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
 	npx ava -c 2 --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
 
-
-test-integration: btc-client-test mock-btc-lightclient mock-chain-signature bip322-verifier-test
+test-integration: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
 	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
-UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
+UNAME_S := $(shell uname -s) # Mac
+UNAME_M := $(shell uname -m) # Apple Silicon
 ifeq ($(UNAME_S),Darwin)
 	ifeq ($(UNAME_M),arm64)
 		export AR=/opt/homebrew/opt/llvm/bin/llvm-ar

@@ -12,14 +12,14 @@ interface Args {
   vin: number;
 }
 
-export const submitWithdraw: CommandModule<unknown, Args> = {
+export const submitWithdrawal: CommandModule<unknown, Args> = {
   command: "withdraw",
-  describe: "Submit a BTC withdraw transaction",
+  describe: "Submit a BTC withdrawal transaction",
   builder: {
     env: envBuilder,
     tx: {
       type: "string",
-      describe: "Hex encoded withdraw transaction",
+      describe: "Hex encoded withdrawal transaction",
       demandOption: true,
     },
     pubkey: {
@@ -29,7 +29,7 @@ export const submitWithdraw: CommandModule<unknown, Args> = {
     },
     vin: {
       type: "number",
-      describe: "Vin of the deposit in the withdraw tx",
+      describe: "Vin of the deposit in the withdrawal tx",
       demandOption: true,
     },
   },
@@ -57,6 +57,6 @@ export const submitWithdraw: CommandModule<unknown, Args> = {
       gas: nearTGas(100),
     });
 
-    console.log("Submitted withdraw tx");
+    console.log("Submitted withdrawal tx");
   },
 };

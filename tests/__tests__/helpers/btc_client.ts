@@ -1,7 +1,7 @@
 import { Gas, NEAR, NearAccount } from "near-workspaces";
 import { ChainSignatureResponse } from "./utils";
 
-export const V1_PK_PATH = "/btc/manage/v1"; // this should be equal to the one defined in contract
+export const V1_PK_PATH = "/bithive/v1"; // this should be equal to the one defined in contract
 
 interface SubmitDepositArg {
   tx_hex: string;
@@ -105,10 +105,10 @@ export async function submitWithdrawalTx(
   );
 }
 
-export async function syncChainSignatureRootPubkey(btcClient: NearAccount) {
+export async function syncChainSignaturesRootPubkey(btcClient: NearAccount) {
   return btcClient.call(
     btcClient,
-    "sync_chain_signature_root_pubkey",
+    "sync_chain_signatures_root_pubkey",
     {},
     {
       gas: Gas.parse("60 Tgas"),
@@ -133,14 +133,14 @@ export async function changeOwner(
   );
 }
 
-export async function setBtcLightclientId(
+export async function setBtcLightClientId(
   btcClient: NearAccount,
   caller: NearAccount,
   contract: NearAccount,
 ) {
   return caller.call(
     btcClient,
-    "set_btc_lightclient_id",
+    "set_btc_light_client_id",
     {
       new_contract_id: contract.accountId,
     },
@@ -174,7 +174,7 @@ export async function setWithdrawWaitingTime(
 ) {
   return caller.call(
     btcClient,
-    "set_withdraw_waiting_time",
+    "set_withdrawal_waiting_time",
     {
       ms,
     },
@@ -201,11 +201,11 @@ export async function setEarliestDepositBlockHeight(
 
 interface ContractSummary {
   owner_id: string;
-  btc_lightclient_id: string;
-  chain_signature_id: string;
+  btc_light_client_id: string;
+  chain_signatures_id: string;
   chain_signature_root_pubkey: string;
   n_confirmation: number;
-  withdraw_waiting_time_ms: number;
+  withdrawal_waiting_time_ms: number;
 }
 
 export async function getSummary(
@@ -243,7 +243,7 @@ interface Deposit {
   deposit_vout: number;
   value: number;
   sequence: number;
-  complete_withdraw_ts: number;
+  complete_withdrawal_ts: number;
   withdrawal_tx_id: string | null;
 }
 

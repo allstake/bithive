@@ -10,12 +10,12 @@ const test = initUnit();
 
 async function makeDeposit(t: any, inputTxIndex = 0) {
   const { contract, alice } = t.context.accounts;
-  const allstakePubkey = t.context.allstakePubkey;
+  const bithivePubkey = t.context.bithivePubkey;
 
   // real user pubkey from unisat
   const builder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: t.context.aliceKeyPair,
-    allstakePubkey,
+    bithivePubkey,
     inputTxIndex,
   });
   await builder.submit();
@@ -27,12 +27,12 @@ async function makeDeposit(t: any, inputTxIndex = 0) {
   };
 }
 
-test("queue withdraw with invalid signature", async (t) => {
+test("queue withdrawal with invalid signature", async (t) => {
   const bobKeyPair = t.context.bobKeyPair;
   const { builder: aliceBuilder, contract, alice } = await makeDeposit(t);
   const bobBuilder = new TestTransactionBuilder(contract, alice, {
     userKeyPair: bobKeyPair,
-    allstakePubkey: t.context.allstakePubkey,
+    bithivePubkey: t.context.bithivePubkey,
   });
 
   // generate signagure from bob
@@ -45,7 +45,7 @@ test("queue withdraw with invalid signature", async (t) => {
   );
 });
 
-test("valid queue withdraw", async (t) => {
+test("valid queue withdrawal", async (t) => {
   const { builder, contract } = await makeDeposit(t);
   const sig = builder.queueWithdrawSignature(100, 0);
   await builder.queueWithdraw(100, sig);
@@ -57,7 +57,7 @@ test("valid queue withdraw", async (t) => {
   t.is(account.pending_sign_psbt, null);
 });
 
-test("queue withdraw with wrong amount in signature", async (t) => {
+test("queue withdrawal with wrong amount in signature", async (t) => {
   const { builder } = await makeDeposit(t);
   // signature of msg: "bithive.withdraw:0:1000sats"
   const sig = builder.queueWithdrawSignature(1000, 0);
@@ -68,7 +68,7 @@ test("queue withdraw with wrong amount in signature", async (t) => {
   );
 });
 
-test("queue withdraw with wrong nonce (reuse signature)", async (t) => {
+test("queue withdrawal with wrong nonce (reuse signature)", async (t) => {
   const { builder } = await makeDeposit(t);
   const sig = builder.queueWithdrawSignature(100, 0);
   await builder.queueWithdraw(100, sig);
@@ -80,7 +80,7 @@ test("queue withdraw with wrong nonce (reuse signature)", async (t) => {
   );
 });
 
-test("queue withdraw with bad amount", async (t) => {
+test("queue withdrawal with bad amount", async (t) => {
   const { builder } = await makeDeposit(t);
   // signature of msg: "bithive.withdraw:0:200000000sats"
   const sig = builder.queueWithdrawSignature(2e8, 0);
@@ -92,7 +92,7 @@ test("queue withdraw with bad amount", async (t) => {
   );
 });
 
-test("a second queue withdraw request should reset the waiting period", async (t) => {
+test("a second queue withdrawal request should reset the waiting period", async (t) => {
   const { builder, contract } = await makeDeposit(t);
   const sig = builder.queueWithdrawSignature(100, 0);
   await builder.queueWithdraw(100, sig);
@@ -106,7 +106,7 @@ test("a second queue withdraw request should reset the waiting period", async (t
   t.is(account.queue_withdrawal_start_ts, daysToMs(4));
 });
 
-test("queue withdraw again after deposit", async (t) => {
+test("queue withdrawal again after deposit", async (t) => {
   const { builder, contract } = await makeDeposit(t);
   const sig = builder.queueWithdrawSignature(100, 0);
   await builder.queueWithdraw(100, sig);
@@ -116,7 +116,7 @@ test("queue withdraw again after deposit", async (t) => {
 
   await fastForward(contract, daysToMs(1));
 
-  // queue withdraw again
+  // queue withdrawal again
   // signature of msg: "bithive.withdraw:1:100000000sats"
   const sig2 = builder.queueWithdrawSignature(1e8, 1);
   await builder.queueWithdraw(1e8, sig2);
@@ -126,7 +126,7 @@ test("queue withdraw again after deposit", async (t) => {
   t.is(account.queue_withdrawal_start_ts, daysToMs(4));
 });
 
-test("queue withdraw should clear pending withdraw psbt", async (t) => {
+test("queue withdrawal should clear pending withdrawal psbt", async (t) => {
   const { builder, contract } = await makeDeposit(t, 1e8);
 
   const sig = builder.queueWithdrawSignature(100, 0);
@@ -148,7 +148,7 @@ test("queue withdraw should clear pending withdraw psbt", async (t) => {
   t.assert(account.pending_sign_psbt === null);
 });
 
-test("queue withdraw with bip322 signature", async (t) => {
+test("queue withdrawal with bip322 signature", async (t) => {
   bitcoin.initEccLib(ecc);
   const { builder } = await makeDeposit(t);
   const address = bitcoin.payments.p2tr({

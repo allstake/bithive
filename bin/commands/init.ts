@@ -20,13 +20,13 @@ export const init: CommandModule<unknown, Args> = {
     const args = {
       owner_id: config.accountIds.owner,
       bip322_verifier_id: config.accountIds.bip322Verifier,
-      btc_lightclient_id: config.accountIds.btcLightClient,
-      chain_signature_id: config.accountIds.chainSignature,
+      btc_light_client_id: config.accountIds.btcLightClient,
+      chain_signatures_id: config.accountIds.chainSignatures,
       n_confirmation: config.params.nConfirmation,
-      withdraw_waiting_time_ms: config.params.withdrawWaitingTimeMs,
+      withdrawal_waiting_time_ms: config.params.withdrawalWaitingTimeMs,
       min_deposit_satoshi: config.params.minDepositSatoshi,
       earliest_deposit_block_height: config.params.earliestDepositBlockHeight,
-      solo_withdraw_seq_heights: config.params.soloWithdrawSeqHeights,
+      solo_withdrawal_seq_heights: config.params.soloWithdrawSeqHeights,
     };
 
     await signer.functionCall({
