@@ -59,9 +59,12 @@ test-integration: btc-client-test mock-btc-lightclient mock-chain-signature bip3
 	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
 UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
-	export AR=/opt/homebrew/opt/llvm/bin/llvm-ar
-	export CC=/opt/homebrew/opt/llvm/bin/clang
+	ifeq ($(UNAME_M),arm64)
+		export AR=/opt/homebrew/opt/llvm/bin/llvm-ar
+		export CC=/opt/homebrew/opt/llvm/bin/clang
+	endif
 endif
 
 define compile_release
