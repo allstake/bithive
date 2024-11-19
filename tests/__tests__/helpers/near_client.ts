@@ -1,19 +1,19 @@
 /// This is used to make calls to actual NEAR testnet contracts,
 /// which is need to retrieve real chain signature responses
 import { Base64 } from "js-base64";
-import { connect } from "near-api-js";
-import { UnencryptedFileSystemKeyStore } from "near-api-js/lib/key_stores";
+import { connect, KeyPair } from "near-api-js";
+import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
 import { Gas, NEAR } from "near-workspaces";
-import * as os from "os";
-import path from "path";
 import { ChainSignatureResponse } from "./utils";
 
-export async function initNearClient(signerId: string) {
+export async function initNearClient(signerId: string, privateKey: string) {
+  const keyStore = new InMemoryKeyStore();
+  const keyPair = KeyPair.fromString(`ed25519:${privateKey}`);
+  keyStore.setKey("testnet", signerId, keyPair);
+
   const config = {
     networkId: "testnet",
-    keyStore: new UnencryptedFileSystemKeyStore(
-      path.join(os.homedir(), ".near-credentials"),
-    ),
+    keyStore,
     nodeUrl: "https://rpc.testnet.pagoda.co",
   };
 
@@ -34,7 +34,11 @@ export async function requestSigFromTestnet(
   if (!nearTestnetAccountId) {
     throw new Error("missing env TESTNET_ACCOUNT_ID");
   }
-  const { signer } = await initNearClient(nearTestnetAccountId);
+  const privateKey = process.env.TESTNET_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error("missing env TESTNET_PRIVATE_KEY");
+  }
+  const { signer } = await initNearClient(nearTestnetAccountId, privateKey);
 
   const args = {
     request: {
