@@ -57,7 +57,7 @@ impl Contract {
     #[payable]
     pub fn set_solo_withdrawal_sequence_heights(&mut self, values: Vec<u16>) {
         self.assert_owner();
-        require!(values.len() > 0, "values must be non-empty");
+        require!(!values.is_empty(), "values must be non-empty");
         self.solo_withdrawal_seq_heights = values;
     }
 }
