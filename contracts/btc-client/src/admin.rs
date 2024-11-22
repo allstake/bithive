@@ -31,12 +31,14 @@ impl Contract {
     #[payable]
     pub fn set_n_confirmation(&mut self, n: u64) {
         self.assert_owner();
+        require!(n > 0, "n_confirmation must be greater than 0");
         self.n_confirmation = n;
     }
 
     #[payable]
     pub fn set_withdrawal_waiting_time(&mut self, ms: u64) {
         self.assert_owner();
+        require!(ms > 0, "withdrawal_waiting_time_ms must be greater than 0");
         self.withdrawal_waiting_time_ms = ms;
     }
 
@@ -55,6 +57,7 @@ impl Contract {
     #[payable]
     pub fn set_solo_withdrawal_sequence_heights(&mut self, values: Vec<u16>) {
         self.assert_owner();
+        require!(values.len() > 0, "values must be non-empty");
         self.solo_withdrawal_seq_heights = values;
     }
 }

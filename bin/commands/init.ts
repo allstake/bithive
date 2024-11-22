@@ -39,10 +39,10 @@ export const init: CommandModule<unknown, Args> = {
     // sync root public key
     await signer.functionCall({
       contractId: config.accountIds.btcClient,
-      methodName: "sync_chain_signature_root_pubkey",
+      methodName: "sync_chain_signatures_root_pubkey",
       gas: nearTGas(100),
     });
-    console.log("Called sync_chain_signature_root_pubkey method");
+    console.log("Called sync_chain_signatures_root_pubkey method");
 
     process.exit(0);
   },
