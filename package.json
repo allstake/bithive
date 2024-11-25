@@ -4,7 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky",
     "lint:test": "eslint tests/__tests__/{**,}/*.ts --fix",
     "lint": "pnpm lint:test"
@@ -48,5 +47,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
     "yargs": "^17.7.2"
+  },
+  "overrides": {
+    "near-sandbox": "0.1.2"
   }
 }
