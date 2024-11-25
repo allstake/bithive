@@ -20,6 +20,7 @@
     "@eslint/migrate-config": "1.2.0",
     "@okxweb3/coin-bitcoin": "^1.0.24",
     "@types/elliptic": "^6.4.18",
+    "@types/node": "^22.9.3",
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.2.0",
     "ava": "^6.1.3",
