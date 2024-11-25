@@ -1,7 +1,11 @@
 # BitHive Contracts
 
 ## Build
-**NOTE**: If you are building on an ARM mac, run `brew install llvm` first!
+**NOTE**: If you are building on an ARM mac, run `brew install llvm` first, and put the following in your `.zshrc` or `.bashrc`:
+```
+export AR=/opt/homebrew/opt/llvm/bin/llvm-ar
+export CC=/opt/homebrew/opt/llvm/bin/clang
+```
 - `make all`
 
 ## Test
@@ -14,6 +18,11 @@ Prepare:
 - `make test-ava`: run near workspace tests
 - `make test-integration`: run integration tests
 - `make test`: run all tests
+
+**Note**: If you face issues like `{"CompilationError":{"PrepareError":"Deserialization"}}` when running tests, try the following commands:
+- `make build-docker`: build assets via docker
+- `make test-ava-no-build`: run ava tests with assets built by docker
+- `make test-integration-no-build`: run integration tests with assets built by docker
 
 ## About redeem script
 Redeem scripts, along with const values used by them, are strictly versioned. Once a specific version of the redeem script goes alive it should **NEVER** be changed.    

@@ -51,20 +51,30 @@ else
 	export NEAR_PRINT_LOGS=1 
 endif
 
-test-ava: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
+test-assets: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
+
+# by default you should run ava test through this command
+test-ava: test-assets
 	npx ava -c 2 --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
 
-test-integration: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
+# by default you should run integration test through this command
+test-integration: test-assets
 	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
-UNAME_S := $(shell uname -s) # Mac
-UNAME_M := $(shell uname -m) # Apple Silicon
-ifeq ($(UNAME_S),Darwin)
-	ifeq ($(UNAME_M),arm64)
-		export AR=/opt/homebrew/opt/llvm/bin/llvm-ar
-		export CC=/opt/homebrew/opt/llvm/bin/clang
-	endif
-endif
+# assets built by ARM mac may fail in tests with an error like `{"CompilationError":{"PrepareError":"Deserialization"}}`,
+# you can try to build assets via docker and then run tests through commands below, see README.md for more details
+
+test-ava-no-build:
+	npx ava -c 2 --timeout=5m tests/__tests__/$(TEST_FILE).ava.ts --verbose
+
+test-integration-no-build:
+	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
+
+# build assets via docker
+build-docker:
+	-rm res/*.*
+	docker build -t bithive-assets .
+	docker run -v ./res:/app/res -v ./contracts:/app/contracts -it bithive-assets make btc-client test-assets
 
 define compile_release
 	@rustup target add wasm32-unknown-unknown
