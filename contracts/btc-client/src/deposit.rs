@@ -47,6 +47,7 @@ impl Contract {
     /// * `args.merkle_proof` - merkle proof of transaction in the block
     #[payable]
     pub fn submit_deposit_tx(&mut self, args: SubmitDepositTxArgs) -> Promise {
+        self.assert_running();
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
 
         // assert storage fee.

@@ -54,6 +54,8 @@ pub struct Contract {
     confirmed_deposit_txns: LookupSet<OutputId>,
     /// user accounts: pubkey -> account
     accounts: LookupMap<PubKey, VersionedAccount>,
+    /// whether the contract is paused
+    paused: bool,
 }
 
 #[near_bindgen]
@@ -74,6 +76,7 @@ impl Contract {
             solo_withdrawal_seq_heights: args.solo_withdrawal_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: LookupMap::new(StorageKey::Accounts),
+            paused: false,
         }
     }
 
@@ -125,6 +128,10 @@ impl Contract {
     fn set_account(&mut self, account: Account) {
         self.accounts
             .insert(&account.pubkey.clone(), &account.into());
+    }
+
+    pub(crate) fn assert_running(&self) {
+        require!(!self.paused, "Contract is paused");
     }
 }
 
