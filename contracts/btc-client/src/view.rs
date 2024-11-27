@@ -157,6 +157,7 @@ impl Contract {
     /// * `tx_hex` - hex encoded transaction
     /// * `embed_vout` - vout index of the embed output
     pub fn dry_run_deposit(&self, tx_hex: String, embed_vout: u64) {
+        self.assert_running();
         let tx = deserialize_hex::<Transaction>(&tx_hex).unwrap();
         let output_id = output_id(&tx.compute_txid().to_string().into(), embed_vout);
 
@@ -180,6 +181,7 @@ impl Contract {
         vin_to_sign: u64,
         reinvest_embed_vout: Option<u64>,
     ) {
+        self.assert_running();
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).unwrap();
 
