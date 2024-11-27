@@ -65,7 +65,7 @@ export async function signWithdrawal(
   userPubkey: string,
   vinToSign: number,
   reinvestEmbedVout?: number,
-): Promise<ChainSignatureResponse> {
+): Promise<ChainSignatureResponse | null> {
   return caller.call(
     btcClient.accountId,
     "sign_withdrawal",

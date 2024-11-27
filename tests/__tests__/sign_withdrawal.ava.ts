@@ -4,6 +4,8 @@ import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, buildDepositEmbedMsg, daysToMs } from "./helpers/utils";
 import { depositScriptV1 } from "./helpers/btc";
+import { setSignature } from "./helpers/chain_signature";
+import { NEAR } from "near-workspaces";
 
 const test = initUnit();
 
@@ -323,5 +325,41 @@ test("sign withdrawal with reinvestment of a different pubkey", async (t) => {
     t,
     builder.signWithdraw(0),
     "PSBT reinvest pubkey mismatch",
+  );
+});
+
+test("refund deposit when sign withdrawal failed", async (t) => {
+  const { builder, contract } = await makeDeposit(t, 1e8);
+
+  const sig = builder.queueWithdrawSignature(100, 0);
+  await builder.queueWithdraw(100, sig);
+  await fastForward(contract, daysToMs(2));
+
+  builder.generateWithdrawPsbt(undefined, 1e8 - 100);
+
+  // set signature with a wrong payload, thus signWithdraw will fail
+  await setSignature(
+    t.context.accounts.mockChainSignature,
+    Buffer.alloc(32, 0),
+    {
+      big_r: {
+        affine_point: "r",
+      },
+      s: {
+        scalar: "s",
+      },
+      recovery_id: 0,
+    },
+  );
+
+  const balanceBefore = await t.context.accounts.alice.balance();
+  const res = await builder.signWithdraw(0);
+  const balanceAfter = await t.context.accounts.alice.balance();
+
+  t.is(res, null);
+  // attached deposit is 0.5 NEAR, so if it's refunded, the balance difference should only be gas (<0.01 NEAR)
+  t.assert(
+    balanceBefore.total.sub(balanceAfter.total).lte(NEAR.parse("0.01")),
+    "caller should get refunded",
   );
 });

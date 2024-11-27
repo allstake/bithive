@@ -12,7 +12,7 @@ use ext::{
 use near_sdk::{
     env::{self},
     json_types::U128,
-    near_bindgen, require, Gas, Promise, PromiseError, PromiseOrValue,
+    near_bindgen, require, Balance, Gas, Promise, PromiseError, PromiseOrValue, ONE_NEAR,
 };
 use serde::{Deserialize, Serialize};
 use types::{DepositEmbedMsg, PendingSignPsbt, RedeemVersion, SubmitWithdrawTxArgs, TxId};
@@ -40,10 +40,11 @@ const ERR_PSBT_INPUT_LEN_MISMATCH: &str = "PSBT input length mismatch";
 const ERR_PSBT_INPUT_MISMATCH: &str = "PSBT input mismatch";
 const ERR_PSBT_REINVEST_PUBKEY_MISMATCH: &str = "PSBT reinvest pubkey mismatch";
 const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
-const ERR_CHAIN_SIG_FAILED: &str = "Failed to sign via chain signatures";
 // submit withdrawal errors
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
+
+const REFUND_THRESHOLD: Balance = ONE_NEAR / 100; // 0.01 NEAR
 
 /// in case different wallet signs message in different form,
 /// the signer needs to explicitly specify the type
@@ -217,18 +218,20 @@ impl Contract {
         caller_id: AccountId,
         attached_deposit: U128,
         #[callback_result] result: Result<SignatureResponse, PromiseError>,
-    ) -> SignatureResponse {
+    ) -> Option<SignatureResponse> {
         if let Ok(sig) = result {
             Event::SignWithdrawal {
                 user_pubkey: &user_pubkey,
             }
             .emit();
 
-            sig
+            Some(sig)
         } else {
             // refund
-            Promise::new(caller_id).transfer(attached_deposit.into());
-            panic!("{}", ERR_CHAIN_SIG_FAILED);
+            if attached_deposit.0 >= REFUND_THRESHOLD {
+                Promise::new(caller_id).transfer(attached_deposit.into());
+            }
+            None
         }
     }
 
