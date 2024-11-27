@@ -438,7 +438,7 @@ async function makeSignWithdrawal(
   );
 
   return bitcoin.script.signature.encode(
-    reconstructSignature(sig.big_r.affine_point, sig.s.scalar),
+    reconstructSignature(sig!.big_r.affine_point, sig!.s.scalar),
     bitcoin.Transaction.SIGHASH_ALL,
   );
 }
