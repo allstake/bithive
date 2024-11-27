@@ -1,0 +1,8 @@
+# Find all files in the specified directory and search for ".only"
+if grep -r "\.only" "./tests/__tests__"; then
+  echo "Error: Found '.only' in tests."
+  exit 1
+fi
+
+pnpm lint-staged
+make lint

@@ -1,0 +1,100 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.12.0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.11.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run unit tests
+        run: make test-unit
+      
+      - name: Run AVA tests
+        run: make test-ava
+
+  test-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.12.0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.11.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Pull Docker image
+        run: docker pull junderw/bitcoinjs-regtest-server
+
+      - name: Run regtest container
+        run: docker run -d -p 8080:8080 --name regtest junderw/bitcoinjs-regtest-server
+
+      - name: Run integration tests
+        env:
+          TESTNET_ACCOUNT_ID: ${{ secrets.TESTNET_ACCOUNT_ID }}
+          TESTNET_PRIVATE_KEY: ${{ secrets.TESTNET_PRIVATE_KEY }}
+        run: make test-integration
+
+      - name: Stop and remove container
+        run: |
+          docker stop regtest
+          docker rm regtest
+
+  lint:
+    name: clippy and fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # Setup Rust environment
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v1
+      # Run lint
+      - name: Test Format
+        run: cargo fmt -- --check
+      - name: Lint with clippy
+        run: cargo clippy --tests --features=test -- -D clippy::all
