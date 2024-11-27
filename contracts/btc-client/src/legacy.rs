@@ -37,4 +37,6 @@ pub struct ContractV1 {
     pub confirmed_deposit_txns: LookupSet<OutputId>,
     /// user accounts: pubkey -> account
     pub accounts: LookupMap<PubKey, VersionedAccount>,
+    /// whether the contract is paused
+    pub paused: bool,
 }
