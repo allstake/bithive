@@ -35,6 +35,7 @@ pub enum Event<'a> {
         withdrawal_tx_id: &'a String,
         deposit_tx_id: &'a String,
         deposit_vout: U64,
+        is_multisig: bool,
     },
 }
 

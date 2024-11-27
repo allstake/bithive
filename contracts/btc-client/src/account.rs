@@ -193,6 +193,7 @@ impl Account {
             withdrawal_tx_id: &tx_id.to_owned().into(),
             deposit_tx_id: &deposit_tx_id.into(),
             deposit_vout: deposit_vout.into(),
+            is_multisig,
         }
         .emit();
     }
