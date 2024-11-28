@@ -209,7 +209,7 @@ test("Deposit and withdraw workflow e2e", async (t) => {
   console.log("Sign withdrawal e2e workflow done!");
 });
 
-async function prepareAllstakeSignature(
+async function prepareBitHiveSignature(
   chainSignature: NearAccount,
   hashToSign: Buffer,
 ) {
@@ -425,7 +425,7 @@ async function makeSignWithdrawal(
   hashToSign: Buffer,
 ) {
   // fetch real signature from testnet and upload to mock chain sig contract
-  await prepareAllstakeSignature(mockChainSignature, hashToSign);
+  await prepareBitHiveSignature(mockChainSignature, hashToSign);
 
   // call btc client contract to sign withdrawal PSBT
   const sig = await signWithdrawal(
