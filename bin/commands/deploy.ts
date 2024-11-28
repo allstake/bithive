@@ -8,19 +8,15 @@ interface Args {
   env: string;
 }
 
-export const deployBtcClient: CommandModule<unknown, Args> = {
+export const deployBitHive: CommandModule<unknown, Args> = {
   command: "deploy",
-  describe: "Deploy BTC client contract",
+  describe: "Deploy BitHive contract",
   builder: {
     env: envBuilder,
   },
   async handler({ env }) {
     const config = await getConfig(env);
-    await deployContract(
-      env,
-      "res/btc_client.wasm",
-      config.accountIds.btcClient,
-    );
+    await deployContract(env, "res/bithive.wasm", config.accountIds.bithive);
     process.exit();
   },
 };

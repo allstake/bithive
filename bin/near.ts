@@ -16,7 +16,7 @@ export async function getSummary(env: string): Promise<{
   const config = await getConfig(env);
   const { signer } = await initNear(env);
   return signer.viewFunction({
-    contractId: config.accountIds.btcClient,
+    contractId: config.accountIds.bithive,
     methodName: "get_summary",
     args: {},
   });
@@ -28,7 +28,7 @@ export async function getV1Consts(env: string): Promise<{
   const config = await getConfig(env);
   const { signer } = await initNear(env);
   return signer.viewFunction({
-    contractId: config.accountIds.btcClient,
+    contractId: config.accountIds.bithive,
     methodName: "get_v1_constants",
     args: {},
   });
@@ -51,7 +51,7 @@ export async function signWithdrawal(
   const config = await getConfig(env);
   const { signer } = await initNear(env);
   const res: any = await signer.functionCall({
-    contractId: config.accountIds.btcClient,
+    contractId: config.accountIds.bithive,
     methodName: "sign_withdrawal",
     args: {
       psbt_hex: psbtHex,

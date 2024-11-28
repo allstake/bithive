@@ -1,19 +1,19 @@
 RUSTFLAGS = "-C link-arg=-s"
 
-all: lint btc-client
+all: lint bithive
 
 clean:
 	rm -rf res
 
-btc-client: contracts/btc-client
-	$(call compile_release,btc-client)
+bithive: contracts/bithive
+	$(call compile_release,bithive)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/btc_client.wasm ./res/btc_client.wasm
+	@cp target/wasm32-unknown-unknown/release/bithive.wasm ./res/bithive.wasm
 
-btc-client-test: contracts/btc-client
-	$(call compile_test,btc-client)
+bithive-test: contracts/bithive
+	$(call compile_test,bithive)
 	@mkdir -p res
-	@cp target/wasm32-unknown-unknown/release/btc_client.wasm ./res/btc_client_test.wasm
+	@cp target/wasm32-unknown-unknown/release/bithive.wasm ./res/bithive_test.wasm
 
 bip322-verifier: contracts/bip322-verifier
 	$(call compile_release,bip322-verifier)
@@ -51,7 +51,7 @@ else
 	export NEAR_PRINT_LOGS=1 
 endif
 
-test-assets: btc-client-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
+test-assets: bithive-test mock-btc-light-client mock-chain-signatures bip322-verifier-test
 
 # by default you should run ava test through this command
 test-ava: test-assets
@@ -74,7 +74,7 @@ test-integration-no-build:
 build-docker:
 	-rm res/*.*
 	docker build -t bithive-assets .
-	docker run -v ./res:/app/res -v ./contracts:/app/contracts -it bithive-assets make btc-client test-assets
+	docker run -v ./res:/app/res -v ./contracts:/app/contracts -it bithive-assets make bithive test-assets
 
 define compile_release
 	@rustup target add wasm32-unknown-unknown

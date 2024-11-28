@@ -12,7 +12,7 @@ import {
   signWithdrawal,
   submitDepositTx,
   submitWithdrawalTx,
-} from "./btc_client";
+} from "./bithive";
 import { buildDepositEmbedMsg, someH256 } from "./utils";
 import { ECPairInterface } from "ecpair";
 const bip68 = require("bip68"); // eslint-disable-line
@@ -31,11 +31,11 @@ export class TestTransactionBuilder {
   private p2wsh: bitcoin.Payment;
   public psbt: bitcoin.Psbt | undefined;
 
-  private btcClient: NearAccount;
+  private bithive: NearAccount;
   private caller: NearAccount;
 
   constructor(
-    btcClient: NearAccount,
+    bithive: NearAccount,
     caller: NearAccount,
     args: {
       userKeyPair: ECPairInterface;
@@ -46,7 +46,7 @@ export class TestTransactionBuilder {
       enableTimelock?: boolean;
     },
   ) {
-    this.btcClient = btcClient;
+    this.bithive = bithive;
     this.caller = caller;
 
     this.depositAmount = args.depositAmount ?? 1e8;
@@ -94,7 +94,7 @@ export class TestTransactionBuilder {
   }
 
   async submit() {
-    return submitDepositTx(this.btcClient, this.caller, {
+    return submitDepositTx(this.bithive, this.caller, {
       tx_hex: this.tx.toHex(),
       embed_vout: 1,
       tx_block_hash: someH256,
@@ -112,7 +112,7 @@ export class TestTransactionBuilder {
 
   async queueWithdraw(amount: number, sigHex: string) {
     return queueWithdrawal(
-      this.btcClient,
+      this.bithive,
       this.caller,
       this.userPubkeyHex,
       amount,
@@ -123,7 +123,7 @@ export class TestTransactionBuilder {
 
   async queueWithdrawBip322(amount: number, sigHex: string, address: string) {
     return queueWithdrawal(
-      this.btcClient,
+      this.bithive,
       this.caller,
       this.userPubkeyHex,
       amount,
@@ -213,7 +213,7 @@ export class TestTransactionBuilder {
       throw new Error("Generate PSBT first");
     }
     return signWithdrawal(
-      this.btcClient,
+      this.bithive,
       this.caller,
       this.psbt.toHex(),
       this.userPubkey.toString("hex"),
@@ -224,7 +224,7 @@ export class TestTransactionBuilder {
 
   submitWithdraw() {
     this.withdrawTx = this.extractWithdrawTx();
-    return submitWithdrawalTx(this.btcClient, this.caller, {
+    return submitWithdrawalTx(this.bithive, this.caller, {
       tx_hex: this.withdrawTx.toHex(),
       user_pubkey: this.userPubkeyHex,
       tx_block_hash: someH256,

@@ -26,7 +26,7 @@ jobs:
           override: true
 
       - name: Build the project
-        run: make btc-client
+        run: make bithive
 
       - name: Set artifact name
         id: set_name

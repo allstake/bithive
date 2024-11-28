@@ -39,7 +39,7 @@ export const queueWithdrawal: CommandModule<unknown, Args> = {
     if (!sig) {
       // print the withdrawal message that needs to be signed
       const msg = await signer.viewFunction({
-        contractId: config.accountIds.btcClient,
+        contractId: config.accountIds.bithive,
         methodName: "get_v1_withdrawal_constants",
         args: {
           user_pubkey: pubkey,
@@ -59,7 +59,7 @@ export const queueWithdrawal: CommandModule<unknown, Args> = {
     };
 
     await signer.functionCall({
-      contractId: config.accountIds.btcClient,
+      contractId: config.accountIds.bithive,
       methodName: "queue_withdrawal",
       args: args,
       gas: nearTGas(100),

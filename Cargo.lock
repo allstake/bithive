@@ -179,6 +179,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bithive"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "getrandom 0.2.15",
+ "hex",
+ "k256",
+ "near-sdk",
+ "serde",
+ "serde_json",
+ "sha3",
+ "uint",
+]
+
+[[package]]
 name = "bitvec"
 version = "0.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -269,21 +284,6 @@ name = "bs58"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
-
-[[package]]
-name = "btc-client"
-version = "0.1.0"
-dependencies = [
- "bitcoin",
- "getrandom 0.2.15",
- "hex",
- "k256",
- "near-sdk",
- "serde",
- "serde_json",
- "sha3",
- "uint",
-]
 
 [[package]]
 name = "bumpalo"

@@ -51,7 +51,7 @@ export const submitWithdrawal: CommandModule<unknown, Args> = {
     };
 
     await signer.functionCall({
-      contractId: config.accountIds.btcClient,
+      contractId: config.accountIds.bithive,
       methodName: "submit_withdrawal_tx",
       args: args,
       gas: nearTGas(100),

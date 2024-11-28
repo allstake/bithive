@@ -5,7 +5,7 @@ import {
   listUserWithdrawnDeposits,
   submitWithdrawalTx,
   viewAccount,
-} from "./helpers/btc_client";
+} from "./helpers/bithive";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, daysToMs, someH256 } from "./helpers/utils";

@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "contracts/bip322-verifier",
-    "contracts/btc-client",
+    "contracts/bithive",
     "contracts/mock-btc-light-client",
     "contracts/mock-chain-signatures",
 ]

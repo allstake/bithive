@@ -4,7 +4,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
   deployBip322Verifier,
-  deployBtcClient,
+  deployBitHive,
   deployBtcLightClient,
 } from "./commands/deploy";
 import { init, initBip322 } from "./commands/init";
@@ -17,7 +17,7 @@ import { upgrade } from "./commands/upgrade";
 yargs(hideBin(process.argv))
   .strict()
   .help()
-  .command(deployBtcClient)
+  .command(deployBitHive)
   .command(deployBtcLightClient)
   .command(deployBip322Verifier)
   .command(submitDeposit)

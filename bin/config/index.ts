@@ -12,7 +12,7 @@ export interface Config {
   accountIds: {
     signer: string;
     owner: string;
-    btcClient: string;
+    bithive: string;
     bip322Verifier: string;
     chainSignatures: string;
     btcLightClient: string;

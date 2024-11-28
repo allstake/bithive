@@ -6,7 +6,7 @@ import {
   setPaused,
   setWithdrawWaitingTime,
   submitDepositTx,
-} from "./helpers/btc_client";
+} from "./helpers/bithive";
 import { initUnit } from "./helpers/context";
 import { assertFailure } from "./helpers/utils";
 
