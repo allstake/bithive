@@ -59,11 +59,10 @@ impl Contract {
 mod tests {
     use super::*;
 
-    const PUBKEY_HEX: &str = "038ca9e365af7c923fde1a2fd56ec2f3b7863cd379d85aea846be501049f6c5ddd";
-    const ADDRESS: &str = "tb1p8e2qv0gjlssvgl5u2za7l6wzrgvukzw5qpvksqe4fy73qrtwgjsqcak3rw";
-    const MESSAGE: &str =
-        "allstake.withdraw:7a715a51aaf7a516d1a680247cb5e71a1731c68c2ab29c20034b3fc7cfff4557:0";
-    const SIGNATURE: &str = "01418e922cb14a468bc0cc9eaff650272d7568369614e8bc610ba4cc7cad3ec9a84ad23e8ce657ecdb1601d1273897edc68287cc0a743d27434a7ec41775057143dd01";
+    const PUBKEY_HEX: &str = "02c7f12003196442943d8588e01aee840423cc54fc1521526a3b85c2b0cbd58872";
+    const ADDRESS: &str = "bc1ppv609nr0vr25u07u95waq5lucwfm6tde4nydujnu8npg4q75mr5sxq8lt3";
+    const MESSAGE: &str = "Hello World";
+    const SIGNATURE: &str = "0141ddebd3eb25012ffa82937d9f25f9644e047bb2f472ab6c5089bbb53588ada2884cb5bcc53911f32d8dcf9548733b694d120db6a4e485194559e8d8fe668d269f01";
 
     fn get_contract() -> Contract {
         Contract::new()
@@ -95,8 +94,7 @@ mod tests {
     #[test]
     fn test_verify_bip322_full_wrong_message() {
         let contract = get_contract();
-        let message =
-            "allstake.withdraw:7a715a51aaf7a516d1a680247cb5e71a1731c68c2ab29c20034b3fc7cfff4557:1";
+        let message = "Hello world 1";
         assert!(!contract.verify_bip322_full(
             PUBKEY_HEX.to_string(),
             ADDRESS.to_string(),
