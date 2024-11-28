@@ -1,5 +1,5 @@
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
-import { fastForward, viewAccount } from "./helpers/btc_client";
+import { fastForward, viewAccount } from "./helpers/bithive";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, daysToMs } from "./helpers/utils";

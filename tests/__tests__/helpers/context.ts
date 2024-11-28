@@ -11,7 +11,7 @@ import {
   setCurrentAccountId,
   syncChainSignaturesRootPubkey,
   V1_PK_PATH,
-} from "./btc_client";
+} from "./bithive";
 
 const ECPair = ECPairFactory(ecc);
 
@@ -44,7 +44,7 @@ export function initUnit(sandbox = true) {
     const aliceKeyPair = ECPair.makeRandom();
     const bobKeyPair = ECPair.makeRandom();
     const bithivePkUncompressed = (
-      await deriveAddress("btc-client.test.near", V1_PK_PATH, "testnet")
+      await deriveAddress("bithive.test.near", V1_PK_PATH, "testnet")
     ).publicKey;
     const bithivePubkey = compressPubKey(bithivePkUncompressed);
 
@@ -168,8 +168,8 @@ async function createFixtures(root: NearAccount) {
 
   const contract = await deployAndInit({
     root,
-    subContractId: "btc-client",
-    code: "res/btc_client_test.wasm",
+    subContractId: "bithive",
+    code: "res/bithive_test.wasm",
     init: {
       methodName: "init",
       args: {

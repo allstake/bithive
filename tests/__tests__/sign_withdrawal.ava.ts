@@ -1,5 +1,5 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { fastForward, signWithdrawal, viewAccount } from "./helpers/btc_client";
+import { fastForward, signWithdrawal, viewAccount } from "./helpers/bithive";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, buildDepositEmbedMsg, daysToMs } from "./helpers/utils";

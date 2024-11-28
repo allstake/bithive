@@ -12,12 +12,12 @@ interface SubmitDepositArg {
 }
 
 export async function submitDepositTx(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   args: SubmitDepositArg,
 ): Promise<boolean> {
   return caller.call(
-    btcClient,
+    bithive,
     "submit_deposit_tx",
     { args },
     {
@@ -36,7 +36,7 @@ type SigType =
     };
 
 export async function queueWithdrawal(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   user_pubkey: string,
   withdraw_amount: number,
@@ -44,7 +44,7 @@ export async function queueWithdrawal(
   sig_type: SigType,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "queue_withdrawal",
     {
       user_pubkey,
@@ -59,7 +59,7 @@ export async function queueWithdrawal(
 }
 
 export async function signWithdrawal(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   psbtHex: string,
   userPubkey: string,
@@ -67,7 +67,7 @@ export async function signWithdrawal(
   reinvestEmbedVout?: number,
 ): Promise<ChainSignatureResponse | null> {
   return caller.call(
-    btcClient.accountId,
+    bithive.accountId,
     "sign_withdrawal",
     {
       psbt_hex: psbtHex,
@@ -83,7 +83,7 @@ export async function signWithdrawal(
 }
 
 export async function submitWithdrawalTx(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   args: {
     tx_hex: string;
@@ -94,7 +94,7 @@ export async function submitWithdrawalTx(
   },
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "submit_withdrawal_tx",
     {
       args,
@@ -105,9 +105,9 @@ export async function submitWithdrawalTx(
   );
 }
 
-export async function syncChainSignaturesRootPubkey(btcClient: NearAccount) {
-  return btcClient.call(
-    btcClient,
+export async function syncChainSignaturesRootPubkey(bithive: NearAccount) {
+  return bithive.call(
+    bithive,
     "sync_chain_signatures_root_pubkey",
     {},
     {
@@ -117,12 +117,12 @@ export async function syncChainSignaturesRootPubkey(btcClient: NearAccount) {
 }
 
 export async function changeOwner(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   newOwner: NearAccount,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "change_owner",
     {
       new_owner_id: newOwner.accountId,
@@ -134,12 +134,12 @@ export async function changeOwner(
 }
 
 export async function setBtcLightClientId(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   contract: NearAccount,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "set_btc_light_client_id",
     {
       new_contract_id: contract.accountId,
@@ -151,12 +151,12 @@ export async function setBtcLightClientId(
 }
 
 export async function setNConfirmation(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   n: number,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "set_n_confirmation",
     {
       n,
@@ -168,12 +168,12 @@ export async function setNConfirmation(
 }
 
 export async function setWithdrawWaitingTime(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   ms: number,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "set_withdrawal_waiting_time",
     {
       ms,
@@ -185,12 +185,12 @@ export async function setWithdrawWaitingTime(
 }
 
 export async function setEarliestDepositBlockHeight(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   height: number,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "set_earliest_deposit_block_height",
     { height },
     {
@@ -200,12 +200,12 @@ export async function setEarliestDepositBlockHeight(
 }
 
 export async function setPaused(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   caller: NearAccount,
   paused: boolean,
 ) {
   return caller.call(
-    btcClient,
+    bithive,
     "set_paused",
     { paused },
     {
@@ -225,24 +225,24 @@ interface ContractSummary {
 }
 
 export async function getSummary(
-  btcClient: NearAccount,
+  bithive: NearAccount,
 ): Promise<ContractSummary> {
-  return btcClient.view("get_summary");
+  return bithive.view("get_summary");
 }
 
-export async function fastForward(btcClient: NearAccount, duration: number) {
-  return btcClient.call(btcClient, "fast_forward", {
+export async function fastForward(bithive: NearAccount, duration: number) {
+  return bithive.call(bithive, "fast_forward", {
     duration,
   });
 }
 
-export async function setCurrentAccountId(btcClient: NearAccount, id: string) {
-  return btcClient.call(btcClient, "set_current_account_id", { id });
+export async function setCurrentAccountId(bithive: NearAccount, id: string) {
+  return bithive.call(bithive, "set_current_account_id", { id });
 }
 
 function buildGetUserLenFunction(name: string) {
-  return (btcClient: NearAccount, userPubkey: string): Promise<number> => {
-    return btcClient.view(`user_${name}_len`, { user_pubkey: userPubkey });
+  return (bithive: NearAccount, userPubkey: string): Promise<number> => {
+    return bithive.view(`user_${name}_len`, { user_pubkey: userPubkey });
   };
 }
 
@@ -265,12 +265,12 @@ interface Deposit {
 
 function buildListUserDepositFunction(name: string) {
   return (
-    btcClient: NearAccount,
+    bithive: NearAccount,
     userPubkey: string,
     offset: number,
     limit: number,
   ): Promise<Deposit[]> => {
-    return btcClient.view(`list_user_${name}`, {
+    return bithive.view(`list_user_${name}`, {
       user_pubkey: userPubkey,
       offset,
       limit,
@@ -296,8 +296,8 @@ interface Account {
 }
 
 export async function viewAccount(
-  btcClient: NearAccount,
+  bithive: NearAccount,
   userPubkey: string,
 ): Promise<Account> {
-  return btcClient.view("view_account", { user_pubkey: userPubkey });
+  return bithive.view("view_account", { user_pubkey: userPubkey });
 }

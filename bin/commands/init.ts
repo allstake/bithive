@@ -15,7 +15,7 @@ export const init: CommandModule<unknown, Args> = {
   },
   async handler({ env }) {
     const config = await getConfig(env);
-    const { signer } = await initNear(env, config.accountIds.btcClient);
+    const { signer } = await initNear(env, config.accountIds.bithive);
 
     const args = {
       owner_id: config.accountIds.owner,
@@ -30,7 +30,7 @@ export const init: CommandModule<unknown, Args> = {
     };
 
     await signer.functionCall({
-      contractId: config.accountIds.btcClient,
+      contractId: config.accountIds.bithive,
       methodName: "init",
       args: { args },
     });
@@ -38,7 +38,7 @@ export const init: CommandModule<unknown, Args> = {
 
     // sync root public key
     await signer.functionCall({
-      contractId: config.accountIds.btcClient,
+      contractId: config.accountIds.bithive,
       methodName: "sync_chain_signatures_root_pubkey",
       gas: nearTGas(100),
     });

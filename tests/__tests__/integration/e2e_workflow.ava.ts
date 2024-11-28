@@ -20,7 +20,7 @@ import {
   submitDepositTx,
   submitWithdrawalTx,
   V1_PK_PATH,
-} from "../helpers/btc_client";
+} from "../helpers/bithive";
 import { setSignature } from "../helpers/chain_signature";
 import { initIntegration } from "../helpers/context";
 import { requestSigFromTestnet } from "../helpers/near_client";
@@ -427,7 +427,7 @@ async function makeSignWithdrawal(
   // fetch real signature from testnet and upload to mock chain sig contract
   await prepareBitHiveSignature(mockChainSignature, hashToSign);
 
-  // call btc client contract to sign withdrawal PSBT
+  // call BitHive contract to sign withdrawal PSBT
   const sig = await signWithdrawal(
     contract,
     caller,
