@@ -74,6 +74,8 @@ impl Contract {
         msg_sig: String,
         sig_type: SigType,
     ) -> PromiseOrValue<bool> {
+        self.assert_running();
+
         let mut account = self.get_account(&user_pubkey.clone().into());
 
         // verify msg signature
@@ -148,6 +150,8 @@ impl Contract {
         vin_to_sign: u64,
         reinvest_embed_vout: Option<u64>,
     ) -> Promise {
+        self.assert_running();
+
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 300 Tgas
 
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
@@ -243,6 +247,8 @@ impl Contract {
     /// * `args.tx_index` - transaction index in the block
     /// * `args.merkle_proof` - merkle proof of transaction in the block
     pub fn submit_withdrawal_tx(&mut self, args: SubmitWithdrawTxArgs) -> Promise {
+        self.assert_running();
+
         assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
 
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);

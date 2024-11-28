@@ -60,6 +60,13 @@ impl Contract {
         require!(!values.is_empty(), "values must be non-empty");
         self.solo_withdrawal_seq_heights = values;
     }
+
+    #[payable]
+    pub fn set_paused(&mut self, paused: bool) {
+        self.assert_owner();
+        require!(self.paused != paused, "Invalid operation");
+        self.paused = paused;
+    }
 }
 
 impl Contract {

@@ -21,6 +21,7 @@ pub struct ContractSummary {
     min_deposit_satoshi: u64,
     earliest_deposit_block_height: u32,
     solo_withdrawal_sequence_heights: Vec<u16>,
+    paused: bool,
 }
 
 /// Constants for version 1 of the deposit script
@@ -63,6 +64,7 @@ impl Contract {
             min_deposit_satoshi: self.min_deposit_satoshi,
             earliest_deposit_block_height: self.earliest_deposit_block_height,
             solo_withdrawal_sequence_heights: self.solo_withdrawal_seq_heights.clone(),
+            paused: self.paused,
         }
     }
 
@@ -157,6 +159,7 @@ impl Contract {
     /// * `tx_hex` - hex encoded transaction
     /// * `embed_vout` - vout index of the embed output
     pub fn dry_run_deposit(&self, tx_hex: String, embed_vout: u64) {
+        self.assert_running();
         let tx = deserialize_hex::<Transaction>(&tx_hex).unwrap();
         let output_id = output_id(&tx.compute_txid().to_string().into(), embed_vout);
 
@@ -180,6 +183,7 @@ impl Contract {
         vin_to_sign: u64,
         reinvest_embed_vout: Option<u64>,
     ) {
+        self.assert_running();
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).unwrap();
 

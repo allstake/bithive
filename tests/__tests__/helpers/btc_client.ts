@@ -199,6 +199,21 @@ export async function setEarliestDepositBlockHeight(
   );
 }
 
+export async function setPaused(
+  btcClient: NearAccount,
+  caller: NearAccount,
+  paused: boolean,
+) {
+  return caller.call(
+    btcClient,
+    "set_paused",
+    { paused },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
 interface ContractSummary {
   owner_id: string;
   btc_light_client_id: string;
@@ -206,6 +221,7 @@ interface ContractSummary {
   chain_signature_root_pubkey: string;
   n_confirmation: number;
   withdrawal_waiting_time_ms: number;
+  paused: boolean;
 }
 
 export async function getSummary(
