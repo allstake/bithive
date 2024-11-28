@@ -16,25 +16,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Install necessary dependencies
       - name: Install Rust and dependencies
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
-      # Step 3: Build the project
       - name: Build the project
         run: make btc-client
 
-      # Step 4: Archive the build artifacts
+      - name: Set artifact name
+        id: set_name
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            TAG_NAME="latest"
+          fi
+          echo "artifact_name=build-artifacts-${TAG_NAME}" >> $GITHUB_ENV
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: built-artifacts
+          name: ${{ env.artifact_name }}
           path: ./res
           retention-days: 30
