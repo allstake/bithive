@@ -21,6 +21,7 @@ pub struct ContractSummary {
     min_deposit_satoshi: u64,
     earliest_deposit_block_height: u32,
     solo_withdrawal_sequence_heights: Vec<u16>,
+    paused: bool,
 }
 
 /// Constants for version 1 of the deposit script
@@ -63,6 +64,7 @@ impl Contract {
             min_deposit_satoshi: self.min_deposit_satoshi,
             earliest_deposit_block_height: self.earliest_deposit_block_height,
             solo_withdrawal_sequence_heights: self.solo_withdrawal_seq_heights.clone(),
+            paused: self.paused,
         }
     }
 

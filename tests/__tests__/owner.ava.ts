@@ -3,7 +3,9 @@ import {
   getSummary,
   setBtcLightClientId,
   setNConfirmation,
+  setPaused,
   setWithdrawWaitingTime,
+  submitDepositTx,
 } from "./helpers/btc_client";
 import { initUnit } from "./helpers/context";
 import { assertFailure } from "./helpers/utils";
@@ -27,6 +29,8 @@ test("non-privileged account cannot call owner methods", async (t) => {
     setWithdrawWaitingTime(contract, alice, 1),
     "Not owner",
   );
+
+  await assertFailure(t, setPaused(contract, alice, true), "Not owner");
 });
 
 test("change owner", async (t) => {
@@ -54,4 +58,24 @@ test("set withdrawal waiting time", async (t) => {
 
   const summary = await getSummary(contract);
   t.is(summary.withdrawal_waiting_time_ms, 111);
+});
+
+test("pause contract", async (t) => {
+  const { contract, owner } = t.context.accounts;
+  await setPaused(contract, owner, true);
+
+  const summary = await getSummary(contract);
+  t.is(summary.paused, true);
+
+  await assertFailure(
+    t,
+    submitDepositTx(contract, owner, {
+      tx_hex: "00",
+      embed_vout: 0,
+      tx_block_hash: "00",
+      tx_index: 0,
+      merkle_proof: [],
+    }),
+    "Contract is paused",
+  );
 });
