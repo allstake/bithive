@@ -103,14 +103,14 @@ impl Contract {
         #[callback_result] result: Result<near_sdk::PublicKey, PromiseError>,
     ) -> near_sdk::PublicKey {
         let pk = result.expect(ERR_FAILED_TO_SYNC_KEY);
-        self.set_chain_signature_root_pubkey(pk.clone());
+        self.set_chain_signatures_root_pubkey(pk.clone());
         pk
     }
 }
 
 impl Contract {
     /// this could be called by tests but not exposed on-chain
-    pub(crate) fn set_chain_signature_root_pubkey(&mut self, pk: near_sdk::PublicKey) {
+    pub(crate) fn set_chain_signatures_root_pubkey(&mut self, pk: near_sdk::PublicKey) {
         require!(
             self.chain_signatures_root_pubkey.is_none(),
             ERR_ROOT_PK_ALREADY_SYNCED
@@ -157,7 +157,7 @@ mod tests {
         // from v1.signer-prod.testnet
         let pk = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
         let root_pk = near_sdk::PublicKey::from_str(pk).unwrap();
-        contract.set_chain_signature_root_pubkey(root_pk);
+        contract.set_chain_signatures_root_pubkey(root_pk);
 
         contract
     }

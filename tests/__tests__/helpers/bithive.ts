@@ -218,7 +218,7 @@ interface ContractSummary {
   owner_id: string;
   btc_light_client_id: string;
   chain_signatures_id: string;
-  chain_signature_root_pubkey: string;
+  chain_signatures_root_pubkey: string;
   n_confirmation: number;
   withdrawal_waiting_time_ms: number;
   paused: boolean;
