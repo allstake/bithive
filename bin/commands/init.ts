@@ -57,6 +57,9 @@ export const initBip322: CommandModule<unknown, Args> = {
   async handler({ env }) {
     const config = await getConfig(env);
     const { signer } = await initNear(env, config.accountIds.bip322Verifier);
+    if (!config.accountIds.bip322Verifier) {
+      throw new Error("BIP322 verifier account ID is not set");
+    }
 
     await signer.functionCall({
       contractId: config.accountIds.bip322Verifier,
