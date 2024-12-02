@@ -22,15 +22,22 @@ export async function getSummary(env: string): Promise<{
   });
 }
 
-export async function getV1Consts(env: string): Promise<{
+export async function getV1DepositConstants(
+  env: string,
+  pubkey: string,
+): Promise<{
   bithive_pubkey: string;
 }> {
   const config = await getConfig(env);
   const { signer } = await initNear(env);
   return signer.viewFunction({
     contractId: config.accountIds.bithive,
-    methodName: "get_v1_constants",
-    args: {},
+    methodName: "get_v1_deposit_constants",
+    args: {
+      deposit_vout: 0,
+      user_pubkey: pubkey,
+      sequence_height: 0,
+    },
   });
 }
 

@@ -6,6 +6,7 @@ import { Config } from "./index";
 export const config: Config = {
   bitcoin: {
     network: "testnet",
+    detailedName: "testnet3",
   },
   near: {
     networkId: "testnet",

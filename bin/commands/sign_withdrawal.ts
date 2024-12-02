@@ -11,7 +11,7 @@ import {
 } from "../btc";
 import {
   getSummary,
-  getV1Consts,
+  getV1DepositConstants,
   signWithdrawal as signWithdrawalOnNear,
 } from "../near";
 
@@ -81,7 +81,7 @@ export const signWithdrawal: CommandModule<unknown, Args> = {
 
     // read near contract configs
     const summary = await getSummary(env);
-    const v1Consts = await getV1Consts(env);
+    const v1Consts = await getV1DepositConstants(env, pubkey);
 
     // construct withdrawal psbt
     const network =
