@@ -46,6 +46,9 @@ export const deployBip322Verifier: CommandModule<unknown, Args> = {
   },
   async handler({ env }) {
     const config = await getConfig(env);
+    if (!config.accountIds.bip322Verifier) {
+      throw new Error("BIP322 verifier account ID is not set");
+    }
     await deployContract(
       env,
       "res/bip322_verifier.wasm",
