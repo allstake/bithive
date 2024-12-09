@@ -1,5 +1,16 @@
 import * as bitcoin from "bitcoinjs-lib";
 
+export function idToHash(txid: string): Buffer {
+  return Buffer.from(txid, "hex").reverse();
+}
+
+export function toOutputScript(
+  address: string,
+  network: bitcoin.networks.Network,
+): Buffer {
+  return bitcoin.address.toOutputScript(address, network);
+}
+
 export function getWitnessUtxo(out: any): any {
   delete out.address;
   out.script = Buffer.from(out.script, "hex");
@@ -30,6 +41,10 @@ export function depositScriptV1(
       .trim()
       .replace(/\s+/g, " "),
   );
+}
+
+export function soloWithdrawScript(userSig: Buffer): Buffer {
+  return bitcoin.script.compile([userSig, bitcoin.opcodes.OP_TRUE]);
 }
 
 function reconstructSignature(big_r: string, big_s: string) {

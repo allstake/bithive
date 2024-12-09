@@ -3,6 +3,7 @@ import { KeyStore } from "near-api-js/lib/key_stores";
 export interface Config {
   bitcoin: {
     network: "testnet" | "mainnet";
+    detailedName: "testnet3" | "testnet4" | "mainnet";
   };
   near: {
     networkId: string;
