@@ -4,6 +4,8 @@ use near_sdk::{env, require};
 const ERR_EMBED_NOT_ZERO: &str = "Embed output should have 0 value";
 const ERR_EMBED_NOT_OPRETURN: &str = "Embed output is not OP_RETURN";
 const ERR_INVALID_SIGNATURE: &str = "Invalid bitcoin signature";
+const ERR_INVALID_SIGNATURE_LENGTH: &str = "Invalid signature length";
+const ERR_INVALID_SIGNATURE_FLAG: &str = "Invalid signature flag";
 
 const BITCOIN_SIGNED_MSG_PREFIX_UNISAT: &[u8] = b"Bitcoin Signed Message:\n";
 
@@ -51,6 +53,12 @@ pub fn verify_signed_message_ecdsa(plain_msg: &[u8], sig: &[u8], pubkey: &[u8]) 
     let msg_hash = env::sha256_array(&env::sha256_array(&msg_to_hash));
 
     // https://github.com/okx/js-wallet-sdk/blob/main/packages/coin-bitcoin/src/message.ts#L78
+    if sig.len() != 65 {
+        panic!("{}", ERR_INVALID_SIGNATURE_LENGTH);
+    }
+    if sig[0] < 27 || sig[0] > 34 {
+        panic!("{}", ERR_INVALID_SIGNATURE_FLAG);
+    }
     let actual_sig = &sig[1..];
     let flag = sig[0] - 27;
     let v = flag & 3;
@@ -161,6 +169,32 @@ mod tests {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let sig = "1f579cd70d3a244ad1d774eb8ef300e27172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
+        verify_signed_message_ecdsa(
+            plain_msg.as_bytes(),
+            &hex::decode(sig).unwrap(),
+            &hex::decode(pubkey).unwrap(),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid signature length")]
+    fn test_verify_signed_message_unisat_bad_sig_length() {
+        let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
+        let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
+        let sig = "00";
+        verify_signed_message_ecdsa(
+            plain_msg.as_bytes(),
+            &hex::decode(sig).unwrap(),
+            &hex::decode(pubkey).unwrap(),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid signature flag")]
+    fn test_verify_signed_message_unisat_bad_sig_flag() {
+        let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
+        let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
+        let sig = "1a579cd70d3a244ad1d774eb8ef300e27172f62bdb3b4090c296c98ce5c94b54a95a5ba68a70b60dc3bf4a32e851cfc300b87a5de6571ba8c7fff75b0b5cc4d3e3";
         verify_signed_message_ecdsa(
             plain_msg.as_bytes(),
             &hex::decode(sig).unwrap(),
