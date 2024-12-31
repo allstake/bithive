@@ -5,7 +5,7 @@ const ERR_EMBED_NOT_ZERO: &str = "Embed output should have 0 value";
 const ERR_EMBED_NOT_OPRETURN: &str = "Embed output is not OP_RETURN";
 const ERR_INVALID_SIGNATURE: &str = "Invalid bitcoin signature";
 const ERR_INVALID_SIGNATURE_LENGTH: &str = "Invalid signature length";
-const ERR_INVALID_SIGNATURE_FLAG: &str = "Invalid signature flag";
+const ERR_INVALID_SIGNATURE_RECOVERY_ID: &str = "Invalid signature recovery ID";
 
 const BITCOIN_SIGNED_MSG_PREFIX_UNISAT: &[u8] = b"Bitcoin Signed Message:\n";
 
@@ -57,7 +57,7 @@ pub fn verify_signed_message_ecdsa(plain_msg: &[u8], sig: &[u8], pubkey: &[u8]) 
         panic!("{}", ERR_INVALID_SIGNATURE_LENGTH);
     }
     if sig[0] < 27 || sig[0] > 34 {
-        panic!("{}", ERR_INVALID_SIGNATURE_FLAG);
+        panic!("{}", ERR_INVALID_SIGNATURE_RECOVERY_ID);
     }
     let actual_sig = &sig[1..];
     let flag = sig[0] - 27;
