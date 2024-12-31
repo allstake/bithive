@@ -190,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Invalid signature flag")]
+    #[should_panic(expected = "Invalid signature recovery ID")]
     fn test_verify_signed_message_unisat_bad_sig_flag() {
         let plain_msg = "hello:02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
         let pubkey = "02405803ac0c989534cdd54d5e1215e4149dc11aee83c21097571150c633dbc1cc";
