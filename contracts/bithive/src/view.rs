@@ -104,7 +104,7 @@ impl Contract {
             deposit_embed_msg: embed_msg.map(|embed_msg| hex::encode(embed_msg.encode())),
             min_deposit_satoshi: self.min_deposit_satoshi,
             earliest_deposit_block_height: self.earliest_deposit_block_height,
-            solo_withdrawal_sequence_height: self.solo_withdrawal_seq_heights[0],
+            solo_withdrawal_sequence_height: self.solo_withdrawal_seq_heights[0], // the first item is the current active one
         }
     }
 
