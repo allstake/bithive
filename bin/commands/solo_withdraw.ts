@@ -12,7 +12,6 @@ import {
   toOutputScript,
 } from "../btc";
 import { getV1DepositConstants } from "../near";
-import { getSummary } from "../near";
 import { broadcastTransaction, getTransaction } from "../mempool";
 
 const bip68 = require("bip68"); // eslint-disable-line
@@ -70,7 +69,6 @@ export const soloWithdraw: CommandModule<unknown, Args> = {
     const btcSigner = ECPair.fromPrivateKey(Buffer.from(privateKey, "hex"));
 
     // read near contract configs
-    const summary = await getSummary(env);
     const v1Consts = await getV1DepositConstants(
       env,
       btcSigner.publicKey.toString("hex"),
@@ -90,7 +88,7 @@ export const soloWithdraw: CommandModule<unknown, Args> = {
           bithivePubkey
             ? Buffer.from(bithivePubkey, "hex")
             : Buffer.from(v1Consts.bithive_pubkey, "hex"),
-          summary.solo_withdrawal_sequence_heights[0],
+          v1Consts.solo_withdrawal_sequence_height,
         ),
       },
       network,
@@ -104,7 +102,7 @@ export const soloWithdraw: CommandModule<unknown, Args> = {
       witnessUtxo: getWitnessUtxo(depositTxn.outs[vout]),
       witnessScript: depositScript.redeem!.output!,
       sequence: bip68.encode({
-        blocks: summary.solo_withdrawal_sequence_heights[0],
+        blocks: v1Consts.solo_withdrawal_sequence_height,
       }),
     });
 
@@ -122,7 +120,7 @@ export const soloWithdraw: CommandModule<unknown, Args> = {
     withdrawTx.addInput(
       idToHash(txid),
       vout,
-      bip68.encode({ blocks: summary.solo_withdrawal_sequence_heights[0] }),
+      bip68.encode({ blocks: v1Consts.solo_withdrawal_sequence_height }),
     );
     withdrawTx.addOutput(
       toOutputScript(receiver, network),

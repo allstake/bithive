@@ -27,6 +27,7 @@ export async function getV1DepositConstants(
   pubkey: string,
 ): Promise<{
   bithive_pubkey: string;
+  solo_withdrawal_sequence_height: number;
 }> {
   const config = await getConfig(env);
   const { signer } = await initNear(env);
@@ -34,9 +35,11 @@ export async function getV1DepositConstants(
     contractId: config.accountIds.bithive,
     methodName: "get_v1_deposit_constants",
     args: {
-      deposit_vout: 0,
-      user_pubkey: pubkey,
-      sequence_height: 0,
+      args: {
+        deposit_vout: 0,
+        user_pubkey: pubkey,
+        sequence_height: 0,
+      },
     },
   });
 }

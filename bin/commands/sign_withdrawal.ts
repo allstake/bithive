@@ -10,7 +10,6 @@ import {
   multisigWithdrawScript,
 } from "../btc";
 import {
-  getSummary,
   getV1DepositConstants,
   signWithdrawal as signWithdrawalOnNear,
 } from "../near";
@@ -80,7 +79,6 @@ export const signWithdrawal: CommandModule<unknown, Args> = {
     const depositTxn = bitcoin.Transaction.fromHex(txHex);
 
     // read near contract configs
-    const summary = await getSummary(env);
     const v1Consts = await getV1DepositConstants(env, pubkey);
 
     // construct withdrawal psbt
@@ -93,7 +91,7 @@ export const signWithdrawal: CommandModule<unknown, Args> = {
         output: depositScriptV1(
           Buffer.from(pubkey, "hex"),
           Buffer.from(v1Consts.bithive_pubkey, "hex"),
-          summary.solo_withdrawal_sequence_heights[0],
+          v1Consts.solo_withdrawal_sequence_height,
         ),
       },
       network,
