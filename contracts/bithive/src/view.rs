@@ -24,6 +24,14 @@ pub struct ContractSummary {
     paused: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct GetV1DepositConstantsArgs {
+    deposit_vout: u64,
+    user_pubkey: String,
+    sequence_height: u16,
+}
+
 /// Constants for version 1 of the deposit script
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -31,7 +39,13 @@ pub struct DepositConstantsV1 {
     /// bithive pubkey used in the deposit script
     bithive_pubkey: String,
     /// message that needs to be embedded in the deposit transaction via OP_RETURN
-    deposit_embed_msg: String,
+    deposit_embed_msg: Option<String>,
+    /// minimum deposit amount in satoshi
+    min_deposit_satoshi: u64,
+    /// earliest deposit block height
+    earliest_deposit_block_height: u32,
+    /// the current active value of sequence height for solo withdrawal
+    solo_withdrawal_sequence_height: u16,
 }
 
 /// Constants for withdrawing v1 deposits
@@ -75,21 +89,22 @@ impl Contract {
     /// * `sequence_height` - sequence height
     pub fn get_v1_deposit_constants(
         &self,
-        deposit_vout: u64,
-        user_pubkey: String,
-        sequence_height: u16,
+        args: Option<GetV1DepositConstantsArgs>,
     ) -> DepositConstantsV1 {
-        let embed_msg = DepositEmbedMsg::V1 {
-            deposit_vout,
-            user_pubkey: hex::decode(user_pubkey).unwrap().try_into().unwrap(),
-            sequence_height,
-        };
+        let embed_msg = args.map(|args| DepositEmbedMsg::V1 {
+            deposit_vout: args.deposit_vout,
+            user_pubkey: hex::decode(args.user_pubkey).unwrap().try_into().unwrap(),
+            sequence_height: args.sequence_height,
+        });
 
         DepositConstantsV1 {
             bithive_pubkey: self
                 .generate_btc_pubkey(CHAIN_SIGNATURES_PATH_V1)
                 .to_string(),
-            deposit_embed_msg: hex::encode(embed_msg.encode()),
+            deposit_embed_msg: embed_msg.map(|embed_msg| hex::encode(embed_msg.encode())),
+            min_deposit_satoshi: self.min_deposit_satoshi,
+            earliest_deposit_block_height: self.earliest_deposit_block_height,
+            solo_withdrawal_sequence_height: self.solo_withdrawal_seq_heights[0], // the first item is the current active one
         }
     }
 
