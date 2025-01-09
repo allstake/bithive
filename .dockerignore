@@ -128,5 +128,4 @@ blobhash-*
 bin/local/**/*.json
 
 # contract source code and test files
-contracts/**
 tests/**
