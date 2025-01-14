@@ -12,7 +12,9 @@ use bitcoin::{
 };
 use consts::CHAIN_SIGNATURES_PATH_V1;
 use ext::{ext_btc_light_client, ProofArgs, GAS_LIGHT_CLIENT_VERIFY};
-use near_sdk::{near_bindgen, require, Balance, Gas, Promise, PromiseError, ONE_NEAR};
+use near_sdk::{
+    json_types::U128, near_bindgen, require, Balance, Gas, Promise, PromiseError, ONE_NEAR,
+};
 use types::{output_id, DepositEmbedMsg, RedeemVersion, SubmitDepositTxArgs, TxId};
 use utils::{assert_gas, get_embed_message};
 
@@ -20,7 +22,7 @@ use crate::*;
 
 const ERR_NOT_ENOUGH_STORAGE_DEPOSIT: &str = "Not enough NEAR attached.";
 const ERR_INVALID_TX_HEX: &str = "Invalid hex transaction";
-const ERR_BAD_PUBKER_HEX: &str = "Invalid pubkey hex";
+const ERR_BAD_PUBKEY_HEX: &str = "Invalid pubkey hex";
 const ERR_BAD_DEPOSIT_AMOUNT: &str = "Deposit amount is less than minimum deposit amount";
 const ERR_NOT_ABS_TIMELOCK: &str = "Transaction absolute timelock not enabled";
 
@@ -85,6 +87,7 @@ impl Contract {
                         args.embed_vout,
                         deposit_vout,
                         env::predecessor_account_id(),
+                        env::attached_deposit().into(),
                     ),
             )
     }
@@ -97,6 +100,7 @@ impl Contract {
         embed_vout: u64,
         deposit_vout: u64,
         caller_id: AccountId,
+        refund_amount: U128,
         #[callback_result] result: Result<bool, PromiseError>,
     ) -> bool {
         let valid = result.unwrap_or(false);
@@ -105,7 +109,7 @@ impl Contract {
         if !valid {
             self.unset_deposit_confirmed(&txid.to_string().into(), deposit_vout);
             // refund storage deposit
-            Promise::new(caller_id).transfer(STORAGE_DEPOSIT_ACCOUNT);
+            Promise::new(caller_id).transfer(refund_amount.into());
 
             return false;
         }
@@ -146,7 +150,7 @@ impl Contract {
             .output
             .get(deposit_vout as usize)
             .expect(ERR_BAD_DEPOSIT_IDX);
-        let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKER_HEX);
+        let user_pubkey = PublicKey::from_str(&user_pubkey_hex).expect(ERR_BAD_PUBKEY_HEX);
         let sequence = Sequence::from_height(sequence_height);
         let redeem_version = match embed_msg {
             DepositEmbedMsg::V1 { .. } => {
