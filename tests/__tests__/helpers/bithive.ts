@@ -53,7 +53,7 @@ export async function queueWithdrawal(
       sig_type,
     },
     {
-      gas: Gas.parse("60 Tgas"),
+      gas: Gas.parse("80 Tgas"),
     },
   );
 }
