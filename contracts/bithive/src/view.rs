@@ -29,7 +29,6 @@ pub struct ContractSummary {
 pub struct GetV1DepositConstantsArgs {
     deposit_vout: u64,
     user_pubkey: String,
-    sequence_height: u16,
 }
 
 /// Constants for version 1 of the deposit script
@@ -91,10 +90,13 @@ impl Contract {
         &self,
         args: Option<GetV1DepositConstantsArgs>,
     ) -> DepositConstantsV1 {
+        // the first item is the current active one
+        let sequence_height = self.solo_withdrawal_seq_heights[0];
+
         let embed_msg = args.map(|args| DepositEmbedMsg::V1 {
             deposit_vout: args.deposit_vout,
             user_pubkey: hex::decode(args.user_pubkey).unwrap().try_into().unwrap(),
-            sequence_height: args.sequence_height,
+            sequence_height,
         });
 
         DepositConstantsV1 {
@@ -104,7 +106,7 @@ impl Contract {
             deposit_embed_msg: embed_msg.map(|embed_msg| hex::encode(embed_msg.encode())),
             min_deposit_satoshi: self.min_deposit_satoshi,
             earliest_deposit_block_height: self.earliest_deposit_block_height,
-            solo_withdrawal_sequence_height: self.solo_withdrawal_seq_heights[0], // the first item is the current active one
+            solo_withdrawal_sequence_height: sequence_height,
         }
     }
 
