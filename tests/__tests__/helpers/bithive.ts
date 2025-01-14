@@ -116,17 +116,31 @@ export async function syncChainSignaturesRootPubkey(bithive: NearAccount) {
   );
 }
 
-export async function changeOwner(
+export async function proposeChangeOwner(
   bithive: NearAccount,
   caller: NearAccount,
   newOwner: NearAccount,
 ) {
   return caller.call(
     bithive,
-    "change_owner",
+    "propose_change_owner",
     {
       new_owner_id: newOwner.accountId,
     },
+    {
+      attachedDeposit: "1",
+    },
+  );
+}
+
+export async function acceptChangeOwner(
+  bithive: NearAccount,
+  caller: NearAccount,
+) {
+  return caller.call(
+    bithive,
+    "accept_change_owner",
+    {},
     {
       attachedDeposit: "1",
     },

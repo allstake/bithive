@@ -5,9 +5,21 @@ use crate::*;
 #[near_bindgen]
 impl Contract {
     #[payable]
-    pub fn change_owner(&mut self, new_owner_id: AccountId) {
+    pub fn propose_change_owner(&mut self, new_owner_id: AccountId) {
         self.assert_owner();
-        self.owner_id = new_owner_id;
+        self.pending_owner_id = Some(new_owner_id);
+    }
+
+    #[payable]
+    pub fn accept_change_owner(&mut self) {
+        require!(self.pending_owner_id.is_some(), "No pending owner");
+        let pending_owner_id = self.pending_owner_id.clone().unwrap();
+        require!(
+            pending_owner_id == env::predecessor_account_id(),
+            "Not pending owner"
+        );
+        self.owner_id = pending_owner_id;
+        self.pending_owner_id = None;
     }
 
     #[payable]

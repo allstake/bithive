@@ -1,5 +1,6 @@
 import {
-  changeOwner,
+  proposeChangeOwner,
+  acceptChangeOwner,
   getSummary,
   setBtcLightClientId,
   setNConfirmation,
@@ -14,7 +15,11 @@ const test = initUnit();
 
 test("non-privileged account cannot call owner methods", async (t) => {
   const { contract, alice } = t.context.accounts;
-  await assertFailure(t, changeOwner(contract, alice, alice), "Not owner");
+  await assertFailure(
+    t,
+    proposeChangeOwner(contract, alice, alice),
+    "Not owner",
+  );
 
   await assertFailure(
     t,
@@ -36,10 +41,26 @@ test("non-privileged account cannot call owner methods", async (t) => {
 test("change owner", async (t) => {
   const { contract, owner, alice } = t.context.accounts;
 
-  await changeOwner(contract, owner, alice);
+  await proposeChangeOwner(contract, owner, alice);
+  await acceptChangeOwner(contract, alice);
 
   const summary = await getSummary(contract);
   t.is(summary.owner_id, alice.accountId);
+});
+
+test("cannot accept change owner if not pending", async (t) => {
+  const { contract, owner } = t.context.accounts;
+  await assertFailure(
+    t,
+    acceptChangeOwner(contract, owner),
+    "No pending owner",
+  );
+});
+
+test("only pending owner can accept change owner", async (t) => {
+  const { contract, owner, alice, bob } = t.context.accounts;
+  await proposeChangeOwner(contract, owner, alice);
+  await assertFailure(t, acceptChangeOwner(contract, bob), "Not pending owner");
 });
 
 test("set n confirmation", async (t) => {
