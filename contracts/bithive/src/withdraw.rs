@@ -29,6 +29,7 @@ const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
 // queue withdrawal errors
 const ERR_BIP322_NOT_ENABLED: &str = "BIP322 is not enabled";
+const ERR_INVALID_WITHDRAWAL_AMOUNT: &str = "Withdrawal amount must be greater than 0";
 // sign withdrawal errors
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdrawal request made";
@@ -75,8 +76,8 @@ impl Contract {
         sig_type: SigType,
     ) -> PromiseOrValue<bool> {
         self.assert_running();
-
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_BIP322_VERIFY + GAS_BIP322_VERIFY_CB); // 80 Tgas
+        require!(withdraw_amount > 0, ERR_INVALID_WITHDRAWAL_AMOUNT);
 
         let mut account = self.get_account(&user_pubkey.clone().into());
 
