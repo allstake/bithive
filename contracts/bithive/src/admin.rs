@@ -13,6 +13,7 @@ impl Contract {
 
     #[payable]
     pub fn accept_change_owner(&mut self) {
+        assert_one_yocto();
         require!(self.pending_owner_id.is_some(), "No pending owner");
         let pending_owner_id = self.pending_owner_id.clone().unwrap();
         let current_owner_id = self.owner_id.clone();
