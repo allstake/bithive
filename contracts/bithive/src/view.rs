@@ -4,8 +4,9 @@ use crate::*;
 use account::{Deposit, DepositStatus};
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
 use consts::CHAIN_SIGNATURES_PATH_V1;
+use near_sdk::Timestamp;
 use serde::{Deserialize, Serialize};
-use types::{output_id, DepositEmbedMsg};
+use types::{output_id, DepositEmbedMsg, PendingSignPsbt};
 use withdraw::{verify_pending_sign_partial_sig, verify_sign_withdrawal_psbt, withdrawal_message};
 
 #[derive(Serialize, Deserialize)]
@@ -45,6 +46,24 @@ pub struct DepositConstantsV1 {
     earliest_deposit_block_height: u32,
     /// the current active value of sequence height for solo withdrawal
     solo_withdrawal_sequence_height: u16,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AccountView {
+    pub pubkey: PubKey,
+    /// total deposit amount in full BTC decimals
+    pub total_deposit: u64,
+    /// amount of deposits queued for withdrawal in full BTC decimals
+    pub queue_withdrawal_amount: u64,
+    /// timestamp when the queue withdrawal started in ms
+    pub queue_withdrawal_start_ts: Timestamp,
+    /// timestamp when the queue withdrawal will end in ms
+    pub queue_withdrawal_end_ts: Timestamp,
+    /// nonce is used in signing messages to prevent replay attacks
+    pub nonce: u64,
+    /// PSBT of the withdrawal txn that needs to be signed via chain signatures
+    pub pending_sign_psbt: Option<PendingSignPsbt>,
 }
 
 /// Constants for withdrawing v1 deposits
@@ -126,8 +145,18 @@ impl Contract {
         }
     }
 
-    pub fn view_account(&self, user_pubkey: String) -> Account {
-        self.get_account(&user_pubkey.into())
+    pub fn view_account(&self, user_pubkey: String) -> AccountView {
+        let account = self.get_account(&user_pubkey.into());
+        AccountView {
+            pubkey: account.pubkey.clone(),
+            total_deposit: account.total_deposit,
+            queue_withdrawal_amount: account.queue_withdrawal_amount,
+            queue_withdrawal_start_ts: account.queue_withdrawal_start_ts,
+            queue_withdrawal_end_ts: account.queue_withdrawal_start_ts
+                + self.withdrawal_waiting_time_ms,
+            nonce: account.nonce,
+            pending_sign_psbt: account.pending_sign_psbt,
+        }
     }
 
     pub fn user_active_deposits_len(&self, user_pubkey: String) -> u64 {
