@@ -58,8 +58,8 @@ pub struct AccountView {
     pub queue_withdrawal_amount: u64,
     /// timestamp when the queue withdrawal started in ms
     pub queue_withdrawal_start_ts: Timestamp,
-    /// timestamp when the queue withdrawal will end in ms
-    pub queue_withdrawal_end_ts: Timestamp,
+    /// withdrawal waiting time in ms
+    pub withdrawal_waiting_time_ms: u64,
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
     /// PSBT of the withdrawal txn that needs to be signed via chain signatures
@@ -152,8 +152,7 @@ impl Contract {
             total_deposit: account.total_deposit,
             queue_withdrawal_amount: account.queue_withdrawal_amount,
             queue_withdrawal_start_ts: account.queue_withdrawal_start_ts,
-            queue_withdrawal_end_ts: account.queue_withdrawal_start_ts
-                + self.withdrawal_waiting_time_ms,
+            withdrawal_waiting_time_ms: self.withdrawal_waiting_time_ms,
             nonce: account.nonce,
             pending_sign_psbt: account.pending_sign_psbt,
         }
