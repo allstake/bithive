@@ -135,6 +135,7 @@ export function initIntegration() {
 async function createFixtures(root: NearAccount) {
   const owner = await root.createSubAccount("owner");
   const alice = await root.createSubAccount("alice");
+  const bob = await root.createSubAccount("bob");
 
   const mockLightclient = await deployAndInit({
     root,
@@ -195,6 +196,7 @@ async function createFixtures(root: NearAccount) {
   return {
     owner,
     alice,
+    bob,
     contract,
     mockChainSignature,
     mockLightclient,

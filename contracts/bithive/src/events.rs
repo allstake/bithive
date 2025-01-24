@@ -37,6 +37,13 @@ pub enum Event<'a> {
         deposit_vout: U64,
         is_multisig: bool,
     },
+    OwnerChanged {
+        old_owner: &'a String,
+        new_owner: &'a String,
+    },
+    Paused {
+        paused: bool,
+    },
 }
 
 impl<'a> Event<'a> {

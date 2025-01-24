@@ -1,3 +1,4 @@
+use events::Event;
 use near_sdk::assert_one_yocto;
 
 use crate::*;
@@ -5,9 +6,29 @@ use crate::*;
 #[near_bindgen]
 impl Contract {
     #[payable]
-    pub fn change_owner(&mut self, new_owner_id: AccountId) {
+    pub fn propose_change_owner(&mut self, new_owner_id: AccountId) {
         self.assert_owner();
-        self.owner_id = new_owner_id;
+        self.pending_owner_id = Some(new_owner_id);
+    }
+
+    #[payable]
+    pub fn accept_change_owner(&mut self) {
+        assert_one_yocto();
+        require!(self.pending_owner_id.is_some(), "No pending owner");
+        let pending_owner_id = self.pending_owner_id.clone().unwrap();
+        let current_owner_id = self.owner_id.clone();
+        require!(
+            pending_owner_id == env::predecessor_account_id(),
+            "Not pending owner"
+        );
+        self.owner_id = pending_owner_id.clone();
+        self.pending_owner_id = None;
+
+        Event::OwnerChanged {
+            old_owner: &current_owner_id.to_string(),
+            new_owner: &pending_owner_id.to_string(),
+        }
+        .emit();
     }
 
     #[payable]
@@ -66,6 +87,8 @@ impl Contract {
         self.assert_owner();
         require!(self.paused != paused, "Invalid operation");
         self.paused = paused;
+
+        Event::Paused { paused }.emit();
     }
 }
 

@@ -214,7 +214,7 @@ impl Contract {
 
         require!(
             !self.confirmed_deposit_txns.contains(&output_id),
-            "deposit txn verification failed"
+            "deposit txn already confirmed"
         );
         self.verify_deposit_txn(&tx, embed_vout);
     }

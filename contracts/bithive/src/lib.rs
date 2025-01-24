@@ -30,6 +30,8 @@ const GAS_GET_ROOT_PUBKEY_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
 pub struct Contract {
     /// contract owner ID
     owner_id: AccountId,
+    /// pending owner ID
+    pending_owner_id: Option<AccountId>,
     /// btc light client contract ID
     btc_light_client_id: AccountId,
     /// bip322 verifier contract ID
@@ -65,6 +67,7 @@ impl Contract {
     pub fn init(args: InitArgs) -> Self {
         Self {
             owner_id: args.owner_id,
+            pending_owner_id: None,
             btc_light_client_id: args.btc_light_client_id,
             bip322_verifier_id: args.bip322_verifier_id,
             chain_signatures_id: args.chain_signatures_id,
