@@ -3,7 +3,7 @@ use std::cmp::min;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    require, Timestamp,
+    require, Balance, Timestamp,
 };
 use serde::Serialize;
 
@@ -39,6 +39,9 @@ pub struct Account {
     pub nonce: u64,
     /// PSBT of the withdrawal txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
+    /// deposit user paied to cover the storage of pending sign PSBT
+    /// this should only be increased when needed
+    pub pending_sign_deposit: Balance,
 }
 
 impl Account {
@@ -52,6 +55,7 @@ impl Account {
             queue_withdrawal_start_ts: 0,
             nonce: 0,
             pending_sign_psbt: None,
+            pending_sign_deposit: 0,
         }
     }
 

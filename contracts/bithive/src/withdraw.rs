@@ -31,6 +31,8 @@ const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 const ERR_BIP322_NOT_ENABLED: &str = "BIP322 is not enabled";
 const ERR_INVALID_WITHDRAWAL_AMOUNT: &str = "Withdrawal amount must be greater than 0";
 // sign withdrawal errors
+const ERR_INVALID_STORAGE_DEPOSIT: &str = "Invalid storage deposit amount";
+const ERR_INSUFFICIENT_STORAGE_DEPOSIT: &str = "Insufficient storage deposit";
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
 const ERR_NO_WITHDRAW_REQUESTED: &str = "No withdrawal request made";
 const ERR_WITHDRAW_NOT_READY: &str = "Not ready to withdraw now";
@@ -145,6 +147,7 @@ impl Contract {
     /// * `user_pubkey` - user public key
     /// * `vin_to_sign` - vin to sign, must be an active deposit UTXO
     /// * `reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
+    /// * `storage_deposit` - attached NEAR amount as storage deposit for pending sign PSBT
     #[payable]
     pub fn sign_withdrawal(
         &mut self,
@@ -152,10 +155,13 @@ impl Contract {
         user_pubkey: String,
         vin_to_sign: u64,
         reinvest_embed_vout: Option<u64>,
+        storage_deposit: Option<U128>,
     ) -> Promise {
         self.assert_running();
 
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 300 Tgas
+
+        let mut attached_near_for_storage = 0u128;
 
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
@@ -178,11 +184,26 @@ impl Contract {
             let reinvest_deposit_vout =
                 self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
 
+            // if there is more than one input in PSBT, we charge the user for PSBT storage deposit
+            if psbt.unsigned_tx.input.len() > 1 {
+                attached_near_for_storage = storage_deposit.unwrap_or(U128::from(0)).into();
+                require!(
+                    env::attached_deposit() >= attached_near_for_storage,
+                    ERR_INVALID_STORAGE_DEPOSIT
+                );
+                let storage_needed = psbt_bytes.len() as u128 * env::storage_byte_cost();
+                require!(
+                    account.pending_sign_deposit + attached_near_for_storage >= storage_needed,
+                    ERR_INSUFFICIENT_STORAGE_DEPOSIT
+                );
+            }
+
             // update account state
             account.pending_sign_psbt = Some(PendingSignPsbt {
                 psbt: psbt.clone().into(),
                 reinvest_deposit_vout,
             });
+            account.pending_sign_deposit += attached_near_for_storage;
             // reset queue withdrawal amount
             account.queue_withdrawal_amount = 0;
             account.queue_withdrawal_start_ts = 0;
@@ -203,9 +224,11 @@ impl Contract {
             path,
             key_version,
         };
+        // the rest of the attached NEAR will be used for chain signatures
+        let chain_signatures_deposit = env::attached_deposit() - attached_near_for_storage;
         ext_chain_signatures::ext(self.chain_signatures_id.clone())
             .with_static_gas(GAS_CHAIN_SIG_SIGN)
-            .with_attached_deposit(env::attached_deposit())
+            .with_attached_deposit(chain_signatures_deposit)
             .sign(req)
             .then(
                 Self::ext(env::current_account_id())
@@ -213,7 +236,7 @@ impl Contract {
                     .on_sign_withdrawal(
                         user_pubkey,
                         env::predecessor_account_id(),
-                        env::attached_deposit().into(),
+                        chain_signatures_deposit.into(),
                     ),
             )
     }
