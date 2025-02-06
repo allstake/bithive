@@ -3,7 +3,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 import { isP2TR } from "bitcoinjs-lib/src/psbt/psbtutils";
 import { ECPairInterface } from "ecpair";
-import { NearAccount } from "near-workspaces";
+import { NEAR, NearAccount } from "near-workspaces";
 import { RegtestUtils } from "regtest-client";
 import * as ecc from "tiny-secp256k1";
 import {
@@ -24,7 +24,12 @@ import {
 import { setSignature } from "../helpers/chain_signature";
 import { initIntegration } from "../helpers/context";
 import { requestSigFromTestnet } from "../helpers/near_client";
-import { buildDepositEmbedMsg, daysToMs, someH256 } from "../helpers/utils";
+import {
+  buildDepositEmbedMsg,
+  daysToMs,
+  getStorageDeposit,
+  someH256,
+} from "../helpers/utils";
 
 const bip68 = require("bip68"); // eslint-disable-line
 bitcoin.initEccLib(ecc);
@@ -427,6 +432,13 @@ async function makeSignWithdrawal(
   // fetch real signature from testnet and upload to mock chain sig contract
   await prepareBitHiveSignature(mockChainSignature, hashToSign);
 
+  // attach storage deposit for multiple inputs
+  let storageDeposit: NEAR | undefined = undefined;
+  if (psbt.inputCount > 1) {
+    const psbtSize = psbt.toHex().length / 2;
+    storageDeposit = getStorageDeposit(psbtSize);
+  }
+
   // call BitHive contract to sign withdrawal PSBT
   const sig = await signWithdrawal(
     contract,
@@ -435,6 +447,7 @@ async function makeSignWithdrawal(
     userPubkey,
     depositVin,
     reinvestVout,
+    storageDeposit,
   );
 
   return bitcoin.script.signature.encode(

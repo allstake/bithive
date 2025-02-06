@@ -1,6 +1,6 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { message } from "@okxweb3/coin-bitcoin";
-import { NearAccount } from "near-workspaces";
+import { NEAR, NearAccount } from "near-workspaces";
 import {
   depositScriptV1,
   getWitnessUtxo,
@@ -13,7 +13,7 @@ import {
   submitDepositTx,
   submitWithdrawalTx,
 } from "./bithive";
-import { buildDepositEmbedMsg, someH256 } from "./utils";
+import { buildDepositEmbedMsg, getStorageDeposit, someH256 } from "./utils";
 import { ECPairInterface } from "ecpair";
 const bip68 = require("bip68"); // eslint-disable-line
 
@@ -212,6 +212,14 @@ export class TestTransactionBuilder {
     if (!this.psbt) {
       throw new Error("Generate PSBT first");
     }
+
+    // attach deposit for multiple inputs
+    let storageDeposit: NEAR | undefined = undefined;
+    if (this.psbt.inputCount > 1) {
+      const psbtSize = this.psbt.toHex().length / 2;
+      storageDeposit = getStorageDeposit(psbtSize);
+    }
+
     return signWithdrawal(
       this.bithive,
       this.caller,
@@ -219,6 +227,7 @@ export class TestTransactionBuilder {
       this.userPubkey.toString("hex"),
       vinToSign,
       this.reinvest ? 2 : undefined, // if reinvest, the embed ouput will be index 2
+      storageDeposit,
     );
   }
 

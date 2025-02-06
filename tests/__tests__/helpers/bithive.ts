@@ -65,7 +65,12 @@ export async function signWithdrawal(
   userPubkey: string,
   vinToSign: number,
   reinvestEmbedVout?: number,
+  storageDeposit?: NEAR,
 ): Promise<ChainSignatureResponse | null> {
+  const attachedDeposit = NEAR.parse("0.5").add(
+    storageDeposit ?? NEAR.parse("0"),
+  );
+
   return caller.call(
     bithive.accountId,
     "sign_withdrawal",
@@ -74,9 +79,10 @@ export async function signWithdrawal(
       user_pubkey: userPubkey,
       vin_to_sign: vinToSign,
       reinvest_embed_vout: reinvestEmbedVout,
+      storage_deposit: storageDeposit ? storageDeposit.toString() : null,
     },
     {
-      attachedDeposit: NEAR.parse("0.5"),
+      attachedDeposit,
       gas: Gas.parse("300 Tgas"),
     },
   );
