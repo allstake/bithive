@@ -31,8 +31,8 @@ export class TestTransactionBuilder {
   private p2wsh: bitcoin.Payment;
   public psbt: bitcoin.Psbt | undefined;
 
-  private bithive: NearAccount;
-  private caller: NearAccount;
+  public bithive: NearAccount;
+  public caller: NearAccount;
 
   constructor(
     bithive: NearAccount,
