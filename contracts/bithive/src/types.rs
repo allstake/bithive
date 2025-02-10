@@ -146,6 +146,7 @@ impl borsh::BorshSerialize for LowercaseString {
 pub struct PendingSignPsbt {
     pub psbt: BorshPsbt,
     pub reinvest_deposit_vout: Option<u64>,
+    pub reinvest_embed_vout: Option<u64>,
 }
 
 /// helper type to wrap PSBT so that it can be serialized by Borsh
