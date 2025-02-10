@@ -19,17 +19,14 @@ const ERR_DEPOSIT_ALREADY_WITHDRAWN: &str = "Deposit already withdrawn";
 
 const ERR_INVALID_QUEUE_WITHDRAWAL: &str = "Invalid queue withdrawal amount";
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct Account {
     pub pubkey: PubKey,
     /// total deposit amount in full BTC decimals
     pub total_deposit: u64,
     /// set of deposits that are not known to be withdrawn
-    #[serde(skip_serializing)]
     active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are confirmed to have been withdrawn
-    #[serde(skip_serializing)]
     withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// amount of deposits queued for withdrawal in full BTC decimals
     pub queue_withdrawal_amount: u64,
