@@ -133,6 +133,37 @@ test("sign withdrawal with multiple deposit inputs", async (t) => {
   await builder1.signWithdraw(1);
 });
 
+test("sign withdrawal without storage deposit for multiple deposit inputs should fail", async (t) => {
+  const { builder: builder1, contract } = await makeDeposit(t, 1e8);
+  const { builder: builder2 } = await makeDeposit(t, 2e8);
+
+  const sig = builder1.queueWithdrawSignature(3e8, 0);
+  await builder1.queueWithdraw(3e8, sig);
+  await fastForward(contract, daysToMs(2));
+
+  // withdrawal psbt has two inputs to sign
+  builder1.generateWithdrawPsbt(
+    {
+      hash: builder2.tx.getId(),
+      index: 0,
+    },
+    0,
+    3e8,
+  );
+
+  await assertFailure(
+    t,
+    signWithdrawal(
+      builder1.bithive,
+      builder1.caller,
+      builder1.psbt!.toHex(),
+      builder1.userPubkeyHex,
+      0,
+    ),
+    "Insufficient storage deposit",
+  );
+});
+
 test("sign withdrawal RBF", async (t) => {
   const { builder, contract } = await makeDeposit(t, 1e8);
 

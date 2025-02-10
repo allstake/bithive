@@ -3,7 +3,7 @@ use std::cmp::min;
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedMap,
-    require, Timestamp,
+    require, Balance, Timestamp,
 };
 use serde::Serialize;
 
@@ -19,17 +19,14 @@ const ERR_DEPOSIT_ALREADY_WITHDRAWN: &str = "Deposit already withdrawn";
 
 const ERR_INVALID_QUEUE_WITHDRAWAL: &str = "Invalid queue withdrawal amount";
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct Account {
     pub pubkey: PubKey,
     /// total deposit amount in full BTC decimals
     pub total_deposit: u64,
     /// set of deposits that are not known to be withdrawn
-    #[serde(skip_serializing)]
     active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// set of deposits that are confirmed to have been withdrawn
-    #[serde(skip_serializing)]
     withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
     /// amount of deposits queued for withdrawal in full BTC decimals
     pub queue_withdrawal_amount: u64,
@@ -39,6 +36,9 @@ pub struct Account {
     pub nonce: u64,
     /// PSBT of the withdrawal txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
+    /// deposit user paid to cover the storage of pending sign PSBT
+    /// this should only be increased when needed
+    pub pending_sign_deposit: Balance,
 }
 
 impl Account {
@@ -52,6 +52,7 @@ impl Account {
             queue_withdrawal_start_ts: 0,
             nonce: 0,
             pending_sign_psbt: None,
+            pending_sign_deposit: 0,
         }
     }
 

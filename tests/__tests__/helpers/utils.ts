@@ -1,8 +1,14 @@
-import { TransactionResult } from "near-workspaces";
+import { NEAR, TransactionResult } from "near-workspaces";
 import * as borsh from "borsh";
+
+const STORAGE_PRICE_PER_BYTE = 10_000_000_000_000_000_000n;
 
 export function daysToMs(days: number) {
   return days * 24 * 3600 * 1000;
+}
+
+export function getStorageDeposit(bytes: number) {
+  return NEAR.from(STORAGE_PRICE_PER_BYTE.toString()).muln(bytes);
 }
 
 export interface ChainSignatureResponse {

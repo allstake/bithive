@@ -4,7 +4,7 @@ use crate::*;
 use account::{Deposit, DepositStatus};
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
 use consts::CHAIN_SIGNATURES_PATH_V1;
-use near_sdk::Timestamp;
+use near_sdk::{json_types::U128, Timestamp};
 use serde::{Deserialize, Serialize};
 use types::{output_id, DepositEmbedMsg, PendingSignPsbt};
 use withdraw::{verify_pending_sign_partial_sig, verify_sign_withdrawal_psbt, withdrawal_message};
@@ -64,6 +64,9 @@ pub struct AccountView {
     pub nonce: u64,
     /// PSBT of the withdrawal txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
+    /// deposit user paid to cover the storage of pending sign PSBT
+    /// this should only be increased when needed
+    pub pending_sign_deposit: U128,
 }
 
 /// Constants for withdrawing v1 deposits
@@ -159,6 +162,7 @@ impl Contract {
             },
             nonce: account.nonce,
             pending_sign_psbt: account.pending_sign_psbt,
+            pending_sign_deposit: account.pending_sign_deposit.into(),
         }
     }
 
