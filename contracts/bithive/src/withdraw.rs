@@ -202,6 +202,7 @@ impl Contract {
             account.pending_sign_psbt = Some(PendingSignPsbt {
                 psbt: psbt.clone().into(),
                 reinvest_deposit_vout,
+                reinvest_embed_vout,
             });
             account.pending_sign_deposit += attached_near_for_storage;
             // reset queue withdrawal amount
@@ -530,6 +531,7 @@ mod tests {
         let pending_sign_psbt = PendingSignPsbt {
             psbt: test_psbt(vec![test_input1(), test_input2()], vec![]).into(),
             reinvest_deposit_vout: None,
+            reinvest_embed_vout: None,
         };
         let request_psbt = test_psbt(vec![test_input1()], vec![]);
         verify_sign_withdrawal_psbt(&pending_sign_psbt, &request_psbt);
@@ -541,6 +543,7 @@ mod tests {
         let pending_sign_psbt = PendingSignPsbt {
             psbt: test_psbt(vec![test_input1()], vec![]).into(),
             reinvest_deposit_vout: None,
+            reinvest_embed_vout: None,
         };
         let request_psbt = test_psbt(vec![test_input2()], vec![]);
         verify_sign_withdrawal_psbt(&pending_sign_psbt, &request_psbt);
@@ -552,6 +555,7 @@ mod tests {
         let pending_sign_psbt = PendingSignPsbt {
             psbt: test_psbt(vec![test_input1(), test_input2()], vec![test_output1()]).into(),
             reinvest_deposit_vout: Some(0),
+            reinvest_embed_vout: Some(1),
         };
         let request_psbt = test_psbt(vec![test_input1(), test_input2()], vec![test_output2()]);
         verify_sign_withdrawal_psbt(&pending_sign_psbt, &request_psbt);
