@@ -64,7 +64,7 @@ pub struct AccountView {
     pub nonce: u64,
     /// PSBT of the withdrawal txn that needs to be signed via chain signatures
     pub pending_sign_psbt: Option<PendingSignPsbt>,
-    /// deposit user paied to cover the storage of pending sign PSBT
+    /// deposit user paid to cover the storage of pending sign PSBT
     /// this should only be increased when needed
     pub pending_sign_deposit: U128,
 }
