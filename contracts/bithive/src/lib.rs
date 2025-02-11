@@ -1,7 +1,7 @@
 use account::{Account, VersionedAccount};
 use ext::ext_chain_signatures;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, LookupSet};
+use near_sdk::collections::{LookupSet, UnorderedMap};
 use near_sdk::{env, near_bindgen, require, AccountId, Gas, PanicOnDefault, Promise, PromiseError};
 use types::{InitArgs, OutputId, PubKey, StorageKey};
 
@@ -55,7 +55,7 @@ pub struct Contract {
     /// set of all confirmed deposit txns
     confirmed_deposit_txns: LookupSet<OutputId>,
     /// user accounts: pubkey -> account
-    accounts: LookupMap<PubKey, VersionedAccount>,
+    accounts: UnorderedMap<PubKey, VersionedAccount>,
     /// whether the contract is paused
     paused: bool,
 }
@@ -78,7 +78,7 @@ impl Contract {
             earliest_deposit_block_height: args.earliest_deposit_block_height,
             solo_withdrawal_seq_heights: args.solo_withdrawal_seq_heights,
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
-            accounts: LookupMap::new(StorageKey::Accounts),
+            accounts: UnorderedMap::new(StorageKey::Accounts),
             paused: false,
         }
     }

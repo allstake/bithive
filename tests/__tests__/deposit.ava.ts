@@ -1,6 +1,8 @@
 import * as bitcoin from "bitcoinjs-lib";
 import {
+  accountsLen,
   getUserActiveDepositsLen,
+  listAccounts,
   listUserActiveDeposits,
   setEarliestDepositBlockHeight,
   submitDepositTx,
@@ -249,4 +251,25 @@ test("submit deposit txn with insufficient NEAR deposit", async (t) => {
     ),
     "Not enough NEAR attached",
   );
+});
+
+test("list accounts after submit deposit txn", async (t) => {
+  const { contract, alice } = t.context.accounts;
+  const builder1 = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    bithivePubkey: t.context.bithivePubkey,
+  });
+  await builder1.submit();
+
+  const builder2 = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.bobKeyPair,
+    bithivePubkey: t.context.bithivePubkey,
+  });
+  await builder2.submit();
+
+  t.is(await accountsLen(contract), 2);
+  const accounts = await listAccounts(contract, 0, 10);
+  t.is(accounts.length, 2);
+  t.is(accounts[0].pubkey, builder1.userPubkeyHex);
+  t.is(accounts[1].pubkey, builder2.userPubkeyHex);
 });

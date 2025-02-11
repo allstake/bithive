@@ -148,22 +148,23 @@ impl Contract {
         }
     }
 
+    pub fn accounts_len(&self) -> u64 {
+        self.accounts.len()
+    }
+
+    pub fn list_accounts(&self, offset: u64, limit: u64) -> Vec<AccountView> {
+        let limit = min(limit, self.accounts_len() - offset);
+        self.accounts
+            .iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .map(|(_, account)| self.get_account_view(&account.into()))
+            .collect()
+    }
+
     pub fn view_account(&self, user_pubkey: String) -> AccountView {
         let account = self.get_account(&user_pubkey.into());
-        AccountView {
-            pubkey: account.pubkey.clone(),
-            total_deposit: account.total_deposit,
-            queue_withdrawal_amount: account.queue_withdrawal_amount,
-            queue_withdrawal_start_ts: account.queue_withdrawal_start_ts,
-            queue_withdrawal_end_ts: if account.queue_withdrawal_start_ts == 0 {
-                0
-            } else {
-                account.queue_withdrawal_start_ts + self.withdrawal_waiting_time_ms
-            },
-            nonce: account.nonce,
-            pending_sign_psbt: account.pending_sign_psbt,
-            pending_sign_deposit: account.pending_sign_deposit.into(),
-        }
+        self.get_account_view(&account)
     }
 
     pub fn user_active_deposits_len(&self, user_pubkey: String) -> u64 {
@@ -253,6 +254,25 @@ impl Contract {
         } else {
             verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
+        }
+    }
+}
+
+impl Contract {
+    fn get_account_view(&self, account: &Account) -> AccountView {
+        AccountView {
+            pubkey: account.pubkey.clone(),
+            total_deposit: account.total_deposit,
+            queue_withdrawal_amount: account.queue_withdrawal_amount,
+            queue_withdrawal_start_ts: account.queue_withdrawal_start_ts,
+            queue_withdrawal_end_ts: if account.queue_withdrawal_start_ts == 0 {
+                0
+            } else {
+                account.queue_withdrawal_start_ts + self.withdrawal_waiting_time_ms
+            },
+            nonce: account.nonce,
+            pending_sign_psbt: account.pending_sign_psbt.clone(),
+            pending_sign_deposit: account.pending_sign_deposit.into(),
         }
     }
 }
