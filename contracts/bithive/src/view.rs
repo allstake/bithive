@@ -153,7 +153,6 @@ impl Contract {
     }
 
     pub fn list_accounts(&self, offset: u64, limit: u64) -> Vec<AccountView> {
-        let limit = min(limit, self.accounts_len() - offset);
         self.accounts
             .iter()
             .skip(offset as usize)
