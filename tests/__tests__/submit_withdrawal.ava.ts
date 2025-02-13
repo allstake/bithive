@@ -2,6 +2,7 @@ import {
   fastForward,
   getUserActiveDepositsLen,
   getUserWithdrawnDepositsLen,
+  listAccounts,
   listUserWithdrawnDeposits,
   submitWithdrawalTx,
   viewAccount,
@@ -236,4 +237,26 @@ test("submit withdrawal with an already withdrawn deposit input", async (t) => {
 
   t.is(await getUserWithdrawnDepositsLen(contract, builder1.userPubkeyHex), 2);
   t.is(await getUserActiveDepositsLen(contract, builder1.userPubkeyHex), 0);
+});
+
+test("list accounts should contain withdrawn account", async (t) => {
+  const { contract, alice } = t.context.accounts;
+
+  // create two deposits
+  const builder = new TestTransactionBuilder(contract, alice, {
+    userKeyPair: t.context.aliceKeyPair,
+    bithivePubkey: t.context.bithivePubkey,
+    depositAmount: 1e8,
+  });
+  await builder.submit();
+
+  const sig = builder.queueWithdrawSignature(1e8, 0);
+  await builder.queueWithdraw(1e8, sig);
+
+  builder.generateWithdrawPsbt();
+  await builder.submitWithdraw();
+
+  const accounts = await listAccounts(contract, 0, 10);
+  t.is(accounts.length, 1);
+  t.is(accounts[0].pubkey, builder.userPubkeyHex);
 });
