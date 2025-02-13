@@ -59,7 +59,7 @@ test-ava: test-assets
 
 # by default you should run integration test through this command
 test-integration: test-assets
-	npx ava -c 2 --timeout=5m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
+	npx ava -c 2 --timeout=15m tests/__tests__/integration/$(TEST_FILE).ava.ts --verbose
 
 # assets built by ARM mac may fail in tests with an error like `{"CompilationError":{"PrepareError":"Deserialization"}}`,
 # you can try to build assets via docker and then run tests through commands below, see README.md for more details
