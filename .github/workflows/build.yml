@@ -39,7 +39,7 @@ jobs:
           echo "artifact_name=build-artifacts-${TAG_NAME}" >> $GITHUB_ENV
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.artifact_name }}
           path: ./res
