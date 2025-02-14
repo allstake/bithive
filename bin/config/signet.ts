@@ -6,6 +6,7 @@ import { Config } from "./index";
 export const config: Config = {
   bitcoin: {
     network: "testnet",
+    detailedName: "signet",
   },
   near: {
     networkId: "testnet",
@@ -17,11 +18,11 @@ export const config: Config = {
       "https://rpc.testnet.near.org",
   },
   accountIds: {
-    signer: "allbtc.testnet",
-    owner: "allbtc.testnet",
+    signer: "bithive.testnet",
+    owner: "bithive.testnet",
     bip322Verifier: "bip322.testnet",
-    bithive: "signet-1.allbtc.testnet",
-    chainSignatures: "v1.signer-dev.testnet",
+    bithive: "signet.bithive.testnet",
+    chainSignatures: "v1.signer-prod.testnet",
     btcLightClient: "btclc.testnet",
   },
   params: {
