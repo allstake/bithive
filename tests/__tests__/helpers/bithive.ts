@@ -321,3 +321,15 @@ export async function viewAccount(
 ): Promise<Account> {
   return bithive.view("view_account", { user_pubkey: userPubkey });
 }
+
+export async function accountsLen(bithive: NearAccount): Promise<number> {
+  return bithive.view("accounts_len");
+}
+
+export async function listAccounts(
+  bithive: NearAccount,
+  offset: number,
+  limit: number,
+): Promise<Account[]> {
+  return bithive.view("list_accounts", { offset, limit });
+}
