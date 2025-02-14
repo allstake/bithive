@@ -48,7 +48,7 @@ export async function requestSigFromTestnet(
     },
   };
   const res = await signer.functionCall({
-    contractId: "v1.signer-dev.testnet",
+    contractId: "v1.signer-prod.testnet",
     methodName: "sign",
     args,
     attachedDeposit: NEAR.parse("0.5").toBigInt(),

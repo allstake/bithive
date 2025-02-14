@@ -64,8 +64,8 @@ impl Contract {
     }
 
     pub fn public_key(&self) -> near_sdk::PublicKey {
-        // from v1.signer-dev.testnet
-        let pk = "secp256k1:54hU5wcCmVUPFWLDALXMh1fFToZsVXrx9BbTbHzSfQq1Kd1rJZi52iPa4QQxo6s5TgjWqgpY8HamYuUDzG6fAaUq";
+        // from v1.signer-prod.testnet
+        let pk = "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
         near_sdk::PublicKey::from_str(pk).unwrap()
     }
 
