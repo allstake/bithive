@@ -7,8 +7,9 @@ import hash from "hash.js";
 import { sha3_256 } from "js-sha3";
 import { base_decode } from "near-api-js/lib/utils/serialize";
 
+// v1.signer-prod.testnet
 const rootPublicKey =
-  "secp256k1:54hU5wcCmVUPFWLDALXMh1fFToZsVXrx9BbTbHzSfQq1Kd1rJZi52iPa4QQxo6s5TgjWqgpY8HamYuUDzG6fAaUq";
+  "secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3";
 
 export function depositScriptV1(
   userPubkey: Buffer,
