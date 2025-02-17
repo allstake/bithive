@@ -3,6 +3,9 @@ import * as path from "path";
 import * as os from "os";
 import { Config } from "./index";
 
+/**
+ * dev env in testnet3 is deprecated, use testnet4 or signet instead
+ */
 export const config: Config = {
   bitcoin: {
     network: "testnet",
