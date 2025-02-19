@@ -74,7 +74,8 @@ test-integration-no-build:
 build-docker:
 	-rm res/*.*
 	docker build -t bithive-assets .
-	docker run -v ./res:/app/res -v ./contracts:/app/contracts -it bithive-assets make bithive test-assets
+	docker run --rm -v ./res:/app/res -v ./contracts:/app/contracts -it bithive-assets make bithive test-assets
+	docker rmi bithive-assets
 
 define compile_release
 	@rustup target add wasm32-unknown-unknown

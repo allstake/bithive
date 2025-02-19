@@ -18,18 +18,18 @@ export const config: Config = {
       "https://rpc.mainnet.near.org",
   },
   accountIds: {
-    signer: "btchive0.mainnet",
-    owner: "btchive0.mainnet",
-    // bip322Verifier: "bip322.mainnet",
-    bithive: "stg1.btchive0.near",
+    signer: "bithive-staging.near",
+    owner: "bithive-staging.near",
+    // bip322Verifier: "bip322.near",
+    bithive: "bithive-staging.near",
     chainSignatures: "v1.signer",
     btcLightClient: "btc-client.bridge.near",
   },
   params: {
-    nConfirmation: 2,
-    withdrawalWaitingTimeMs: 5 * 60 * 1000, // 5 minutes
+    nConfirmation: 6,
+    withdrawalWaitingTimeMs: 2 * 24 * 3600 * 1000, // 2 days
     minDepositSatoshi: 0,
-    earliestDepositBlockHeight: 0,
-    soloWithdrawSeqHeights: [2],
+    earliestDepositBlockHeight: 884168,
+    soloWithdrawSeqHeights: [64000],
   },
 };
