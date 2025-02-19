@@ -21,12 +21,12 @@ export const config: Config = {
       "https://rpc.testnet.near.org",
   },
   accountIds: {
-    signer: "allbtc.testnet",
-    owner: "allbtc.testnet",
+    signer: "bithive.testnet",
+    owner: "bithive.testnet",
     bip322Verifier: "bip322.testnet",
-    bithive: "testnet3.allbtc.testnet",
-    chainSignatures: "v1.signer-dev.testnet",
-    btcLightClient: "btc-client.testnet",
+    bithive: "testnet3.bithive.testnet",
+    chainSignatures: "v1.signer-prod.testnet",
+    btcLightClient: "btc-client-v4.testnet",
   },
   params: {
     nConfirmation: 2,
