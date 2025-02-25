@@ -278,6 +278,13 @@ impl Contract {
 
         assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
 
+        if let Some(relayer_account_id) = self.relayer_account_id.clone() {
+            assert!(
+                env::predecessor_account_id() == relayer_account_id,
+                "Not relayer"
+            );
+        }
+
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
 
