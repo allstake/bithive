@@ -1,4 +1,8 @@
 # BitHive Contracts
+BitHive is a native staking protocol for Bitcoin. It has a modular architecture to provide shared security for all types of PoS blockchains and AVSs.
+
+> Doc: https://docs.bithive.fi/     
+> Audits: https://docs.bithive.fi/security
 
 ## Build
 **NOTE**: If you are building on an ARM mac, run `brew install llvm` first, and put the following in your `.zshrc` or `.bashrc`:
