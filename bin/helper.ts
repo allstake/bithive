@@ -2,7 +2,7 @@ import { tGas } from "near-workspaces";
 import readline from "readline";
 
 export const envBuilder = {
-  choices: ["stg", "prod", "testnet3", "testnet4", "signet"],
+  choices: ["stg", "prod", "testnet3", "testnet4", "signet", "pubtest"],
   describe: "Environment name",
   demandOption: true,
 };

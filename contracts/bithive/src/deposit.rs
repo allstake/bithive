@@ -52,6 +52,13 @@ impl Contract {
         self.assert_running();
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_DEPOSIT_VERIFY_CB); // 100 Tgas
 
+        if let Some(relayer_account_id) = self.relayer_account_id.clone() {
+            assert!(
+                env::predecessor_account_id() == relayer_account_id,
+                "Not relayer"
+            );
+        }
+
         // assert storage fee.
         // it's the caller's responsibility to ensure there is an output to cover his NEAR cost
         require!(

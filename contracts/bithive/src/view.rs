@@ -23,6 +23,7 @@ pub struct ContractSummary {
     earliest_deposit_block_height: u32,
     solo_withdrawal_sequence_heights: Vec<u16>,
     paused: bool,
+    relayer_account_id: Option<AccountId>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,6 +101,7 @@ impl Contract {
             earliest_deposit_block_height: self.earliest_deposit_block_height,
             solo_withdrawal_sequence_heights: self.solo_withdrawal_seq_heights.clone(),
             paused: self.paused,
+            relayer_account_id: self.relayer_account_id.clone(),
         }
     }
 
