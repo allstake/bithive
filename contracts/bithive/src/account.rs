@@ -42,6 +42,8 @@ pub struct AccountV1 {
     pub pending_sign_deposit: Balance,
 }
 
+/// second version of the account, which allows multiple pending sign PSBTs
+/// this is the current version of account
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Account {
     pub pubkey: PubKey,
@@ -245,6 +247,7 @@ impl From<AccountV1> for Account {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum VersionedAccount {
     V1(AccountV1),
