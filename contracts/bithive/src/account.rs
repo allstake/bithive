@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    collections::UnorderedMap,
+    collections::{UnorderedMap, Vector},
     require, Balance, Timestamp,
 };
 use serde::Serialize;
@@ -19,8 +19,9 @@ const ERR_DEPOSIT_ALREADY_WITHDRAWN: &str = "Deposit already withdrawn";
 
 const ERR_INVALID_QUEUE_WITHDRAWAL: &str = "Invalid queue withdrawal amount";
 
+/// first version of the account, which allows only one pending sign PSBT
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct Account {
+pub struct AccountV1 {
     pub pubkey: PubKey,
     /// total deposit amount in full BTC decimals
     pub total_deposit: u64,
@@ -41,17 +42,39 @@ pub struct Account {
     pub pending_sign_deposit: Balance,
 }
 
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct Account {
+    pub pubkey: PubKey,
+    /// total deposit amount in full BTC decimals
+    pub total_deposit: u64,
+    /// set of deposits that are not known to be withdrawn
+    active_deposits: UnorderedMap<OutputId, VersionedDeposit>,
+    /// set of deposits that are confirmed to have been withdrawn
+    withdrawn_deposits: UnorderedMap<OutputId, VersionedDeposit>,
+    /// amount of deposits queued for withdrawal in full BTC decimals
+    pub queue_withdrawal_amount: u64,
+    /// timestamp when the queue withdrawal started in ms
+    pub queue_withdrawal_start_ts: Timestamp,
+    /// nonce is used in signing messages to prevent replay attacks
+    pub nonce: u64,
+    /// list of withdrawal PSBTs that need to be signed via chain signatures
+    pub pending_sign_psbts: Vector<PendingSignPsbt>,
+    /// deposit user paid to cover the storage of pending sign PSBT
+    /// this should only be increased when needed
+    pub pending_sign_deposit: Balance,
+}
+
 impl Account {
     pub fn new(pubkey: PubKey) -> Account {
         Account {
             pubkey: pubkey.clone(),
             total_deposit: 0,
             active_deposits: UnorderedMap::new(StorageKey::ActiveDeposits(pubkey.clone())),
-            withdrawn_deposits: UnorderedMap::new(StorageKey::WithdrawnDeposits(pubkey)),
+            withdrawn_deposits: UnorderedMap::new(StorageKey::WithdrawnDeposits(pubkey.clone())),
             queue_withdrawal_amount: 0,
             queue_withdrawal_start_ts: 0,
             nonce: 0,
-            pending_sign_psbt: None,
+            pending_sign_psbts: Vector::new(StorageKey::PendingSignPsbts(pubkey)),
             pending_sign_deposit: 0,
         }
     }
@@ -159,7 +182,7 @@ impl Account {
         self.queue_withdrawal_amount += amount;
         self.queue_withdrawal_start_ts = current_timestamp_ms();
         self.nonce += 1;
-        self.pending_sign_psbt = None;
+        self.pending_sign_psbts.clear();
 
         Event::QueueWithdrawal {
             user_pubkey: &self.pubkey.clone().into(),
@@ -200,8 +223,31 @@ impl Account {
     }
 }
 
+impl From<AccountV1> for Account {
+    fn from(value: AccountV1) -> Self {
+        let mut account = Self {
+            pubkey: value.pubkey.clone(),
+            total_deposit: value.total_deposit,
+            active_deposits: value.active_deposits,
+            withdrawn_deposits: value.withdrawn_deposits,
+            queue_withdrawal_amount: value.queue_withdrawal_amount,
+            queue_withdrawal_start_ts: value.queue_withdrawal_start_ts,
+            nonce: value.nonce,
+            pending_sign_psbts: Vector::new(StorageKey::PendingSignPsbts(value.pubkey)),
+            pending_sign_deposit: value.pending_sign_deposit,
+        };
+
+        if let Some(psbt) = value.pending_sign_psbt {
+            account.pending_sign_psbts.push(&psbt);
+        }
+
+        account
+    }
+}
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum VersionedAccount {
+    V1(AccountV1),
     Current(Account),
 }
 
@@ -209,6 +255,7 @@ impl From<VersionedAccount> for Account {
     fn from(value: VersionedAccount) -> Self {
         match value {
             VersionedAccount::Current(a) => a,
+            VersionedAccount::V1(a) => a.into(),
         }
     }
 }

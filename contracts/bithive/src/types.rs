@@ -11,6 +11,7 @@ pub enum StorageKey {
     Accounts,
     ActiveDeposits(PubKey),
     WithdrawnDeposits(PubKey),
+    PendingSignPsbts(PubKey),
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
