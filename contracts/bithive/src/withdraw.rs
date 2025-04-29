@@ -166,13 +166,14 @@ impl Contract {
 
         assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 300 Tgas
 
-        let mut attached_near_for_storage = 0u128;
-
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
+        // verify the PSBT is partially signed by the user
+        verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
 
         let mut account = self.get_account(&user_pubkey.clone().into());
 
+        let mut attached_near_for_storage = 0u128;
         let input_to_sign = psbt.unsigned_tx.input.get(vin_to_sign as usize).unwrap();
         let deposit = account.get_active_deposit(
             &input_to_sign.previous_output.txid.to_string().into(),
@@ -186,14 +187,22 @@ impl Contract {
                 .get(pending_sign_psbt_idx)
                 .expect(ERR_INVALID_PENDING_SIGN_PSBT_IDX);
             verify_sign_withdrawal_psbt(&saved_psbt, &psbt);
+
+            account.pending_sign_psbts.replace(
+                pending_sign_psbt_idx,
+                &PendingSignPsbt {
+                    psbt: psbt.clone().into(),
+                    reinvest_deposit_vout: saved_psbt.reinvest_deposit_vout,
+                    reinvest_embed_vout: saved_psbt.reinvest_embed_vout,
+                },
+            );
         } else {
             // if no pending sign PSBT index is provided, treat the PSBT as a new request, which should decrease the queue withdrawal amount
             require!(
-                account.pending_sign_psbts.len() <= MAX_PENDING_SIGN_PSBT_LEN,
+                account.pending_sign_psbts.len() < MAX_PENDING_SIGN_PSBT_LEN,
                 ERR_TOO_MANY_PENDING_SIGN_PSBT
             );
 
-            verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             let (actual_withdraw_amount, reinvest_deposit_vout) =
                 self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
 
@@ -212,6 +221,7 @@ impl Contract {
                 );
             }
 
+            account.pending_sign_deposit += attached_near_for_storage;
             account.pending_sign_psbts.push(&PendingSignPsbt {
                 psbt: psbt.clone().into(),
                 reinvest_deposit_vout,
