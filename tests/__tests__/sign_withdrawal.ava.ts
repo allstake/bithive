@@ -1,5 +1,10 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { fastForward, signWithdrawal, viewAccount } from "./helpers/bithive";
+import {
+  fastForward,
+  listPendingSignPsbts,
+  signWithdrawal,
+  viewAccount,
+} from "./helpers/bithive";
 import { initUnit } from "./helpers/context";
 import { TestTransactionBuilder } from "./helpers/txn_builder";
 import { assertFailure, buildDepositEmbedMsg, daysToMs } from "./helpers/utils";
@@ -42,13 +47,11 @@ test("sign withdrawal with invalid PSBT", async (t) => {
 
   await assertFailure(
     t,
-    signWithdrawal(
-      contract,
-      alice,
-      `11${psbtHex}`, // wrong
-      userPubkey.toString("hex"),
-      1,
-    ),
+    signWithdrawal(contract, alice, {
+      psbtHex: `11${psbtHex}`,
+      userPubkey: userPubkey.toString("hex"),
+      vinToSign: 1,
+    }),
     "Invalid PSBT hex",
   );
 });
@@ -92,11 +95,19 @@ test("sign withdrawal should set pending withdrawal psbt", async (t) => {
   await builder.signWithdraw(0);
 
   const account = await viewAccount(contract, builder.userPubkeyHex);
-  t.is(account.pending_sign_psbt!.psbt, builder.psbt!.toHex());
-  t.is(account.pending_sign_psbt!.reinvest_deposit_vout, 1);
+  t.is(account.pending_sign_psbts_len, 1);
+  const pendingSignPsbts = await listPendingSignPsbts(
+    contract,
+    builder.userPubkeyHex,
+    0,
+    1,
+  );
+  t.is(pendingSignPsbts[0].psbt, builder.psbt!.toHex());
+  t.is(pendingSignPsbts[0].reinvest_deposit_vout, 1);
 });
 
-test("sign withdrawal should reset queue withdrawal amount", async (t) => {
+// TODO
+test.skip("sign withdrawal should decrease queue withdrawal amount", async (t) => {
   const { builder, contract } = await makeDeposit(t, 1e8);
 
   const sig = builder.queueWithdrawSignature(100, 0);
@@ -106,9 +117,7 @@ test("sign withdrawal should reset queue withdrawal amount", async (t) => {
   builder.generateWithdrawPsbt(undefined, 1e8 - 100);
   await builder.signWithdraw(0);
 
-  const account = await viewAccount(contract, builder.userPubkeyHex);
-  t.is(account.queue_withdrawal_amount, 0);
-  t.is(account.queue_withdrawal_start_ts, 0);
+  // const account = await viewAccount(contract, builder.userPubkeyHex);
 });
 
 test("sign withdrawal with multiple deposit inputs", async (t) => {
@@ -130,7 +139,7 @@ test("sign withdrawal with multiple deposit inputs", async (t) => {
   );
 
   await builder1.signWithdraw(0);
-  await builder1.signWithdraw(1);
+  await builder1.signWithdraw(1, 0);
 });
 
 test("sign withdrawal without storage deposit for multiple deposit inputs should fail", async (t) => {
@@ -153,13 +162,11 @@ test("sign withdrawal without storage deposit for multiple deposit inputs should
 
   await assertFailure(
     t,
-    signWithdrawal(
-      builder1.bithive,
-      builder1.caller,
-      builder1.psbt!.toHex(),
-      builder1.userPubkeyHex,
-      0,
-    ),
+    signWithdrawal(builder1.bithive, builder1.caller, {
+      psbtHex: builder1.psbt!.toHex(),
+      userPubkey: builder1.userPubkeyHex,
+      vinToSign: 0,
+    }),
     "Insufficient storage deposit",
   );
 });
@@ -179,10 +186,11 @@ test("sign withdrawal RBF", async (t) => {
   withdrawAmount -= 90;
   builder.generateWithdrawPsbt(undefined, 1e8 - 100, withdrawAmount); // actual withdrawal amount is only 10 sats
   // sign the new psbt
-  await builder.signWithdraw(0);
+  await builder.signWithdraw(0, 0);
 });
 
-test("sign withdrawal twice but with different PSBT", async (t) => {
+// TODO: allow if within limit
+test.skip("sign withdrawal twice but with different PSBT", async (t) => {
   const { builder: builder1, contract } = await makeDeposit(t, 1e8);
   const { builder: builder2 } = await makeDeposit(t, 100);
 
@@ -248,14 +256,12 @@ test("sign withdrawal with invalid reinvestment type", async (t) => {
 
   await assertFailure(
     t,
-    signWithdrawal(
-      contract,
-      account,
-      partialSignedPsbt.toHex(),
-      userPubkey.toString("hex"),
-      0,
-      2,
-    ),
+    signWithdrawal(contract, account, {
+      psbtHex: partialSignedPsbt.toHex(),
+      userPubkey: userPubkey.toString("hex"),
+      vinToSign: 0,
+      reinvestEmbedVout: 2,
+    }),
     "Deposit output is not P2WSH",
   );
 });

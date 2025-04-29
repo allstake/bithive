@@ -148,21 +148,26 @@ test("Deposit and withdraw workflow e2e", async (t) => {
     contract,
     alice,
     mockChainSignature,
-    partialSignedPsbt1,
-    0,
-    1,
-    aliceKp.publicKey.toString("hex"),
-    hashToSign1,
+    {
+      psbt: partialSignedPsbt1,
+      depositVin: 0,
+      reinvestVout: 1,
+      userPubkey: aliceKp.publicKey.toString("hex"),
+      hashToSign: hashToSign1,
+    },
   );
   const bithiveSig2 = await makeSignWithdrawal(
     contract,
     alice,
     mockChainSignature,
-    partialSignedPsbt2,
-    1,
-    1,
-    aliceKp.publicKey.toString("hex"),
-    hashToSign2,
+    {
+      psbt: partialSignedPsbt2,
+      pendingSignPsbtIdx: 0,
+      depositVin: 1,
+      reinvestVout: 1,
+      userPubkey: aliceKp.publicKey.toString("hex"),
+      hashToSign: hashToSign2,
+    },
   );
 
   // construct txn to broadcast
@@ -423,32 +428,34 @@ async function makeSignWithdrawal(
   contract: NearAccount,
   caller: NearAccount,
   mockChainSignature: NearAccount,
-  psbt: bitcoin.Psbt,
-  depositVin: number,
-  reinvestVout: number,
-  userPubkey: string,
-  hashToSign: Buffer,
+  args: {
+    psbt: bitcoin.Psbt;
+    depositVin: number;
+    reinvestVout: number;
+    userPubkey: string;
+    hashToSign: Buffer;
+    pendingSignPsbtIdx?: number;
+  },
 ) {
   // fetch real signature from testnet and upload to mock chain sig contract
-  await prepareBitHiveSignature(mockChainSignature, hashToSign);
+  await prepareBitHiveSignature(mockChainSignature, args.hashToSign);
 
   // attach storage deposit for multiple inputs
   let storageDeposit: NEAR | undefined = undefined;
-  if (psbt.inputCount > 1) {
-    const psbtSize = psbt.toHex().length / 2;
+  if (args.psbt.inputCount > 1) {
+    const psbtSize = args.psbt.toHex().length / 2;
     storageDeposit = getStorageDeposit(psbtSize);
   }
 
   // call BitHive contract to sign withdrawal PSBT
-  const sig = await signWithdrawal(
-    contract,
-    caller,
-    psbt.toHex(),
-    userPubkey,
-    depositVin,
-    reinvestVout,
+  const sig = await signWithdrawal(contract, caller, {
+    psbtHex: args.psbt.toHex(),
+    userPubkey: args.userPubkey,
+    vinToSign: args.depositVin,
+    pendingSignPsbtIdx: args.pendingSignPsbtIdx,
+    reinvestEmbedVout: args.reinvestVout,
     storageDeposit,
-  );
+  });
 
   return bitcoin.script.signature.encode(
     reconstructSignature(sig!.big_r.affine_point, sig!.s.scalar),

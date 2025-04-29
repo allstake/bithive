@@ -48,7 +48,7 @@ test("submit valid deposit txn", async (t) => {
   t.is(account.queue_withdrawal_amount, 0);
   t.is(account.queue_withdrawal_start_ts, 0);
   t.is(account.nonce, 0);
-  t.is(account.pending_sign_psbt, null);
+  t.is(account.pending_sign_psbts_len, 0);
 });
 
 test("submit invalid embed msg", async (t) => {

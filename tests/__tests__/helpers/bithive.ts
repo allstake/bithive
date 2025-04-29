@@ -58,28 +58,36 @@ export async function queueWithdrawal(
   );
 }
 
+interface SignWithdrawalArgs {
+  psbtHex: string;
+  userPubkey: string;
+  vinToSign: number;
+  pendingSignPsbtIdx?: number;
+  reinvestEmbedVout?: number;
+  storageDeposit?: NEAR;
+}
+
 export async function signWithdrawal(
   bithive: NearAccount,
   caller: NearAccount,
-  psbtHex: string,
-  userPubkey: string,
-  vinToSign: number,
-  reinvestEmbedVout?: number,
-  storageDeposit?: NEAR,
+  args: SignWithdrawalArgs,
 ): Promise<ChainSignatureResponse | null> {
   const attachedDeposit = NEAR.parse("0.5").add(
-    storageDeposit ?? NEAR.parse("0"),
+    args.storageDeposit ?? NEAR.parse("0"),
   );
 
   return caller.call(
     bithive.accountId,
     "sign_withdrawal",
     {
-      psbt_hex: psbtHex,
-      user_pubkey: userPubkey,
-      vin_to_sign: vinToSign,
-      reinvest_embed_vout: reinvestEmbedVout,
-      storage_deposit: storageDeposit ? storageDeposit.toString() : null,
+      psbt_hex: args.psbtHex,
+      user_pubkey: args.userPubkey,
+      vin_to_sign: args.vinToSign,
+      pending_sign_psbt_idx: args.pendingSignPsbtIdx,
+      reinvest_embed_vout: args.reinvestEmbedVout,
+      storage_deposit: args.storageDeposit
+        ? args.storageDeposit.toString()
+        : null,
     },
     {
       attachedDeposit,
@@ -309,10 +317,7 @@ interface Account {
   queue_withdrawal_amount: number;
   queue_withdrawal_start_ts: number;
   nonce: number;
-  pending_sign_psbt: {
-    psbt: string;
-    reinvest_deposit_vout: number | null;
-  } | null;
+  pending_sign_psbts_len: number;
 }
 
 export async function viewAccount(
@@ -332,4 +337,22 @@ export async function listAccounts(
   limit: number,
 ): Promise<Account[]> {
   return bithive.view("list_accounts", { offset, limit });
+}
+
+interface PendingSignPsbt {
+  psbt: string;
+  reinvest_deposit_vout: number | null;
+}
+
+export async function listPendingSignPsbts(
+  bithive: NearAccount,
+  userPubkey: string,
+  offset: number,
+  limit: number,
+): Promise<PendingSignPsbt[]> {
+  return bithive.view("list_pending_sign_psbts", {
+    user_pubkey: userPubkey,
+    offset,
+    limit,
+  });
 }

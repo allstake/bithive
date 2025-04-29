@@ -208,7 +208,7 @@ export class TestTransactionBuilder {
     return (this.psbt as any).__CACHE.__TX;
   }
 
-  signWithdraw(vinToSign: number) {
+  signWithdraw(vinToSign: number, pendingSignPsbtIdx?: number) {
     if (!this.psbt) {
       throw new Error("Generate PSBT first");
     }
@@ -220,15 +220,14 @@ export class TestTransactionBuilder {
       storageDeposit = getStorageDeposit(psbtSize);
     }
 
-    return signWithdrawal(
-      this.bithive,
-      this.caller,
-      this.psbt.toHex(),
-      this.userPubkey.toString("hex"),
+    return signWithdrawal(this.bithive, this.caller, {
+      psbtHex: this.psbt.toHex(),
+      userPubkey: this.userPubkey.toString("hex"),
       vinToSign,
-      this.reinvest ? 2 : undefined, // if reinvest, the embed ouput will be index 2
+      pendingSignPsbtIdx,
+      reinvestEmbedVout: this.reinvest ? 2 : undefined,
       storageDeposit,
-    );
+    });
   }
 
   submitWithdraw() {
