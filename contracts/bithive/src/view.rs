@@ -268,7 +268,7 @@ impl Contract {
             let pending_sign_psbt = account
                 .pending_sign_psbts
                 .get(pending_sign_psbt_idx)
-                .unwrap();
+                .expect("pending sign PSBT not found");
             verify_sign_withdrawal_psbt(&pending_sign_psbt, &psbt);
         } else {
             verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
