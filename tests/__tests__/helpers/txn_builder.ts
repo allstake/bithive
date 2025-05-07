@@ -208,14 +208,18 @@ export class TestTransactionBuilder {
     return (this.psbt as any).__CACHE.__TX;
   }
 
-  signWithdraw(vinToSign: number, pendingSignPsbtIdx?: number) {
+  signWithdraw(
+    vinToSign: number,
+    pendingSignPsbtIdx?: number,
+    attachStorageDeposit = false,
+  ) {
     if (!this.psbt) {
       throw new Error("Generate PSBT first");
     }
 
     // attach deposit for multiple inputs
     let storageDeposit: NEAR | undefined = undefined;
-    if (this.psbt.inputCount > 1) {
+    if (attachStorageDeposit) {
       const psbtSize = this.psbt.toHex().length / 2;
       storageDeposit = getStorageDeposit(psbtSize);
     }

@@ -71,6 +71,7 @@ test("sign withdrawal with invalid deposit vin", async (t) => {
     hash: "0000000000000000000000000000000000000000000000000000000000000000",
     index: 1,
   });
+  builder.partialSignWithdrawPsbt(1);
 
   await assertFailure(t, builder.signWithdraw(1), "Deposit is not active");
 });
@@ -106,18 +107,20 @@ test("sign withdrawal should set pending withdrawal psbt", async (t) => {
   t.is(pendingSignPsbts[0].reinvest_deposit_vout, 1);
 });
 
-// TODO
-test.skip("sign withdrawal should decrease queue withdrawal amount", async (t) => {
-  const { builder, contract } = await makeDeposit(t, 1e8);
+test("sign withdrawal should decrease queue withdrawal amount", async (t) => {
+  const depositAmount = 1e8;
+  const withdrawAmount = 1e4;
+  const { builder, contract } = await makeDeposit(t, depositAmount);
 
-  const sig = builder.queueWithdrawSignature(100, 0);
-  await builder.queueWithdraw(100, sig);
+  const sig = builder.queueWithdrawSignature(depositAmount, 0);
+  await builder.queueWithdraw(depositAmount, sig);
   await fastForward(contract, daysToMs(2));
 
-  builder.generateWithdrawPsbt(undefined, 1e8 - 100);
+  builder.generateWithdrawPsbt(undefined, depositAmount - withdrawAmount);
   await builder.signWithdraw(0);
 
-  // const account = await viewAccount(contract, builder.userPubkeyHex);
+  const account = await viewAccount(contract, builder.userPubkeyHex);
+  t.is(account.queue_withdrawal_amount, depositAmount - withdrawAmount);
 });
 
 test("sign withdrawal with multiple deposit inputs", async (t) => {
@@ -138,7 +141,9 @@ test("sign withdrawal with multiple deposit inputs", async (t) => {
     3e8,
   );
 
-  await builder1.signWithdraw(0);
+  await builder1.signWithdraw(0, undefined, true);
+
+  builder1.partialSignWithdrawPsbt(1);
   await builder1.signWithdraw(1, 0);
 });
 
@@ -189,30 +194,37 @@ test("sign withdrawal RBF", async (t) => {
   await builder.signWithdraw(0, 0);
 });
 
-// TODO: allow if within limit
-test.skip("sign withdrawal twice but with different PSBT", async (t) => {
-  const { builder: builder1, contract } = await makeDeposit(t, 1e8);
-  const { builder: builder2 } = await makeDeposit(t, 100);
+test("sign withdrawal twice but with different PSBT", async (t) => {
+  const depositAmount1 = 1e8;
+  const depositAmount2 = 1e3;
+  const { builder: builder1, contract } = await makeDeposit(t, depositAmount1);
+  const { builder: builder2 } = await makeDeposit(t, depositAmount2);
 
-  const sig = builder1.queueWithdrawSignature(100, 0);
-  await builder1.queueWithdraw(100, sig);
+  const queueWithdrawAmount = depositAmount1 + depositAmount2;
+  const sig = builder1.queueWithdrawSignature(queueWithdrawAmount, 0);
+  await builder1.queueWithdraw(queueWithdrawAmount, sig);
   await fastForward(contract, daysToMs(2));
 
+  const actualWithdrawAmount1 = 1e5;
   builder1.generateWithdrawPsbt(
-    {
-      hash: builder2.tx.getId(),
-      index: 0,
-    },
-    1e8,
+    undefined,
+    depositAmount1 - actualWithdrawAmount1,
   );
   await builder1.signWithdraw(0);
 
-  builder2.generateWithdrawPsbt();
-  await assertFailure(
-    t,
-    builder2.signWithdraw(0),
-    "PSBT input length mismatch",
+  const actualWithdrawAmount2 = 1e3;
+  builder2.generateWithdrawPsbt(
+    undefined,
+    depositAmount2 - actualWithdrawAmount2,
   );
+  await builder2.signWithdraw(0, undefined, true);
+
+  const account = await viewAccount(contract, builder1.userPubkeyHex);
+  t.is(
+    account.queue_withdrawal_amount,
+    queueWithdrawAmount - actualWithdrawAmount1 - actualWithdrawAmount2,
+  );
+  t.is(account.pending_sign_psbts_len, 2);
 });
 
 test("sign withdrawal without reinvestment", async (t) => {
