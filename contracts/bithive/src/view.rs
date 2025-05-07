@@ -255,9 +255,9 @@ impl Contract {
         self.assert_running();
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).unwrap();
+        verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
 
         let account = self.get_account(&user_pubkey.clone().into());
-
         let input_to_sign = psbt.unsigned_tx.input.get(vin_to_sign as usize).unwrap();
         account.get_active_deposit(
             &input_to_sign.previous_output.txid.to_string().into(),
@@ -271,7 +271,6 @@ impl Contract {
                 .expect("pending sign PSBT not found");
             verify_sign_withdrawal_psbt(&pending_sign_psbt, &psbt);
         } else {
-            verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
         }
     }
