@@ -87,6 +87,10 @@ pub struct DepositInfo {
 
 #[near_bindgen]
 impl Contract {
+    pub fn version(&self) -> String {
+        env!("CARGO_PKG_VERSION").to_string()
+    }
+
     pub fn get_summary(&self) -> ContractSummary {
         ContractSummary {
             owner_id: self.owner_id.clone(),
