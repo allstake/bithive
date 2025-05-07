@@ -30,3 +30,13 @@ impl Contract {
             .into()
     }
 }
+
+#[near_bindgen]
+impl Contract {
+    /// This helps to migrate v1 accounts which has pending_sign_psbt to the latest version.
+    /// Needs to be called by a v1 account before doing view calls
+    pub fn migrate_account_v1(&mut self, user_pubkey: String) {
+        let account = self.get_account(&user_pubkey.into());
+        self.set_account(account.into());
+    }
+}
