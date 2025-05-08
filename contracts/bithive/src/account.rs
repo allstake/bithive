@@ -227,7 +227,12 @@ impl Account {
 
 impl From<AccountV1> for Account {
     fn from(value: AccountV1) -> Self {
-        let mut account = Self {
+        // TODO: ??
+        // if let Some(psbt) = value.pending_sign_psbt {
+        //     account.pending_sign_psbts.push(&psbt);
+        // }
+
+        Self {
             pubkey: value.pubkey.clone(),
             total_deposit: value.total_deposit,
             active_deposits: value.active_deposits,
@@ -237,13 +242,7 @@ impl From<AccountV1> for Account {
             nonce: value.nonce,
             pending_sign_psbts: Vector::new(StorageKey::PendingSignPsbts(value.pubkey)),
             pending_sign_deposit: value.pending_sign_deposit,
-        };
-
-        if let Some(psbt) = value.pending_sign_psbt {
-            account.pending_sign_psbts.push(&psbt);
         }
-
-        account
     }
 }
 
