@@ -1,12 +1,12 @@
 use std::cmp::min;
 
-use crate::{types::PendingSignPsbt, *};
+use crate::*;
 use account::{Deposit, DepositStatus};
 use bitcoin::{consensus::encode::deserialize_hex, Psbt, Transaction};
 use consts::CHAIN_SIGNATURES_PATH_V1;
 use near_sdk::{json_types::U128, Timestamp};
 use serde::{Deserialize, Serialize};
-use types::{output_id, DepositEmbedMsg};
+use types::{output_id, DepositEmbedMsg, PendingSignPsbt};
 use withdraw::{verify_pending_sign_partial_sig, verify_sign_withdrawal_psbt, withdrawal_message};
 
 #[derive(Serialize, Deserialize)]
