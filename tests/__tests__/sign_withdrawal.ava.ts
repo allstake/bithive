@@ -210,7 +210,8 @@ test("sign withdrawal twice but with different PSBT", async (t) => {
     undefined,
     depositAmount1 - actualWithdrawAmount1,
   );
-  await builder1.signWithdraw(0);
+  // attach storage deposit since we will sign with multiple inputs
+  await builder1.signWithdraw(0, undefined, true);
 
   const actualWithdrawAmount2 = 1e3;
   builder2.generateWithdrawPsbt(

@@ -171,9 +171,15 @@ impl Contract {
         // verify the PSBT is partially signed by the user
         verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
 
+        // verify enough storage deposit is attached
+        let attached_near_for_storage: Balance = storage_deposit.unwrap_or(U128::from(0)).into();
+        require!(
+            env::attached_deposit() >= attached_near_for_storage,
+            ERR_INVALID_STORAGE_DEPOSIT
+        );
+
         let mut account = self.get_account(&user_pubkey.clone().into());
 
-        let mut attached_near_for_storage = 0u128;
         let input_to_sign = psbt.unsigned_tx.input.get(vin_to_sign as usize).unwrap();
         let deposit = account.get_active_deposit(
             &input_to_sign.previous_output.txid.to_string().into(),
@@ -208,11 +214,6 @@ impl Contract {
 
             // if there are more than one pending sign PSBT or the PSBT has more than one input, we need to charge the user for PSBT storage deposit
             if !account.pending_sign_psbts.is_empty() || psbt.unsigned_tx.input.len() > 1 {
-                attached_near_for_storage = storage_deposit.unwrap_or(U128::from(0)).into();
-                require!(
-                    env::attached_deposit() >= attached_near_for_storage,
-                    ERR_INVALID_STORAGE_DEPOSIT
-                );
                 let total_storage_needed = (account.pending_sign_psbts_size + psbt_bytes.len())
                     as u128
                     * env::storage_byte_cost();
