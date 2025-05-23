@@ -61,6 +61,8 @@ pub struct Account {
     pub nonce: u64,
     /// list of withdrawal PSBTs that need to be signed via chain signatures
     pub pending_sign_psbts: Vector<PendingSignPsbt>,
+    /// size in bytes of the pending sign PSBTs
+    pub pending_sign_psbts_size: usize,
     /// deposit user paid to cover the storage of pending sign PSBT
     /// this should only be increased when needed
     pub pending_sign_deposit: Balance,
@@ -77,6 +79,7 @@ impl Account {
             queue_withdrawal_start_ts: 0,
             nonce: 0,
             pending_sign_psbts: Vector::new(StorageKey::PendingSignPsbts(pubkey)),
+            pending_sign_psbts_size: 0,
             pending_sign_deposit: 0,
         }
     }
@@ -185,6 +188,7 @@ impl Account {
         self.queue_withdrawal_start_ts = current_timestamp_ms();
         self.nonce += 1;
         self.pending_sign_psbts.clear();
+        self.pending_sign_psbts_size = 0;
 
         Event::QueueWithdrawal {
             user_pubkey: &self.pubkey.clone().into(),
@@ -227,11 +231,6 @@ impl Account {
 
 impl From<AccountV1> for Account {
     fn from(value: AccountV1) -> Self {
-        // TODO: ??
-        // if let Some(psbt) = value.pending_sign_psbt {
-        //     account.pending_sign_psbts.push(&psbt);
-        // }
-
         Self {
             pubkey: value.pubkey.clone(),
             total_deposit: value.total_deposit,
@@ -241,6 +240,7 @@ impl From<AccountV1> for Account {
             queue_withdrawal_start_ts: value.queue_withdrawal_start_ts,
             nonce: value.nonce,
             pending_sign_psbts: Vector::new(StorageKey::PendingSignPsbts(value.pubkey)),
+            pending_sign_psbts_size: 0,
             pending_sign_deposit: value.pending_sign_deposit,
         }
     }

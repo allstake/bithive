@@ -213,10 +213,12 @@ impl Contract {
                     env::attached_deposit() >= attached_near_for_storage,
                     ERR_INVALID_STORAGE_DEPOSIT
                 );
-                // charge at least for the PSBT itself, but the user can attach more for future use
-                let storage_needed = psbt_bytes.len() as u128 * env::storage_byte_cost();
+                let total_storage_needed = (account.pending_sign_psbts_size + psbt_bytes.len())
+                    as u128
+                    * env::storage_byte_cost();
                 require!(
-                    account.pending_sign_deposit + attached_near_for_storage >= storage_needed,
+                    account.pending_sign_deposit + attached_near_for_storage
+                        >= total_storage_needed,
                     ERR_INSUFFICIENT_STORAGE_DEPOSIT
                 );
             }
@@ -227,6 +229,7 @@ impl Contract {
                 reinvest_deposit_vout,
                 reinvest_embed_vout,
             });
+            account.pending_sign_psbts_size += psbt_bytes.len();
             account.queue_withdrawal_amount -= actual_withdraw_amount;
 
             self.set_account(account);
