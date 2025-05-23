@@ -21,7 +21,7 @@ use utils::{
     verify_signed_message_ecdsa,
 };
 
-const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
+const GAS_CHAIN_SIG_SIGN: Gas = Gas(50 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
 const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
@@ -164,7 +164,7 @@ impl Contract {
     ) -> Promise {
         self.assert_running();
 
-        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 300 Tgas
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 100 Tgas
 
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
