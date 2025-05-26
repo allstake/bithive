@@ -232,9 +232,9 @@ impl Contract {
             });
             account.pending_sign_psbts_size += psbt_bytes.len();
             account.queue_withdrawal_amount -= actual_withdraw_amount;
-
-            self.set_account(account);
         }
+
+        self.set_account(account);
 
         // request signature from chain signatures
         let payload = get_hash_to_sign(&psbt, vin_to_sign);
