@@ -92,7 +92,7 @@ impl Contract {
         );
         ext_chain_signatures::ext(self.chain_signatures_id.clone())
             .with_static_gas(GAS_GET_ROOT_PUBKEY)
-            .public_key()
+            .public_key(None)
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(GAS_GET_ROOT_PUBKEY_CB)
