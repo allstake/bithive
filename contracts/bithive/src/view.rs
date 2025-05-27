@@ -85,8 +85,32 @@ pub struct DepositInfo {
     status: DepositStatus,
 }
 
+/// NEP-330
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Standard {
+    pub standard: String,
+    pub version: String,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ContractSourceMetadata {
+    pub version: String,
+    pub link: String,
+    pub standards: Vec<Standard>,
+}
+
 #[near_bindgen]
 impl Contract {
+    pub fn contract_source_metadata(&self) -> ContractSourceMetadata {
+        ContractSourceMetadata {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            link: "https://github.com/allstake/bithive".to_string(),
+            standards: vec![],
+        }
+    }
+
     pub fn get_summary(&self) -> ContractSummary {
         ContractSummary {
             owner_id: self.owner_id.clone(),
