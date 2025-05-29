@@ -217,15 +217,6 @@ impl Account {
 
         self.remove_active_deposit(&deposit_tx_id, deposit_vout);
         self.insert_withdrawn_deposit(deposit);
-
-        Event::Withdrawn {
-            user_pubkey: &self.pubkey.clone().into(),
-            withdrawal_tx_id: &tx_id.to_owned().into(),
-            deposit_tx_id: &deposit_tx_id.into(),
-            deposit_vout: deposit_vout.into(),
-            is_multisig,
-        }
-        .emit();
     }
 }
 

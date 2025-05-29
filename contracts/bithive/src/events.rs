@@ -33,9 +33,6 @@ pub enum Event<'a> {
     Withdrawn {
         user_pubkey: &'a String,
         withdrawal_tx_id: &'a String,
-        deposit_tx_id: &'a String,
-        deposit_vout: U64,
-        is_multisig: bool,
     },
     OwnerChanged {
         old_owner: &'a String,

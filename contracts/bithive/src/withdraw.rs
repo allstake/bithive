@@ -351,6 +351,12 @@ impl Contract {
         }
         self.set_account(account);
 
+        Event::Withdrawn {
+            user_pubkey: &user_pubkey,
+            withdrawal_tx_id: &tx_id.to_string().into(),
+        }
+        .emit();
+
         true
     }
 }
