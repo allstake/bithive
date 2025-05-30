@@ -23,7 +23,7 @@ use utils::{
 
 const GAS_CHAIN_SIG_SIGN: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
-const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
+const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(275 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
@@ -300,7 +300,7 @@ impl Contract {
     pub fn submit_withdrawal_tx(&mut self, args: SubmitWithdrawTxArgs) -> Promise {
         self.assert_running();
 
-        assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
+        assert_gas(Gas(20 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 300 Tgas
 
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
@@ -353,7 +353,7 @@ impl Contract {
 
         Event::Withdrawn {
             user_pubkey: &user_pubkey,
-            withdrawal_tx_id: &tx_id.to_string().into(),
+            withdrawal_tx_id: &tx_id.to_string(),
         }
         .emit();
 
