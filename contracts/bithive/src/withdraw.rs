@@ -33,6 +33,7 @@ const ERR_INVALID_WITHDRAWAL_AMOUNT: &str = "Withdrawal amount must be greater t
 // sign withdrawal errors
 const ERR_INVALID_PENDING_SIGN_PSBT_IDX: &str = "Invalid pending sign PSBT index";
 const ERR_TOO_MANY_PENDING_SIGN_PSBT: &str = "Too many pending sign PSBTs";
+const ERR_TOO_MANY_PENDING_SIGN_PSBT_INPUTS: &str = "Too many pending sign PSBT inputs";
 const ERR_INVALID_STORAGE_DEPOSIT: &str = "Invalid storage deposit amount";
 const ERR_INSUFFICIENT_STORAGE_DEPOSIT: &str = "Insufficient storage deposit";
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
@@ -50,6 +51,7 @@ const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
 
 const MAX_PENDING_SIGN_PSBT_LEN: u64 = 100;
+const MAX_PENDING_SIGN_PSBT_INPUTS: usize = 100;
 const REFUND_THRESHOLD: Balance = ONE_NEAR / 100; // 0.01 NEAR
 
 /// in case different wallet signs message in different form,
@@ -207,6 +209,10 @@ impl Contract {
             require!(
                 account.pending_sign_psbts.len() < MAX_PENDING_SIGN_PSBT_LEN,
                 ERR_TOO_MANY_PENDING_SIGN_PSBT
+            );
+            require!(
+                psbt.unsigned_tx.input.len() <= MAX_PENDING_SIGN_PSBT_INPUTS,
+                ERR_TOO_MANY_PENDING_SIGN_PSBT_INPUTS
             );
 
             let (actual_withdraw_amount, reinvest_deposit_vout) =

@@ -67,6 +67,8 @@ pub struct AccountView {
     /// deposit user paid to cover the storage of pending sign PSBT
     /// this should only be increased when needed
     pub pending_sign_deposit: U128,
+    /// size in bytes of the pending sign PSBTs
+    pub pending_sign_psbts_size: usize,
 }
 
 /// Constants for withdrawing v1 deposits
@@ -315,6 +317,7 @@ impl Contract {
             nonce: account.nonce,
             pending_sign_psbts_len: account.pending_sign_psbts.len(),
             pending_sign_deposit: account.pending_sign_deposit.into(),
+            pending_sign_psbts_size: account.pending_sign_psbts_size,
         }
     }
 }
