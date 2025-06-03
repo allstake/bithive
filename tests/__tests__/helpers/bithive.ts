@@ -114,7 +114,7 @@ export async function submitWithdrawalTx(
       args,
     },
     {
-      gas: Gas.parse("200 Tgas"),
+      gas: Gas.parse("300 Tgas"),
     },
   );
 }
