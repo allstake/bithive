@@ -180,7 +180,7 @@ dependencies = [
 
 [[package]]
 name = "bithive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bitcoin",
  "getrandom 0.2.15",

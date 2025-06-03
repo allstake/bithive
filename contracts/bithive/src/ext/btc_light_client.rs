@@ -9,7 +9,7 @@ use serde::{
     Deserialize, Serialize,
 };
 
-pub const GAS_LIGHT_CLIENT_VERIFY: Gas = Gas(30 * Gas::ONE_TERA.0);
+pub const GAS_LIGHT_CLIENT_VERIFY: Gas = Gas(5 * Gas::ONE_TERA.0);
 
 #[ext_contract(ext_btc_light_client)]
 #[allow(dead_code)]

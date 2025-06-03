@@ -32,7 +32,7 @@ pub struct SignatureResponse {
     pub recovery_id: u8,
 }
 
-const GAS_FOR_SIGN_CALL: Gas = Gas(250 * Gas::ONE_TERA.0);
+const GAS_FOR_SIGN_CALL: Gas = Gas(10 * Gas::ONE_TERA.0);
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, Default)]

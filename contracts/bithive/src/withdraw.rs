@@ -21,9 +21,9 @@ use utils::{
     verify_signed_message_ecdsa,
 };
 
-const GAS_CHAIN_SIG_SIGN: Gas = Gas(250 * Gas::ONE_TERA.0);
+const GAS_CHAIN_SIG_SIGN: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_CHAIN_SIG_SIGN_CB: Gas = Gas(10 * Gas::ONE_TERA.0);
-const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(80 * Gas::ONE_TERA.0);
+const GAS_WITHDRAW_VERIFY_CB: Gas = Gas(275 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY: Gas = Gas(20 * Gas::ONE_TERA.0);
 const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 
@@ -31,6 +31,9 @@ const GAS_BIP322_VERIFY_CB: Gas = Gas(20 * Gas::ONE_TERA.0);
 const ERR_BIP322_NOT_ENABLED: &str = "BIP322 is not enabled";
 const ERR_INVALID_WITHDRAWAL_AMOUNT: &str = "Withdrawal amount must be greater than 0";
 // sign withdrawal errors
+const ERR_INVALID_PENDING_SIGN_PSBT_IDX: &str = "Invalid pending sign PSBT index";
+const ERR_TOO_MANY_PENDING_SIGN_PSBT: &str = "Too many pending sign PSBTs";
+const ERR_TOO_MANY_PENDING_SIGN_PSBT_INPUTS: &str = "Too many pending sign PSBT inputs";
 const ERR_INVALID_STORAGE_DEPOSIT: &str = "Invalid storage deposit amount";
 const ERR_INSUFFICIENT_STORAGE_DEPOSIT: &str = "Insufficient storage deposit";
 const ERR_INVALID_PSBT_HEX: &str = "Invalid PSBT hex";
@@ -47,6 +50,8 @@ const ERR_PSBT_REINVEST_OUTPUT_MISMATCH: &str = "PSBT reinvest output mismatch";
 const ERR_INVALID_TX_HEX: &str = "Invalid txn hex";
 const ERR_NOT_WITHDRAW_TXN: &str = "Not a withdrawal transaction";
 
+const MAX_PENDING_SIGN_PSBT_LEN: u64 = 100;
+const MAX_PENDING_SIGN_PSBT_INPUTS: usize = 100;
 const REFUND_THRESHOLD: Balance = ONE_NEAR / 100; // 0.01 NEAR
 
 /// in case different wallet signs message in different form,
@@ -146,6 +151,7 @@ impl Contract {
     /// * `psbt_hex` - hex encoded PSBT to sign, must be partially signed by the user first
     /// * `user_pubkey` - user public key
     /// * `vin_to_sign` - vin to sign, must be an active deposit UTXO
+    /// * `pending_sign_psbt_idx` - index of the pending sign PSBT saved previously
     /// * `reinvest_embed_vout` - vout of the reinvestment deposit embed UTXO
     /// * `storage_deposit` - attached NEAR amount as storage deposit for pending sign PSBT
     #[payable]
@@ -154,17 +160,25 @@ impl Contract {
         psbt_hex: String,
         user_pubkey: String,
         vin_to_sign: u64,
+        pending_sign_psbt_idx: Option<u64>,
         reinvest_embed_vout: Option<u64>,
         storage_deposit: Option<U128>,
     ) -> Promise {
         self.assert_running();
 
-        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 300 Tgas
-
-        let mut attached_near_for_storage = 0u128;
+        assert_gas(Gas(40 * Gas::ONE_TERA.0) + GAS_CHAIN_SIG_SIGN + GAS_CHAIN_SIG_SIGN_CB); // 70 Tgas
 
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).expect(ERR_INVALID_PSBT_HEX);
+        // verify the PSBT is partially signed by the user
+        verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
+
+        // verify enough storage deposit is attached
+        let attached_near_for_storage: Balance = storage_deposit.unwrap_or(U128::from(0)).into();
+        require!(
+            env::attached_deposit() >= attached_near_for_storage,
+            ERR_INVALID_STORAGE_DEPOSIT
+        );
 
         let mut account = self.get_account(&user_pubkey.clone().into());
 
@@ -174,43 +188,59 @@ impl Contract {
             input_to_sign.previous_output.vout.into(),
         );
 
-        if account.pending_sign_psbt.is_some() {
-            // if the user has previously requested to sign a withdrawal tx, he cannot request to
-            // sign another one until the previous one is completed or replaced by fee
-            verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
+        if let Some(pending_sign_psbt_idx) = pending_sign_psbt_idx {
+            // if a pending sign PSBT index is provided, the PSBT must be the same or RBF of the saved PSBT
+            let saved_psbt = account
+                .pending_sign_psbts
+                .get(pending_sign_psbt_idx)
+                .expect(ERR_INVALID_PENDING_SIGN_PSBT_IDX);
+            verify_sign_withdrawal_psbt(&saved_psbt, &psbt);
+
+            account.pending_sign_psbts.replace(
+                pending_sign_psbt_idx,
+                &PendingSignPsbt {
+                    psbt: psbt.clone().into(),
+                    reinvest_deposit_vout: saved_psbt.reinvest_deposit_vout,
+                    reinvest_embed_vout: saved_psbt.reinvest_embed_vout,
+                },
+            );
         } else {
-            // if not, verify the withdrawal PSBT and save it for signing
-            verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
-            let reinvest_deposit_vout =
+            // if no pending sign PSBT index is provided, treat the PSBT as a new request, which should decrease the queue withdrawal amount
+            require!(
+                account.pending_sign_psbts.len() < MAX_PENDING_SIGN_PSBT_LEN,
+                ERR_TOO_MANY_PENDING_SIGN_PSBT
+            );
+            require!(
+                psbt.unsigned_tx.input.len() <= MAX_PENDING_SIGN_PSBT_INPUTS,
+                ERR_TOO_MANY_PENDING_SIGN_PSBT_INPUTS
+            );
+
+            let (actual_withdraw_amount, reinvest_deposit_vout) =
                 self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
 
-            // if there is more than one input in PSBT, we charge the user for PSBT storage deposit
-            if psbt.unsigned_tx.input.len() > 1 {
-                attached_near_for_storage = storage_deposit.unwrap_or(U128::from(0)).into();
+            // if there are more than one pending sign PSBT or the PSBT has more than one input, we need to charge the user for PSBT storage deposit
+            if !account.pending_sign_psbts.is_empty() || psbt.unsigned_tx.input.len() > 1 {
+                let total_storage_needed = (account.pending_sign_psbts_size + psbt_bytes.len())
+                    as u128
+                    * env::storage_byte_cost();
                 require!(
-                    env::attached_deposit() >= attached_near_for_storage,
-                    ERR_INVALID_STORAGE_DEPOSIT
-                );
-                let storage_needed = psbt_bytes.len() as u128 * env::storage_byte_cost();
-                require!(
-                    account.pending_sign_deposit + attached_near_for_storage >= storage_needed,
+                    account.pending_sign_deposit + attached_near_for_storage
+                        >= total_storage_needed,
                     ERR_INSUFFICIENT_STORAGE_DEPOSIT
                 );
             }
 
-            // update account state
-            account.pending_sign_psbt = Some(PendingSignPsbt {
+            account.pending_sign_deposit += attached_near_for_storage;
+            account.pending_sign_psbts.push(&PendingSignPsbt {
                 psbt: psbt.clone().into(),
                 reinvest_deposit_vout,
                 reinvest_embed_vout,
             });
-            account.pending_sign_deposit += attached_near_for_storage;
-            // reset queue withdrawal amount
-            account.queue_withdrawal_amount = 0;
-            account.queue_withdrawal_start_ts = 0;
-
-            self.set_account(account);
+            account.pending_sign_psbts_size += psbt_bytes.len();
+            account.queue_withdrawal_amount -= actual_withdraw_amount;
         }
+
+        self.set_account(account);
 
         // request signature from chain signatures
         let payload = get_hash_to_sign(&psbt, vin_to_sign);
@@ -276,7 +306,7 @@ impl Contract {
     pub fn submit_withdrawal_tx(&mut self, args: SubmitWithdrawTxArgs) -> Promise {
         self.assert_running();
 
-        assert_gas(Gas(30 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 140 Tgas
+        assert_gas(Gas(20 * Gas::ONE_TERA.0) + GAS_LIGHT_CLIENT_VERIFY + GAS_WITHDRAW_VERIFY_CB); // 300 Tgas
 
         let tx = deserialize_hex::<Transaction>(&args.tx_hex).expect(ERR_INVALID_TX_HEX);
         let txid = tx.compute_txid();
@@ -327,19 +357,25 @@ impl Contract {
         }
         self.set_account(account);
 
+        Event::Withdrawn {
+            user_pubkey: &user_pubkey,
+            withdrawal_tx_id: &tx_id.to_string(),
+        }
+        .emit();
+
         true
     }
 }
 
 impl Contract {
     /// Verify if the withdrawal amount in the PSBT is valid
-    /// Returns the reinvest deposit vout if any
+    /// Returns the actual withdrawal amount and the reinvest deposit vout if any
     pub(crate) fn verify_pending_sign_request_amount(
         &self,
         account: &Account,
         psbt: &Psbt,
         reinvest_embed_vout: Option<u64>,
-    ) -> Option<u64> {
+    ) -> (u64, Option<u64>) {
         require!(
             account.queue_withdrawal_amount > 0 && account.queue_withdrawal_start_ts > 0,
             ERR_NO_WITHDRAW_REQUESTED
@@ -384,12 +420,14 @@ impl Contract {
         );
 
         // return the reinvest deposit vout if any
-        reinvest_embed_vout.map(|embed_vout| {
+        let reinvest_deposit_vout = reinvest_embed_vout.map(|embed_vout| {
             let embed_msg = self.verify_embed_output(&psbt.unsigned_tx, embed_vout);
             match embed_msg {
                 DepositEmbedMsg::V1 { deposit_vout, .. } => deposit_vout,
             }
-        })
+        });
+
+        (actual_withdraw_amount, reinvest_deposit_vout)
     }
 }
 

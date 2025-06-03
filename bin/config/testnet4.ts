@@ -21,7 +21,7 @@ export const config: Config = {
     signer: "bithive.testnet",
     owner: "bithive.testnet",
     bip322Verifier: "bip322.testnet",
-    bithive: "testnet4.bithive.testnet",
+    bithive: "testnet4-2.bithive.testnet",
     chainSignatures: "v1.signer-prod.testnet",
     btcLightClient: "btclc.testnet",
   },

@@ -35,5 +35,5 @@ pub trait ChainSignatures {
     fn sign(&mut self, request: SignRequest) -> Promise;
 
     /// returns the root public key
-    fn public_key(&self) -> near_sdk::PublicKey;
+    fn public_key(&self, domain_id: Option<u64>) -> near_sdk::PublicKey;
 }

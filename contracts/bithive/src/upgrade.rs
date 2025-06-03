@@ -1,4 +1,4 @@
-use crate::{view::ContractSummary, Contract, ContractExt};
+use crate::{account::VersionedAccount, view::ContractSummary, Contract, ContractExt};
 use near_sdk::{
     assert_one_yocto, env, near_bindgen, Gas, GasWeight, Promise, PromiseOrValue, ONE_YOCTO,
 };
@@ -28,5 +28,30 @@ impl Contract {
                 GasWeight(0),
             )
             .into()
+    }
+}
+
+#[near_bindgen]
+impl Contract {
+    /// Whether the account needs to be migrated before doing view calls.
+    /// To migrate, call `migrate_account` function.
+    pub fn need_migrate_account(&self, user_pubkey: String) -> bool {
+        if let Some(account) = self.accounts.get(&user_pubkey.into()) {
+            return match account {
+                VersionedAccount::V1(v1) => v1.pending_sign_psbt.is_some(),
+                VersionedAccount::Current(_) => false,
+            };
+        }
+
+        false
+    }
+
+    /// This helps to migrate old accounts to the latest version.
+    /// If the function returns false, it means there is no need to migrate.
+    pub fn migrate_account(&mut self, user_pubkey: String) {
+        if self.need_migrate_account(user_pubkey.clone()) {
+            let account = self.get_account(&user_pubkey.into());
+            self.set_account(account);
+        }
     }
 }

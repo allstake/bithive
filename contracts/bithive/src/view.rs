@@ -63,10 +63,12 @@ pub struct AccountView {
     /// nonce is used in signing messages to prevent replay attacks
     pub nonce: u64,
     /// PSBT of the withdrawal txn that needs to be signed via chain signatures
-    pub pending_sign_psbt: Option<PendingSignPsbt>,
+    pub pending_sign_psbts_len: u64,
     /// deposit user paid to cover the storage of pending sign PSBT
     /// this should only be increased when needed
     pub pending_sign_deposit: U128,
+    /// size in bytes of the pending sign PSBTs
+    pub pending_sign_psbts_size: usize,
 }
 
 /// Constants for withdrawing v1 deposits
@@ -231,6 +233,21 @@ impl Contract {
             .or_else(|| account.try_get_withdrawn_deposit(&tx_id.into(), vout))
     }
 
+    pub fn list_pending_sign_psbts(
+        &self,
+        user_pubkey: String,
+        offset: u64,
+        limit: u64,
+    ) -> Vec<PendingSignPsbt> {
+        let account = self.get_account(&user_pubkey.into());
+        account
+            .pending_sign_psbts
+            .iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .collect()
+    }
+
     /// Dry run deposit txn to verify if it can be accepted or not
     /// ### Arguments
     /// * `tx_hex` - hex encoded transaction
@@ -258,24 +275,28 @@ impl Contract {
         psbt_hex: String,
         user_pubkey: String,
         vin_to_sign: u64,
+        pending_sign_psbt_idx: Option<u64>,
         reinvest_embed_vout: Option<u64>,
     ) {
         self.assert_running();
         let psbt_bytes = hex::decode(psbt_hex).unwrap();
         let psbt = Psbt::deserialize(&psbt_bytes).unwrap();
+        verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
 
         let account = self.get_account(&user_pubkey.clone().into());
-
         let input_to_sign = psbt.unsigned_tx.input.get(vin_to_sign as usize).unwrap();
         account.get_active_deposit(
             &input_to_sign.previous_output.txid.to_string().into(),
             input_to_sign.previous_output.vout.into(),
         );
 
-        if account.pending_sign_psbt.is_some() {
-            verify_sign_withdrawal_psbt(account.pending_sign_psbt.as_ref().unwrap(), &psbt);
+        if let Some(pending_sign_psbt_idx) = pending_sign_psbt_idx {
+            let pending_sign_psbt = account
+                .pending_sign_psbts
+                .get(pending_sign_psbt_idx)
+                .expect("pending sign PSBT not found");
+            verify_sign_withdrawal_psbt(&pending_sign_psbt, &psbt);
         } else {
-            verify_pending_sign_partial_sig(&psbt, vin_to_sign, &user_pubkey);
             self.verify_pending_sign_request_amount(&account, &psbt, reinvest_embed_vout);
         }
     }
@@ -294,8 +315,9 @@ impl Contract {
                 account.queue_withdrawal_start_ts + self.withdrawal_waiting_time_ms
             },
             nonce: account.nonce,
-            pending_sign_psbt: account.pending_sign_psbt.clone(),
+            pending_sign_psbts_len: account.pending_sign_psbts.len(),
             pending_sign_deposit: account.pending_sign_deposit.into(),
+            pending_sign_psbts_size: account.pending_sign_psbts_size,
         }
     }
 }
