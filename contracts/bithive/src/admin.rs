@@ -90,6 +90,12 @@ impl Contract {
 
         Event::Paused { paused }.emit();
     }
+
+    #[payable]
+    pub fn set_relayer_account_id(&mut self, new_relayer_account_id: Option<AccountId>) {
+        self.assert_owner();
+        self.relayer_account_id = new_relayer_account_id;
+    }
 }
 
 impl Contract {

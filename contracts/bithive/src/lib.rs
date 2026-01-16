@@ -58,6 +58,8 @@ pub struct Contract {
     accounts: UnorderedMap<PubKey, VersionedAccount>,
     /// whether the contract is paused
     paused: bool,
+    /// relayer account id, used in public testnet ONLY
+    relayer_account_id: Option<AccountId>,
 }
 
 #[near_bindgen]
@@ -80,6 +82,7 @@ impl Contract {
             confirmed_deposit_txns: LookupSet::new(StorageKey::ConfirmedDeposits),
             accounts: UnorderedMap::new(StorageKey::Accounts),
             paused: false,
+            relayer_account_id: None,
         }
     }
 
